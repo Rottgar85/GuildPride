@@ -65,8 +65,11 @@ local function RankFlags(rankIndex)
     return C_GuildInfo.GuildControlGetRankFlags(rankIndex + 1)
 end
 
+-- Nur ein ausdrückliches "Nein" zählt. Achtung: Die Rangrechte ANDERER Ränge
+-- kann nur die Gildenleitung lesen – für normale Mitglieder kommt dort "aus"
+-- zurück. Darauf darf das Senden deshalb nie beruhen.
 function ns.CanSpeakGuild()
-    if C_GuildInfo and C_GuildInfo.CanSpeakInGuildChat then return C_GuildInfo.CanSpeakInGuildChat() and true or false end
+    if C_GuildInfo and C_GuildInfo.CanSpeakInGuildChat then return C_GuildInfo.CanSpeakInGuildChat() ~= false end
     return true
 end
 
@@ -77,40 +80,59 @@ function ns.CanListenGuild()
     return flags[1] and true or false
 end
 
--- Wer leitet weiter? Bekannte GuildPride-Nutzer mit Schreibrecht zuerst;
--- kennt man noch keinen, ein paar zufällige Mitglieder mit Schreibrecht
--- (Addon-Nachrichten sind für Spieler ohne GuildPride unsichtbar).
+-- Wer leitet weiter? Bekannte GuildPride-Nutzer zuerst (bis zu 2), sonst bis
+-- zu 3 zufällige Mitglieder online (Addon-Nachrichten sind für Spieler ohne
+-- GuildPride unsichtbar). Wer selbst nicht schreiben darf, leitet nicht weiter.
 local function Relays()
     local known, others = {}, {}
     local me = Me()
     for i = 1, GetNumGuildMembers() do
-        local name, _, rankIndex, _, _, _, _, _, online = GetGuildRosterInfo(i)
+        local name, _, _, _, _, _, _, _, online = GetGuildRosterInfo(i)
         if name and online then
             local full = ns.FullName and ns.FullName(name) or name
-            local flags = RankFlags(rankIndex)
-            local canSpeak = not flags or flags[2] ~= false
-            if full ~= me and canSpeak then
+            if full ~= me then
                 if ns.AddonUsers and ns.AddonUsers[full] then known[#known + 1] = full else others[#others + 1] = full end
             end
         end
     end
-    if #known > 0 then return { known[math.random(#known)] } end
-    local pick = {}
-    while #others > 0 and #pick < 3 do pick[#pick + 1] = table.remove(others, math.random(#others)) end
+    local list = #known > 0 and known or others
+    local pick, max = {}, #known > 0 and 2 or 3
+    while #list > 0 and #pick < max do pick[#pick + 1] = table.remove(list, math.random(#list)) end
     return pick
 end
 
+ns.SendStats = { direct = 0, relayed = 0, failed = 0, lastResult = nil }
+
+local function Failed(res)
+    if type(res) ~= "number" then return res == false end
+    local ok = RESULT and RESULT.Success or 0
+    return res ~= ok
+end
+
 local relayId = 0
-local function SendToGuild(msg)
-    if ns.CanSpeakGuild() then
-        return C_ChatInfo.SendAddonMessage(PREFIX, msg, "GUILD")
-    end
+local function Relay(msg)
     relayId = relayId % 9999 + 1
     local id = math.random(10, 99) .. relayId
     local res
     for _, r in ipairs(Relays()) do
         res = C_ChatInfo.SendAddonMessage(PREFIX, "RLY:" .. id .. SEP .. msg, "WHISPER", r)
     end
+    ns.SendStats.relayed = ns.SendStats.relayed + 1
+    return res
+end
+
+-- Immer zuerst direkt an die Gilde. Nur wenn das scheitert oder der eigene
+-- Rang ausdrücklich nicht schreiben darf, zusätzlich über andere weiterleiten.
+local function SendToGuild(msg)
+    local res = C_ChatInfo.SendAddonMessage(PREFIX, msg, "GUILD")
+    ns.SendStats.lastResult = res
+    if Throttled(res) then return res end
+    if Failed(res) or not ns.CanSpeakGuild() then
+        if Failed(res) then ns.SendStats.failed = ns.SendStats.failed + 1 end
+        Relay(msg)
+        return nil
+    end
+    ns.SendStats.direct = ns.SendStats.direct + 1
     return res
 end
 
@@ -159,6 +181,7 @@ local function Queue(kind, target, ...)
     end
 end
 ns.Queue = Queue
+function ns.QueueLength() return #queue end
 
 local function SendEvent(e, target)
     Queue("EVT", target, e.id, e.t, e.title, e.desc, e.creator, e.ver, e.note or "")
