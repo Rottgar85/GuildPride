@@ -1,9 +1,16 @@
-# Packager-Einstellungen (BigWigsMods/packager): baut die ZIP fuer CurseForge und GitHub
+# Packager-Einstellungen (BigWigsMods/packager): baut die ZIP fuer CurseForge, Wago und GitHub
 package-as: GuildPride
 
 ignore:
   - .github
   - .claude
   - CLAUDE.md
+  - VEROEFFENTLICHEN.md
   - README.md
+  - .luacheckrc
+  - docs
   - "*.zip"
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

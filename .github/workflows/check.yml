@@ -1,0 +1,17 @@
+# Prueft bei jedem Hochladen den Lua-Code (luacheck, Einstellungen in .luacheckrc).
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  luacheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: luacheck installieren
+        run: sudo apt-get update && sudo apt-get install -y lua-check
+      - name: Lua-Code pruefen
+        run: luacheck . --no-color
