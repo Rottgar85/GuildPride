@@ -1,5 +1,15 @@
 # GuildPride Changelog
 
+## 1.5.2
+
+**English**
+- The "Rules" tab is now "Guild Info": it shows the guild info text from Blizzard's guild window, so everyone sees the same text, even without GuildPride. Officers edit it with "Edit in Blizzard's window" (Blizzard does not let addons change it). When it changes, the tab is shown first the next time you open the window
+- English client: dates in the overview, milestones and event messages now use the English format (31 Oct instead of 31.10.)
+
+**Deutsch**
+- Der Reiter „Regeln“ heißt jetzt „Gildeninfo“: Er zeigt den Info-Text aus dem Blizzard-Gildenfenster, alle sehen also denselben Text, auch ohne GuildPride. Offiziere bearbeiten ihn über „Im Blizzard-Fenster bearbeiten“ (Blizzard lässt Addons ihn nicht ändern). Ändert er sich, wird der Reiter beim nächsten Öffnen zuerst gezeigt
+- Englischer Client: Datumsangaben in Übersicht, Meilensteinen und Event-Meldungen im englischen Format (31 Oct statt 31.10.)
+
 ## 1.5.1
 
 **English**

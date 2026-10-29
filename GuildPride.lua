@@ -391,20 +391,15 @@ f:SetScript("OnEvent", function(_, event, ...)
             if GuildPrideDB[k] == nil then GuildPrideDB[k] = v end
         end
         -- Einmalige Bereinigung vor der ersten Veröffentlichung:
-        -- entfernt alle Testdaten (Regeln, Events, Verlauf, Warteschlangen).
-        -- Die leeren Regeln bekommen einen aktuellen Zeitstempel, damit ältere
-        -- Test-Regeln von anderen Spielern nicht zurückkommen.
+        -- entfernt alle Testdaten (Events, Verlauf, Warteschlangen).
         if GuildPrideDB.cleanStart ~= 1 then
-            local hadRules = GuildPrideDB.rules and (GuildPrideDB.rules.ver or 0) > 0
-            -- Nur bei vorhandenen (Test-)Regeln einen neuen Zeitstempel setzen;
-            -- frische Installationen bleiben bei 0 und übernehmen echte Regeln.
-            GuildPrideDB.rules = { text = "", ver = hadRules and GetServerTime() or 0 }
-            GuildPrideDB.rulesSeen = GuildPrideDB.rules.ver
             GuildPrideDB.events = {}
             GuildPrideDB.log = {}
             GuildPrideDB.chat = nil
             GuildPrideDB.cleanStart = 1
         end
+        -- Eigene Regeln wurden durch die Blizzard-Gildeninfo ersetzt
+        GuildPrideDB.rules, GuildPrideDB.rulesSeen = nil, nil
         -- BattleTag-Funktion wurde entfernt: alte gespeicherte Daten löschen
         GuildPrideDB.btagQueue, GuildPrideDB.btagAuto = nil, nil
         GuildPrideDB.btagAsked, GuildPrideDB.btagSent, GuildPrideDB.btagDone = nil, nil, nil

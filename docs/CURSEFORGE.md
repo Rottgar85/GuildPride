@@ -1,6 +1,6 @@
 # GuildPride
 
-**Your guild, front and center.** GuildPride replaces the default guild window with a fully styled guild hub – with milestones, events, rules, a group finder and guild chat in one place. Works for any guild: the window automatically shows *your* guild name, tag and tabard.
+**Your guild, front and center.** GuildPride replaces the default guild window with a fully styled guild hub – with milestones, events, guild info, a group finder and guild chat in one place. Works for any guild: the window automatically shows *your* guild name, tag and tabard.
 
 *Deutsche Beschreibung weiter unten.*
 
@@ -15,7 +15,7 @@
 - **Join / leave alerts** – a clear on-screen notice when someone joins or leaves, so nobody gets overlooked. Greeting stays personal – you type "hello" yourself.
 - **Event planner** – officers create events with date, description and an officer note (e.g. meeting point). Members sign up as *Attending / Maybe / Declined* and pick their role (Tank / Healer / DPS). Reminder 15 minutes before the start.
 - **Group finder & quest help** – sign up with a note and the roles you still need. Everyone sees who is looking, their class, level, role, zone and how full the group is (e.g. *Group 3/5*). The group size updates automatically.
-- **Guild rules** – officers write the rules once, they are synced to everyone. Members are shown new rules the next time they open the window.
+- **Guild info** – shows the info text from Blizzard's guild window, the same for everyone, even without GuildPride. Officers edit it in Blizzard's window. Changes are shown first the next time you open the window.
 - **Guild chat & communities** – guild chat, officer chat and all your Blizzard communities inside the window, including the server-side history.
 - **Guild tabard in chat** – members who use GuildPride get your guild emblem in front of their name in chat.
 - **Members list** – your guild or any of your communities, online members or everyone incl. offline, with "last online" info.
@@ -31,7 +31,7 @@
 
 ### Good to know
 
-- Features like milestones, events, rules and the group finder sync between guild members who **all have GuildPride installed**.
+- Features like milestones, events and the group finder sync between guild members who **all have GuildPride installed**.
 - Data is shared through the guild's addon channel only.
 - This is an early release – feedback and bug reports are very welcome!
 
@@ -39,7 +39,7 @@
 
 ## 🇩🇪 Deutsch
 
-**Deine Gilde im Mittelpunkt.** GuildPride ersetzt das normale Gildenfenster durch einen komplett gestalteten Gilden-Treffpunkt – mit Meilensteinen, Events, Regeln, Gruppensuche und Gildenchat an einem Ort. Funktioniert für jede Gilde: Das Fenster zeigt automatisch *euren* Gildennamen, euer Kürzel und euren Wappenrock.
+**Deine Gilde im Mittelpunkt.** GuildPride ersetzt das normale Gildenfenster durch einen komplett gestalteten Gilden-Treffpunkt – mit Meilensteinen, Events, Gildeninfo, Gruppensuche und Gildenchat an einem Ort. Funktioniert für jede Gilde: Das Fenster zeigt automatisch *euren* Gildennamen, euer Kürzel und euren Wappenrock.
 
 ### Funktionen
 
@@ -48,7 +48,7 @@
 - **Hinweis bei Beitritt / Austritt** – eine deutliche Bildschirmmeldung, wenn jemand kommt oder geht, damit niemand untergeht. Begrüßt wird persönlich – „Hallo“ schreibt ihr selbst.
 - **Event-Planer** – Offiziere legen Events mit Datum, Beschreibung und Offiziers-Notiz (z. B. Treffpunkt) an. Mitglieder melden sich mit *Zusagen / Vielleicht / Absagen* an und wählen ihre Rolle (Tank / Heiler / DD). Erinnerung 15 Minuten vor Beginn.
 - **Gruppensuche & Quest-Hilfe** – mit Notiz und fehlenden Rollen eintragen. Alle sehen, wer sucht, mit Klasse, Level, Rolle, Zone und wie voll die Gruppe ist (z. B. *Gruppe 3/5*). Die Gruppengröße wird automatisch aktualisiert.
-- **Gildenregeln** – Offiziere schreiben die Regeln einmal, sie werden an alle verteilt. Neue Regeln werden beim nächsten Öffnen zuerst angezeigt.
+- **Gildeninfo** – zeigt den Info-Text aus dem Blizzard-Gildenfenster, für alle gleich, auch ohne GuildPride. Offiziere bearbeiten ihn im Blizzard-Fenster. Änderungen werden beim nächsten Öffnen zuerst angezeigt.
 - **Gildenchat & Communities** – Gildenchat, Offizierschat und alle Blizzard-Communities direkt im Fenster, inklusive Verlauf vom Server.
 - **Wappenrock im Chat** – wer GuildPride nutzt, bekommt euer Gildenemblem vor seinen Namen im Chat.
 - **Mitgliederliste** – eure Gilde oder jede deiner Communities, nur online oder alle inkl. offline, mit „zuletzt online“.
@@ -64,7 +64,7 @@
 
 ### Gut zu wissen
 
-- Meilensteine, Events, Regeln und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die **alle GuildPride installiert haben**.
+- Meilensteine, Events und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die **alle GuildPride installiert haben**.
 - Daten laufen nur über den Addon-Kanal der Gilde.
 - Dies ist eine frühe Version – Feedback und Fehlermeldungen sind sehr willkommen!
 
