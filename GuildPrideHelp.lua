@@ -242,12 +242,42 @@ for i = 1, ROWS do
     end
     r.count = r:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall"); r.count:SetPoint("TOPRIGHT", r, "TOPRIGHT", -112, -28)
     r.tell = CreateFrame("Button", nil, r, "UIPanelButtonTemplate")
-    r.tell:SetSize(96, 24); r.tell:SetPoint("RIGHT", -6, 0); r.tell:SetText(L["Anflüstern"])
+    r.tell:SetSize(96, 24); r.tell:SetPoint("RIGHT", -6, 0); r.tell:SetText(L["Beitreten"])
+    -- Rechtsklick: trotzdem anflüstern
+    r.tell:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    r.tell:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L["Linksklick: Beitritt anfragen bzw. einladen"], 1, 1, 1)
+        GameTooltip:AddLine(L["Rechtsklick: anflüstern"], 0.8, 0.8, 0.8)
+        GameTooltip:Show()
+    end)
+    r.tell:HookScript("OnLeave", function() GameTooltip:Hide() end)
     rows[i] = r
 end
 local empty = page:CreateFontString(nil, "OVERLAY", "GPFont_Muted")
 empty:SetPoint("TOP", 0, -160)
 empty:SetText(L["Gerade sucht niemand Hilfe."])
+
+-- Beitritt anfragen bzw. einladen; ohne passende Spielfunktion wird angeflüstert
+local function JoinOrInvite(target, mode)
+    local P = C_PartyInfo or {}
+    if mode == "invite" then
+        local invite = P.InviteUnit or InviteUnit
+        if invite then
+            invite(target)
+            ns.Print((L["Einladung an |cffffd100%s|r gesendet."]):format(target))
+            return
+        end
+    elseif P.RequestInviteFromUnit then
+        local r = { tank = false, healer = false, dps = false }
+        local key = MyRoleKey()
+        if key == "T" then r.tank = true elseif key == "H" then r.healer = true else r.dps = true end
+        P.RequestInviteFromUnit(target, r.tank, r.healer, r.dps)
+        ns.Print((L["Beitrittsanfrage an |cffffd100%s|r gesendet."]):format(target))
+        return
+    end
+    ChatFrame_SendTell(target)
+end
 
 local function Ago(now, t)
     local m = math.floor((now - t) / 60)
@@ -306,9 +336,22 @@ function page:Refresh()
             end
             r.count:SetText(e.size <= 1 and L["Allein"] or (L["Gruppe %d/%d"]):format(e.size, e.max))
 
-            -- Öffnet nur das Flüsterfenster – schreiben muss man selbst
+            -- Allein + "Sucht Gruppe" -> in die eigene Gruppe einladen,
+            -- sonst eine Beitrittsanfrage an seine Gruppe schicken
+            local target = Ambiguate(item.name, "none")
+            local inMyGroup = UnitInParty(target) or UnitInRaid(target)
+            local mode = (e.kind == "group" and e.size <= 1) and "invite" or "join"
             r.tell:SetShown(not e.self)
-            r.tell:SetScript("OnClick", function() ChatFrame_SendTell(Ambiguate(item.name, "none")) end)
+            if inMyGroup then
+                r.tell:SetText(L["In Gruppe"]); r.tell:Disable()
+            elseif mode == "join" and e.size >= e.max then
+                r.tell:SetText(L["Voll"]); r.tell:Disable()
+            else
+                r.tell:SetText(mode == "invite" and L["Einladen"] or L["Beitreten"]); r.tell:Enable()
+            end
+            r.tell:SetScript("OnClick", function(_, button)
+                if button == "RightButton" then ChatFrame_SendTell(target) else JoinOrInvite(target, mode) end
+            end)
         end
     end
 end

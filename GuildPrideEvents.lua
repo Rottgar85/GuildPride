@@ -190,12 +190,44 @@ local function SignUp(e, status)
 end
 
 -- "24.12. 20:00" oder "24.12.2026 20:00"
-local function ParseDate(str)
-    local d, m, y, H, M = str:match("^(%d+)%.(%d+)%.(%d*)%s+(%d+):(%d+)$")
-    if not d then return nil end
-    y = tonumber(y) or tonumber(date("%Y"))
-    if y < 100 then y = y + 2000 end
-    return time({ year = y, month = tonumber(m), day = tonumber(d), hour = tonumber(H), min = tonumber(M) })
+-- Datum: "24.12.", "24.12", "24.12.26", "24.12.2026" (auch mit / oder -)
+-- Rückgabe: Tag, Monat, Jahr (Jahr nil, wenn nicht angegeben)
+local function ParseDay(str)
+    local d, m, y = str:match("^(%d%d?)[%./%-](%d%d?)[%./%-]?(%d*)$")
+    d, m = tonumber(d), tonumber(m)
+    if not d or m < 1 or m > 12 or d < 1 or d > 31 then return nil end
+    y = tonumber(y)
+    if y and y < 100 then y = y + 2000 end
+    return d, m, y
+end
+
+-- Uhrzeit: "20", "20:00", "20.00", "2000", "8:30", "20 Uhr"
+local function ParseClock(str)
+    str = str:lower():gsub("%s*uhr$", "")
+    local H, M = str:match("^(%d%d?)[:%.](%d%d)$")
+    if not H then H, M = str:match("^(%d%d)(%d%d)$") end
+    if not H then H, M = str:match("^(%d%d?)$"), "0" end
+    H, M = tonumber(H), tonumber(M)
+    if not H or H > 23 or M > 59 then return nil end
+    return H, M
+end
+
+-- Datum + Uhrzeit -> Zeitstempel; ohne Jahr gilt der nächste passende Termin
+local function ParseDate(dayStr, clockStr)
+    local d, m, y = ParseDay(dayStr)
+    if not d then return nil, "date" end
+    local H, M = ParseClock(clockStr)
+    if not H then return nil, "time" end
+    local function Make(year)
+        local t = time({ year = year, month = m, day = d, hour = H, min = M })
+        local check = date("*t", t)
+        if check.day ~= d or check.month ~= m then return nil end   -- z. B. 31.02.
+        return t
+    end
+    local t = Make(y or tonumber(date("%Y")))
+    if not t then return nil, "date" end
+    if not y and t < time() then t = Make(tonumber(date("%Y")) + 1) or t end
+    return t
 end
 
 local function UpcomingEvents()
@@ -414,17 +446,25 @@ tinsert(UISpecialFrames, "GuildPrideCreateEvent")
 local dh = dlg:CreateFontString(nil, "OVERLAY", "GPFont_Large")
 dh:SetPoint("TOP", 0, -16); dh:SetText(L["Neues Gildenevent"])
 
-local function Field(label, y, width, maxLen)
+local function Field(label, y, width, maxLen, x)
+    x = x or 24
     local l = dlg:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
-    l:SetPoint("TOPLEFT", 24, y); l:SetText(label)
+    l:SetPoint("TOPLEFT", x, y); l:SetText(label)
     local eb = CreateFrame("EditBox", nil, dlg, "InputBoxTemplate")
-    eb:SetSize(width, 22); eb:SetPoint("TOPLEFT", 28, y - 14)
+    eb:SetSize(width, 22); eb:SetPoint("TOPLEFT", x + 4, y - 14)
     eb:SetAutoFocus(false); eb:SetMaxLetters(maxLen)
     return eb
 end
 local fTitle = Field(L["Titel"], -44, 300, 40)
-local fDate  = Field(L["Datum & Uhrzeit (z. B. 24.12. 20:00)"], -86, 160, 16)
+local fDate  = Field(L["Datum (TT.MM.JJJJ)"], -86, 130, 10)
+local fTime  = Field(L["Uhrzeit (HH:MM)"], -86, 80, 8, 190)
 local fDesc  = Field(L["Beschreibung (optional)"], -128, 300, 120)
+
+-- Tab springt ins nächste Feld
+local order = { fTitle, fDate, fTime, fDesc }
+for i, eb in ipairs(order) do
+    eb:SetScript("OnTabPressed", function() order[i % #order + 1]:SetFocus() end)
+end
 local fErr   = dlg:CreateFontString(nil, "OVERLAY", "GPFont_Red")
 fErr:SetPoint("BOTTOM", 0, 48)
 
@@ -436,17 +476,26 @@ cancel:SetScript("OnClick", function() dlg:Hide() end)
 
 ok:SetScript("OnClick", function()
     local title = strtrim(fTitle:GetText())
-    local t = ParseDate(strtrim(fDate:GetText()))
     if title == "" then fErr:SetText(L["Bitte einen Titel eingeben."]); return end
-    if not t then fErr:SetText(L["Datum bitte als TT.MM. HH:MM eingeben."]); return end
+    local t, bad = ParseDate(strtrim(fDate:GetText()), strtrim(fTime:GetText()))
+    if bad == "date" then fErr:SetText(L["Datum bitte als TT.MM.JJJJ eingeben (z. B. 24.12.2026)."]); return end
+    if bad == "time" then fErr:SetText(L["Uhrzeit bitte als HH:MM eingeben (z. B. 20:00)."]); return end
     if t < time() then fErr:SetText(L["Der Termin liegt in der Vergangenheit."]); return end
     CreateEvent(title, t, strtrim(fDesc:GetText()))
     dlg:Hide()
 end)
+for _, eb in ipairs(order) do
+    eb:SetScript("OnEnterPressed", function() ok:Click() end)
+    eb:SetScript("OnEscapePressed", function() dlg:Hide() end)
+end
 
 function ns.ShowCreateDialog()
     if not CanManage() then ns.Print(L["Nur Offiziere können Events erstellen."]); return end
-    fTitle:SetText(""); fDate:SetText(""); fDesc:SetText(""); fErr:SetText("")
+    -- Vorschlag: heute um 20:00 (nach 20 Uhr: morgen)
+    local start = time()
+    if tonumber(date("%H")) >= 20 then start = start + 86400 end
+    fTitle:SetText(""); fDate:SetText(date("%d.%m.%Y", start)); fTime:SetText("20:00")
+    fDesc:SetText(""); fErr:SetText("")
     dlg:Show(); fTitle:SetFocus()
 end
 
