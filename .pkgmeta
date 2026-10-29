@@ -1,0 +1,9 @@
+# Packager-Einstellungen (BigWigsMods/packager): baut die ZIP fuer CurseForge und GitHub
+package-as: GuildPride
+
+ignore:
+  - .github
+  - .claude
+  - CLAUDE.md
+  - README.md
+  - "*.zip"

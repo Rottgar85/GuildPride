@@ -1,0 +1,22 @@
+## Interface: 120105, 120107, 16001
+## Title: GuildPride
+## Notes: Guild window, milestones, events, rules and guild chat for your guild
+## Notes-deDE: Gildenfenster, Meilensteine, Events, Regeln und Gildenchat für deine Gilde
+## Author: Rage Quitters Anonymous
+## Version: 1.3.0
+## SavedVariables: GuildPrideDB
+## IconTexture: Interface\AddOns\GuildPride\Media\logo_small
+## X-Curse-Project-ID: 1771937
+
+GuildPrideLocale.lua
+GuildPride.lua
+GuildPrideUI.lua
+GuildPrideEvents.lua
+GuildPrideMembers.lua
+GuildPrideRules.lua
+GuildPrideHelp.lua
+GuildPrideVersion.lua
+GuildPrideChat.lua
+GuildPrideBTag.lua
+GuildPrideSkin.lua
+GuildPrideMilestone.lua
