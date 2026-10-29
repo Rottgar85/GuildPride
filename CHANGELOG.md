@@ -1,5 +1,17 @@
 # GuildPride Changelog
 
+## 1.5.3
+
+**English**
+- Members of all ranks are shown again in the Group Finder and at events: messages are always sent to the guild directly first; relaying only kicks in if that fails. The relay no longer depends on rank permissions that only the guild leadership can read
+- Group Finder: entries no longer flip between "Looking for group" and "Needs quest help". Every entry carries a version number, older states are ignored, and there is at most one chat notice per player per minute
+- New: `/gp ping` asks everyone with GuildPride to reply (version, rank, may write), `/gp status` shows your own sending state
+
+**Deutsch**
+- Mitglieder aller Ränge erscheinen wieder in Gruppensuche und bei Events: Nachrichten gehen immer zuerst direkt an die Gilde, die Weiterleitung springt nur ein, wenn das scheitert. Sie hängt nicht mehr an Rangrechten, die nur die Gildenleitung lesen kann
+- Gruppensuche: Einträge springen nicht mehr zwischen „Sucht Gruppe“ und „Braucht Quest-Hilfe“ hin und her. Jeder Eintrag hat eine Versionsnummer, ältere Stände werden ignoriert, und pro Spieler kommt höchstens ein Chat-Hinweis pro Minute
+- Neu: `/gp ping` bittet alle mit GuildPride um eine Antwort (Version, Rang, darf schreiben), `/gp status` zeigt den eigenen Sendestand
+
 ## 1.5.2
 
 **English**

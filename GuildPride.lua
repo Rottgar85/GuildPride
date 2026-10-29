@@ -240,6 +240,50 @@ ns.On("MSL", function(payload, sender)
     ns.AddLog(kind, who, tonumber(value) or (value ~= "" and value or nil), t)
 end)
 
+---------------------------------------------------------------------
+-- Diagnose: /gp ping (wer empfängt mich?) und /gp status (eigener Sendestand)
+---------------------------------------------------------------------
+local function MyRank()
+    local _, rankName, rankIndex = GetGuildInfo("player")
+    return rankName or "?", rankIndex or -1
+end
+
+local function YesNo(v) return v and ("|cff40ff40" .. L["ja"] .. "|r") or ("|cffff4040" .. L["nein"] .. "|r") end
+
+ns.On("PING", function(_, sender)
+    if sender == ns.Me() or not ns.Queue then return end
+    local rankName = MyRank()
+    local speak = (not ns.CanSpeakGuild or ns.CanSpeakGuild()) and 1 or 0
+    C_Timer.After(math.random() * 2, function() ns.Queue("PONG", sender, ns.VERSION or "?", rankName, speak) end)
+end)
+
+ns.On("PONG", function(payload, sender)
+    local version, rankName, speak = strsplit(ns.SEP, payload)
+    Print((L["Antwort von |cffffd100%s|r: Version %s, Rang %s, darf schreiben: %s"]):format(
+        Ambiguate(sender, "guild"), version or "?", rankName or "?", YesNo(speak == "1")))
+end)
+
+local function Status()
+    local rankName, rankIndex = MyRank()
+    local s = ns.SendStats or {}
+    local online, known = 0, 0
+    for i = 1, GetNumGuildMembers() do
+        local name, _, _, _, _, _, _, _, isOnline = GetGuildRosterInfo(i)
+        if name and isOnline then
+            online = online + 1
+            if ns.AddonUsers[Normalize(name)] then known = known + 1 end
+        end
+    end
+    Print(("GuildPride %s · %s %s (%d)"):format(ns.VERSION or "?", L["Rang"], rankName, rankIndex))
+    Print((L["Gildenchat schreiben: %s · lesen: %s · Chat-Sperre: %s"]):format(
+        YesNo(not ns.CanSpeakGuild or ns.CanSpeakGuild()), YesNo(not ns.CanListenGuild or ns.CanListenGuild()),
+        YesNo(ns.ChatLocked and ns.ChatLocked())))
+    Print((L["Gesendet: %d direkt, %d weitergeleitet, %d fehlgeschlagen · letztes Ergebnis: %s · Warteschlange: %d"]):format(
+        s.direct or 0, s.relayed or 0, s.failed or 0, tostring(s.lastResult), ns.QueueLength and ns.QueueLength() or 0))
+    Print((L["Online: %d Mitglieder, davon %d mit GuildPride bekannt"]):format(online, known))
+end
+ns.Status = Status
+
 local function RequestHistory()
     local newest = Log()[1]
     local listen = (not ns.CanListenGuild or ns.CanListenGuild()) and 1 or 0
@@ -348,7 +392,7 @@ local function Dispatch(message, sender)
     if kind == "RLY" then
         -- Ein Mitglied ohne Gildenchat-Recht bittet uns, an die Gilde weiterzugeben
         local id, msg = value:match("^([^\031]+)\031(.+)$")
-        if id and guildMembers[Normalize(sender)] and ns.CanSpeakGuild and ns.CanSpeakGuild() and ns.Queue then
+        if id and guildMembers[Normalize(sender)] and ns.Queue and (not ns.CanSpeakGuild or ns.CanSpeakGuild()) then
             ns.Queue("FWD", nil, Normalize(sender), id, msg)
         end
         return
@@ -475,12 +519,17 @@ SlashCmdList.GUILDPRIDE = function(arg)
     elseif arg:match("^einladen%f[%A]") or arg:match("^invite%f[%A]") then
         local name = raw:match("^%S+%s+(%S+)")
         if name and ns.InviteToGuild then ns.InviteToGuild(name) else Print(L["Bitte einen Charakternamen eingeben."]) end
+    elseif arg == "status" then
+        Status()
+    elseif arg == "ping" then
+        Print(L["Ping an die Gilde gesendet – jeder mit GuildPride antwortet gleich."])
+        if ns.Queue then ns.Queue("PING", nil, "1") end
     elseif arg == "test" then
         -- Nur anzeigen, nicht in den Verlauf schreiben
         if ns.ShowMilestonePopup then ns.ShowMilestonePopup(UnitName("player"), DescribeMilestone("LEVEL", 20), "LEVEL", 20) end
     elseif arg == "testall" then
         Broadcast("LEVEL", 20)   -- alle Gildenmitglieder mit Addon sehen es
     else
-        Print(L["Befehle: /gp (Fenster) · sound · icon · popup · blizzard · kuerzel <XYZ> · einladen <Name> · badge <Level> · version · test · testall"])
+        Print(L["Befehle: /gp (Fenster) · sound · icon · popup · blizzard · kuerzel <XYZ> · einladen <Name> · badge <Level> · version · status · ping · test · testall"])
     end
 end

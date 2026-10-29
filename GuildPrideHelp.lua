@@ -23,6 +23,15 @@ local entries = {}   -- [Name-Realm] = { kind, note, level, zone, size, max, nee
 local mine           -- eigener Eintrag
 local needs = {}     -- eigene Auswahl: { T = true, H = true }
 local lastSent = 0
+-- Versionsnummer des eigenen Zustands (eingetragen/ausgetragen/Art). Sie steigt
+-- bei jeder Änderung; Empfänger ignorieren ältere Stände. Sonst konnte eine
+-- verspätete Nachricht (Drosselung, Antwort auf eine Anfrage) einen neueren
+-- Eintrag überschreiben und der Eintrag sprang zwischen zwei Arten hin und her.
+local stateVer = 0
+local function BumpVer() stateVer = math.max(stateVer + 1, GetServerTime()) end
+local verBy = {}     -- [Name-Realm] = zuletzt gesehene Version
+local alertedAt = {} -- [Name-Realm] = Zeit des letzten Chat-Hinweises
+local ALERT_GAP = 60
 
 local function Clean(s, max) return (tostring(s or ""):gsub("[%c|]", "")):sub(1, max) end
 
@@ -69,10 +78,10 @@ local function SendMine(target)
         local size, max = GroupSize()
         local _, class = UnitClass("player")
         ns.Queue("LFG", target, mine.kind, mine.note, UnitLevel("player"), GetZoneText() or "",
-            size, max, mine.needs or "", MyRoleKey(), class or "")
+            size, max, mine.needs or "", MyRoleKey(), class or "", stateVer)
         if not target then lastSent = GetServerTime() end
     elseif not target then
-        ns.Queue("LFG", nil, "none", "", 0, "")
+        ns.Queue("LFG", nil, "none", "", 0, "", 0, 0, "", "", "", stateVer)
     end
 end
 
@@ -87,19 +96,29 @@ end
 
 ns.On("LFG", function(payload, sender)
     if sender == ns.Me() then return end
-    local kind, note, level, zone, size, max, need, role, class = strsplit(SEP, payload)
+    local kind, note, level, zone, size, max, need, role, class, ver = strsplit(SEP, payload)
+    -- Älteren Stand als den schon bekannten ignorieren (ältere Versionen senden keine Nummer)
+    ver = tonumber(ver) or 0
+    if ver > 0 then
+        if verBy[sender] and ver < verBy[sender] then return end
+        verBy[sender] = ver
+    end
     if kind == "none" or not TYPES[kind] then
         entries[sender] = nil
     else
         local old = entries[sender]
         local isNew = not old or old.kind ~= kind
+        -- Höchstens ein Chat-Hinweis pro Spieler und Minute
+        local now = GetServerTime()
+        local alert = isNew and now - (alertedAt[sender] or 0) >= ALERT_GAP
+        if alert then alertedAt[sender] = now end
         local e = { kind = kind, note = Clean(note, 60), level = tonumber(level) or 0, zone = Clean(zone, 40),
                     size = tonumber(size) or 1, max = tonumber(max) or 5, needs = Clean(need, 3),
                     role = Clean(role, 1), class = Clean(class, 20), t = old and old.t or GetServerTime(),
                     seen = GetServerTime() }
         if isNew then e.t = GetServerTime() end
         entries[sender] = e
-        if isNew and GuildPrideDB.helpAlerts ~= false then
+        if alert and GuildPrideDB.helpAlerts ~= false then
             local extra = (" · " .. L["Gruppe %d/%d"]):format(e.size, e.max)
             if e.needs ~= "" then extra = extra .. " · " .. (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
             ns.Print(("%s%s|r: |cffffd100%s|r (Lvl %d, %s)%s%s"):format(TYPES[kind].color, KindLabel(kind, e.size),
@@ -123,6 +142,7 @@ C_Timer.NewTicker(60, function()
     local now = GetServerTime()
     if now - mine.t > EXPIRE then
         mine = nil
+        BumpVer()
         SendMine()
         ns.Print(L["Dein Eintrag in der Gruppensuche ist abgelaufen."])
         if ns.RefreshUI then ns.RefreshUI() end
@@ -200,6 +220,7 @@ local function Set(kind)
         ns.Print(L["Du bist ausgetragen."])
     end
     noteBox:ClearFocus()
+    BumpVer()
     SendMine()
     ns.RefreshUI()
 end
@@ -286,7 +307,7 @@ end
 
 function page:Refresh()
     local now = GetServerTime()
-    if mine and now - mine.t > EXPIRE then mine = nil end
+    -- Ablauf des eigenen Eintrags erledigt der Minuten-Takt oben (inkl. Austragen bei den anderen)
     UpdateNeedButtons()
     if mine then
         local size, max = GroupSize()
