@@ -1,5 +1,23 @@
 # GuildPride Changelog
 
+## 1.5.0
+
+**English**
+- Guild management: click a guild member to open details with public and officer note, then promote, demote, set any rank, remove from the guild or transfer guild leadership (depending on your rights)
+- These actions use Blizzard's commands /gpromote, /gdemote, /gremove and /gleader, because Blizzard blocks addons from doing them directly. Removing and transferring leadership need a second click to confirm
+- Guild notes can't be changed by addons; the "Edit notes" button opens Blizzard's guild window
+- Community management (right-click a member): change role, edit note, remove from the community
+- Right-click menu for everyone: whisper, invite to group, add friend, invite to guild or community, put name in chat
+- Notes are shown in the member list
+
+**Deutsch**
+- Gildenverwaltung: Klick auf ein Gildenmitglied öffnet Details mit öffentlicher Notiz und Offiziersnotiz, dort befördern, degradieren, beliebigen Rang setzen, aus der Gilde entfernen oder Gildenleitung übergeben (je nach deinen Rechten)
+- Diese Aktionen nutzen die Blizzard-Befehle /gpromote, /gdemote, /gremove und /gleader, weil Blizzard sie für Addons direkt sperrt. Entfernen und Gildenleitung übergeben brauchen einen zweiten Klick zur Bestätigung
+- Gildennotizen kann kein Addon ändern; der Knopf „Notizen bearbeiten“ öffnet das Blizzard-Gildenfenster
+- Community-Verwaltung (Rechtsklick auf ein Mitglied): Rolle ändern, Notiz bearbeiten, aus der Community entfernen
+- Rechtsklick-Menü für alle: anflüstern, in Gruppe einladen, als Freund hinzufügen, in Gilde oder Community einladen, Namen in den Chat einfügen
+- Notizen werden in der Mitgliederliste angezeigt
+
 ## 1.4.0
 
 **English**

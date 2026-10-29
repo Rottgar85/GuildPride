@@ -21,6 +21,8 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - **Guild tabard in chat** for members who use GuildPride
 - **Members list**: your guild or any of your communities, online only or everyone, with "last online"
 - **Invite players** to the guild or a community: type a name, or right-click a member
+- **Guild management**: click a member to see notes and to promote, demote, set a rank, remove or transfer leadership (depending on your rights)
+- **Community management**: right-click a member to change their role, edit their note or remove them
 - **Version check**: a reminder when a newer version is in use in the guild
 
 ### Commands
@@ -55,6 +57,8 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - **Wappenrock im Chat** für alle, die GuildPride nutzen
 - **Mitgliederliste**: eure Gilde oder jede deiner Communities, nur online oder alle, mit „zuletzt online“
 - **Spieler einladen** in die Gilde oder eine Community: Namen eingeben oder Rechtsklick auf ein Mitglied
+- **Gildenverwaltung**: Klick auf ein Mitglied zeigt die Notizen, dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten)
+- **Community-Verwaltung**: Rechtsklick auf ein Mitglied, um die Rolle zu ändern, die Notiz zu bearbeiten oder es zu entfernen
 - **Versionscheck**: Erinnerung, wenn in der Gilde eine neuere Version genutzt wird
 
 ### Befehle

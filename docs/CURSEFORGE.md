@@ -20,6 +20,8 @@
 - **Guild tabard in chat** – members who use GuildPride get your guild emblem in front of their name in chat.
 - **Members list** – your guild or any of your communities, online members or everyone incl. offline, with "last online" info.
 - **Invite players** – type a name to invite someone to the guild or the selected community, or right-click a member to whisper or invite them.
+- **Guild management** – click a member to see their notes and promote, demote, set a rank, remove them or transfer leadership (depending on your rights).
+- **Community management** – right-click a member to change their role, edit their note or remove them.
 - **Version check** – members with an outdated version get a reminder to update.
 - **English & German** – switches automatically to your game client's language.
 
@@ -51,6 +53,8 @@
 - **Wappenrock im Chat** – wer GuildPride nutzt, bekommt euer Gildenemblem vor seinen Namen im Chat.
 - **Mitgliederliste** – eure Gilde oder jede deiner Communities, nur online oder alle inkl. offline, mit „zuletzt online“.
 - **Spieler einladen** – Namen eingeben und in die Gilde oder die gewählte Community einladen, oder per Rechtsklick auf ein Mitglied anflüstern und einladen.
+- **Gildenverwaltung** – Klick auf ein Mitglied zeigt die Notizen, dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten).
+- **Community-Verwaltung** – Rechtsklick auf ein Mitglied, um die Rolle zu ändern, die Notiz zu bearbeiten oder es zu entfernen.
 - **Versionscheck** – wer eine alte Version nutzt, wird ans Aktualisieren erinnert.
 - **Deutsch & Englisch** – stellt sich automatisch auf die Sprache deines Clients ein.
 

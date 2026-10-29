@@ -429,6 +429,7 @@ bAll:SetScript("OnClick", function() SetOffline(true) end)
 
 local function SetSource(club)
     source = club
+    if ns.HideMemberPanel then ns.HideMemberPanel() end
     -- Online-Status der Community-Mitglieder vom Server holen
     if C_Club and C_Club.ClearClubPresenceSubscription then pcall(C_Club.ClearClubPresenceSubscription) end
     if club and C_Club.SetClubPresenceSubscription then pcall(C_Club.SetClubPresenceSubscription, club.id) end
@@ -455,32 +456,11 @@ bSrcClub:SetScript("OnClick", function(self)
     end
 end)
 
--- Rechtsklick auf ein Mitglied: Anflüstern / in Gilde oder Community einladen
-local function MemberMenu(row)
-    local m = row.data
-    if not m or m.isSelf or not m.full then return end
-    if not (MenuUtil and MenuUtil.CreateContextMenu) then
-        if m.online then ChatFrame_SendTell(m.full) end
-        return
-    end
-    MenuUtil.CreateContextMenu(row, function(_, root)
-        root:CreateTitle(m.name)
-        if m.online then root:CreateButton(L["Anflüstern"], function() ChatFrame_SendTell(m.full) end) end
-        if not m.inGuild and IsInGuild() and (not CanGuildInvite or CanGuildInvite()) then
-            root:CreateButton(L["In Gilde einladen"], function() ns.InviteToGuild(m.full) end)
-        end
-        local clubs = {}
-        for _, club in ipairs(Communities()) do
-            if not club.bnet and club.id ~= m.clubId and CanInviteToClub(club.id) then clubs[#clubs + 1] = club end
-        end
-        if #clubs > 0 then
-            local sub = root:CreateButton(L["In Community einladen"])
-            for _, club in ipairs(clubs) do
-                sub:CreateButton(club.name, function() ns.InviteToClub(club, m.full) end)
-            end
-        end
-    end)
-end
+-- Für die Mitgliederverwaltung (GuildPrideManage.lua)
+ns.Communities = Communities
+ns.CanInviteToClub = CanInviteToClub
+ns.FullName = FullName
+ns.MembersPage = members
 
 -- "zuletzt online vor …"
 local function LastOnline(i)
@@ -510,6 +490,7 @@ local function AgoText(y, m, d, h)
 end
 
 local CLUB_ROLES = { [1] = L["Besitzer"], [2] = L["Leiter"], [3] = L["Moderator"], [4] = L["Mitglied"] }
+ns.CLUB_ROLES = CLUB_ROLES
 
 local function ClassFile(classID)
     local info = classID and C_CreatureInfo and C_CreatureInfo.GetClassInfo and C_CreatureInfo.GetClassInfo(classID)
@@ -529,14 +510,15 @@ end
 local function GuildData()
     local data, total, online = {}, 0, 0
     for i = 1, GetNumGuildMembers() do
-        local name, rank, _, level, _, zone, _, _, isOnline, _, classFile = GetGuildRosterInfo(i)
+        local name, rank, rankIndex, level, _, zone, note, officerNote, isOnline, _, classFile = GetGuildRosterInfo(i)
         if name then
             total = total + 1
             if isOnline then online = online + 1 end
             if isOnline or showOffline then
                 local full = FullName(name)
-                data[#data + 1] = { name = Ambiguate(name, "guild"), full = full, rank = rank, level = level, zone = zone,
-                                    online = isOnline, class = classFile, inGuild = true,
+                data[#data + 1] = { name = Ambiguate(name, "guild"), full = full, rank = rank, rankIndex = rankIndex,
+                                    level = level, zone = zone, note = note, officerNote = officerNote,
+                                    online = isOnline, class = classFile, inGuild = true, guild = true,
                                     isSelf = full == ns.Me(),
                                     last = not isOnline and LastOnline(i) or nil,
                                     hours = not isOnline and LastOnlineHours(i) or 0 }
@@ -563,7 +545,8 @@ local function ClubData(club, inGuild)
                 data[#data + 1] = { name = club.bnet and info.name or Ambiguate(info.name, "guild"), full = full,
                                     rank = CLUB_ROLES[info.role] or "", level = info.level, online = isOnline,
                                     zone = mobile and L["Battle.net-App"] or info.zone,
-                                    class = ClassFile(info.classID), isSelf = info.isSelf, clubId = club.id,
+                                    class = ClassFile(info.classID), isSelf = info.isSelf, club = club, clubId = club.id,
+                                    memberId = info.memberId, role = info.role, note = info.memberNote,
                                     inGuild = full and inGuild[full] or false,
                                     last = not isOnline and AgoText(y, mo, d, h) or nil,
                                     hours = not isOnline and (((y or 0) * 365 + (mo or 0) * 30 + (d or 0)) * 24 + (h or 0)) or 0 }
@@ -597,7 +580,16 @@ function members:Refresh()
         if not row.gpMenu then
             row.gpMenu = true
             row:EnableMouse(true)
-            row:SetScript("OnMouseUp", function(self, button) if button == "RightButton" then MemberMenu(self) end end)
+            row.mid:SetWidth(260); row.mid:SetJustifyH("LEFT"); row.mid:SetWordWrap(false)
+            -- Linksklick: Details/Verwaltung · Rechtsklick: Menü (GuildPrideManage.lua)
+            row:SetScript("OnMouseUp", function(self, button)
+                if not self.data then return end
+                if button == "RightButton" then
+                    if ns.MemberMenu then ns.MemberMenu(self, self.data) end
+                elseif ns.ShowMemberPanel then
+                    ns.ShowMemberPanel(self.data, self)
+                end
+            end)
         end
         row.data = m
         local c = CLASS_COLORS[m.class] or NORMAL_FONT_COLOR
@@ -606,6 +598,7 @@ function members:Refresh()
         row.left:SetAlpha(alpha); row.mid:SetAlpha(alpha)
         local mid = (m.level and m.level > 0) and ("Lvl %d · %s"):format(m.level, m.rank or "") or (m.rank or "")
         if source and m.inGuild then mid = mid .. "  |cff999999(" .. L["Gilde"] .. ")|r" end
+        if m.note and m.note ~= "" then mid = mid .. "  |cff888888" .. m.note .. "|r" end
         row.mid:SetText(mid)
         row.right:SetText(m.online and ("|cff40ff40●|r " .. (m.zone or "")) or ("|cff777777" .. (m.last or "") .. "|r"))
     end
