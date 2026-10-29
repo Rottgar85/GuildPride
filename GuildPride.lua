@@ -39,7 +39,7 @@ local MILESTONES = { [10]=true, [20]=true, [30]=true, [40]=true, [50]=true,
 local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_Tournaments_banner_Human"
 
 local defaults = { sound = true, chatIcon = true, popup = true, useCustomLogo = false,
-                   replaceGuildFrame = true, memberAlerts = true, helpAlerts = true, btagAuto = true }
+                   replaceGuildFrame = true, memberAlerts = true, helpAlerts = true }
 local guildMembers = {}   -- ["Name-Realm"] = true
 
 -- Modul-Nachrichten: ns.On("KIND", function(payload, sender) ... end)
@@ -223,11 +223,12 @@ f:SetScript("OnEvent", function(_, event, ...)
             GuildPrideDB.rulesSeen = GuildPrideDB.rules.ver
             GuildPrideDB.events = {}
             GuildPrideDB.log = {}
-            GuildPrideDB.btagQueue = {}
-            GuildPrideDB.btagAsked, GuildPrideDB.btagSent, GuildPrideDB.btagDone = nil, nil, nil
             GuildPrideDB.chat = nil
             GuildPrideDB.cleanStart = 1
         end
+        -- BattleTag-Funktion wurde entfernt: alte gespeicherte Daten löschen
+        GuildPrideDB.btagQueue, GuildPrideDB.btagAuto = nil, nil
+        GuildPrideDB.btagAsked, GuildPrideDB.btagSent, GuildPrideDB.btagDone = nil, nil, nil
         C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
         ns.UpdateChatEmblem()
         ns.AddonUsers[Normalize(UnitName("player"))] = true
@@ -268,7 +269,8 @@ end)
 SLASH_GUILDPRIDE1 = "/gp"
 SLASH_GUILDPRIDE2 = "/guildpride"
 SlashCmdList.GUILDPRIDE = function(arg)
-    arg = (arg or ""):lower()
+    local raw = strtrim(arg or "")
+    arg = raw:lower()
     local toggles = { sound = "sound", icon = "chatIcon", popup = "popup", logo = "useCustomLogo" }
     if toggles[arg] then
         local key = toggles[arg]
@@ -284,11 +286,14 @@ SlashCmdList.GUILDPRIDE = function(arg)
         GuildPrideDB.tag = tag and tag:upper() or nil
         Print(L["Gildenkürzel: "] .. (GuildPrideDB.tag or L["automatisch"]))
         if ns.RefreshUI then ns.RefreshUI() end
+    elseif arg:match("^einladen%f[%A]") or arg:match("^invite%f[%A]") then
+        local name = raw:match("^%S+%s+(%S+)")
+        if name and ns.InviteToGuild then ns.InviteToGuild(name) else Print(L["Bitte einen Charakternamen eingeben."]) end
     elseif arg == "test" then
         ShowMilestone(UnitName("player"), DescribeMilestone("LEVEL", 20), "LEVEL", 20)
     elseif arg == "testall" then
         Broadcast("LEVEL", 20)   -- alle Gildenmitglieder mit Addon sehen es
     else
-        Print(L["Befehle: /gp (Fenster) · sound · icon · popup · blizzard · kuerzel <XYZ> · badge <Level> · version · battletag · btags · test · testall"])
+        Print(L["Befehle: /gp (Fenster) · sound · icon · popup · blizzard · kuerzel <XYZ> · einladen <Name> · badge <Level> · version · test · testall"])
     end
 end

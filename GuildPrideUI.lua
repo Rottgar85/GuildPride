@@ -321,33 +321,166 @@ function overview:Refresh()
 end
 
 ---------------------------------------------------------------------
--- 2) Mitglieder
+-- 2) Mitglieder (Gilde oder eine Community)
 ---------------------------------------------------------------------
 local members = AddTab(L["Mitglieder"])
 local showOffline = false
+local source   -- nil = Gilde, sonst { id, name, bnet } einer Community
+local HAS_CLUB = C_Club and C_Club.GetSubscribedClubs and C_Club.GetClubMembers and C_Club.GetMemberInfo
 
--- Umschalter: Nur online / Alle (inkl. offline)
+local function FullName(name)
+    if name and not name:find("-") then name = name .. "-" .. (GetNormalizedRealmName() or "") end
+    return name
+end
+
+-- Communities (ohne Gilde), nach Name sortiert
+local function Communities()
+    local out = {}
+    if not HAS_CLUB then return out end
+    for _, club in ipairs(C_Club.GetSubscribedClubs() or {}) do
+        if club.clubType ~= Enum.ClubType.Guild then
+            out[#out + 1] = { id = club.clubId, name = club.name, bnet = club.clubType == Enum.ClubType.BattleNet }
+        end
+    end
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
+local function CanInviteToClub(clubId)
+    local priv = C_Club.GetClubPrivileges and C_Club.GetClubPrivileges(clubId)
+    return priv and priv.canSendInvitation
+end
+
+-- Einladen: in die Gilde bzw. in eine Charakter-Community
+function ns.InviteToGuild(name)
+    if not IsInGuild() then ns.Print(L["Du bist in keiner Gilde."]); return end
+    if CanGuildInvite and not CanGuildInvite() then
+        ns.Print(L["|cffff4040Du darfst keine Spieler in die Gilde einladen.|r"]); return
+    end
+    if C_GuildInfo and C_GuildInfo.Invite then C_GuildInfo.Invite(name) else GuildInvite(name) end
+    ns.Print((L["Gildeneinladung an |cffffd100%s|r gesendet."]):format(name))
+end
+
+function ns.InviteToClub(club, name)
+    if club.bnet then
+        ns.Print(L["Battle.net-Communities: Einladungen bitte über das Blizzard-Community-Fenster verschicken."]); return
+    end
+    if not (C_Club and C_Club.SendCharacterInvitation) then return end
+    if not CanInviteToClub(club.id) then
+        ns.Print((L["|cffff4040Du darfst in „%s“ niemanden einladen.|r"]):format(club.name)); return
+    end
+    local ok = pcall(C_Club.SendCharacterInvitation, club.id, name)
+    if ok then
+        ns.Print((L["Einladung in „%s“ an |cffffd100%s|r gesendet."]):format(club.name, name))
+    else
+        ns.Print(L["|cffff4040Einladung konnte nicht gesendet werden.|r"])
+    end
+end
+
+-- Kopfzeile: Gilde | Communities ▾ | Nur online | Alle
+local bSrcGuild = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
+bSrcGuild:SetSize(90, 24); bSrcGuild:SetPoint("TOPLEFT", 0, 0); bSrcGuild:SetText(L["Gilde"])
+local bSrcClub = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
+bSrcClub:SetSize(170, 24); bSrcClub:SetPoint("LEFT", bSrcGuild, "RIGHT", 6, 0); bSrcClub:SetText("Communities  ▾")
+bSrcClub:SetShown(HAS_CLUB and true or false)
 local bOnline = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
-bOnline:SetSize(120, 24); bOnline:SetPoint("TOPLEFT", 0, 0); bOnline:SetText(L["Nur online"])
+bOnline:SetSize(110, 24); bOnline:SetPoint("LEFT", bSrcClub, "RIGHT", 18, 0); bOnline:SetText(L["Nur online"])
 local bAll = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
-bAll:SetSize(170, 24); bAll:SetPoint("LEFT", bOnline, "RIGHT", 6, 0); bAll:SetText(L["Alle (inkl. offline)"])
-local countText = members:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
-countText:SetPoint("RIGHT", members, "TOPRIGHT", -4, -12)
+bAll:SetSize(150, 24); bAll:SetPoint("LEFT", bOnline, "RIGHT", 6, 0); bAll:SetText(L["Alle (inkl. offline)"])
 
 local listHolder = CreateFrame("Frame", nil, members)
 listHolder:SetPoint("TOPLEFT", 0, -32)
-listHolder:SetPoint("BOTTOMRIGHT")
+listHolder:SetPoint("BOTTOMRIGHT", 0, 36)
 local memberList = CreateList(listHolder, 24)
+
+-- Fußzeile: Name eingeben + Einladen, rechts die Anzahl
+local inviteBox = CreateFrame("EditBox", nil, members, "InputBoxTemplate")
+inviteBox:SetSize(170, 22); inviteBox:SetPoint("BOTTOMLEFT", 8, 6)
+inviteBox:SetAutoFocus(false); inviteBox:SetMaxLetters(60)
+local inviteHint = inviteBox:CreateFontString(nil, "OVERLAY", "GPFont_Muted")
+inviteHint:SetPoint("LEFT", 2, 0); inviteHint:SetText(L["Name-Realm"])
+inviteBox:SetScript("OnTextChanged", function(self) inviteHint:SetShown(self:GetText() == "") end)
+local inviteBtn = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
+inviteBtn:SetSize(210, 24); inviteBtn:SetPoint("LEFT", inviteBox, "RIGHT", 8, 0)
+local countText = members:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
+countText:SetPoint("BOTTOMRIGHT", -4, 12)
+
+local function DoInvite()
+    local name = strtrim(inviteBox:GetText() or "")
+    if name == "" then ns.Print(L["Bitte einen Charakternamen eingeben."]); return end
+    if source then ns.InviteToClub(source, name) else ns.InviteToGuild(name) end
+    inviteBox:SetText(""); inviteBox:ClearFocus()
+end
+inviteBtn:SetScript("OnClick", DoInvite)
+inviteBox:SetScript("OnEnterPressed", DoInvite)
+inviteBox:SetScript("OnEscapePressed", inviteBox.ClearFocus)
 
 local function SetOffline(on)
     showOffline = on
     -- Manche Clients liefern Offline-Mitglieder nur, wenn das eingeschaltet ist
-    if SetGuildRosterShowOffline then SetGuildRosterShowOffline(on) end
-    if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
+    if not source then
+        if SetGuildRosterShowOffline then SetGuildRosterShowOffline(on) end
+        if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
+    end
     members:Refresh()
 end
 bOnline:SetScript("OnClick", function() SetOffline(false) end)
 bAll:SetScript("OnClick", function() SetOffline(true) end)
+
+local function SetSource(club)
+    source = club
+    -- Online-Status der Community-Mitglieder vom Server holen
+    if C_Club and C_Club.ClearClubPresenceSubscription then pcall(C_Club.ClearClubPresenceSubscription) end
+    if club and C_Club.SetClubPresenceSubscription then pcall(C_Club.SetClubPresenceSubscription, club.id) end
+    if not club and C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
+    members:Refresh()
+end
+bSrcGuild:SetScript("OnClick", function() SetSource(nil) end)
+
+bSrcClub:SetScript("OnClick", function(self)
+    local list = Communities()
+    if #list == 0 then ns.Print(L["Du bist in keiner Blizzard-Community."]); return end
+    if MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle("Communities")
+            for _, club in ipairs(list) do
+                root:CreateButton(club.name .. (club.bnet and " |cff82c5ff(Battle.net)|r" or ""), function() SetSource(club) end)
+            end
+        end)
+    else
+        -- Fallback: der Reihe nach durchschalten
+        local idx = 1
+        for i, c in ipairs(list) do if source and c.id == source.id then idx = i % #list + 1 end end
+        SetSource(list[idx])
+    end
+end)
+
+-- Rechtsklick auf ein Mitglied: Anflüstern / in Gilde oder Community einladen
+local function MemberMenu(row)
+    local m = row.data
+    if not m or m.isSelf or not m.full then return end
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then
+        if m.online then ChatFrame_SendTell(m.full) end
+        return
+    end
+    MenuUtil.CreateContextMenu(row, function(_, root)
+        root:CreateTitle(m.name)
+        if m.online then root:CreateButton(L["Anflüstern"], function() ChatFrame_SendTell(m.full) end) end
+        if not m.inGuild and IsInGuild() and (not CanGuildInvite or CanGuildInvite()) then
+            root:CreateButton(L["In Gilde einladen"], function() ns.InviteToGuild(m.full) end)
+        end
+        local clubs = {}
+        for _, club in ipairs(Communities()) do
+            if not club.bnet and club.id ~= m.clubId and CanInviteToClub(club.id) then clubs[#clubs + 1] = club end
+        end
+        if #clubs > 0 then
+            local sub = root:CreateButton(L["In Community einladen"])
+            for _, club in ipairs(clubs) do
+                sub:CreateButton(club.name, function() ns.InviteToClub(club, m.full) end)
+            end
+        end
+    end)
+end
 
 -- "zuletzt online vor …"
 local function LastOnline(i)
@@ -367,10 +500,33 @@ local function LastOnlineHours(i)
     return ((y or 0) * 365 + (m or 0) * 30 + (d or 0)) * 24 + (h or 0)
 end
 
-function members:Refresh()
-    for btn, on in pairs({ [bOnline] = not showOffline, [bAll] = showOffline }) do
-        if btn.gpBg then btn.gpBg:SetTexture(MEDIA .. (on and "nav_active" or "nav")) end
+local function AgoText(y, m, d, h)
+    if not y then return L["offline"] end
+    if y > 0 then return (L["vor %d Jahr(en)"]):format(y) end
+    if m > 0 then return (L["vor %d Monat(en)"]):format(m) end
+    if d > 0 then return (L["vor %d Tag(en)"]):format(d) end
+    if h > 0 then return (L["vor %d Std."]):format(h) end
+    return L["vor < 1 Std."]
+end
+
+local CLUB_ROLES = { [1] = L["Besitzer"], [2] = L["Leiter"], [3] = L["Moderator"], [4] = L["Mitglied"] }
+
+local function ClassFile(classID)
+    local info = classID and C_CreatureInfo and C_CreatureInfo.GetClassInfo and C_CreatureInfo.GetClassInfo(classID)
+    return info and info.classFile
+end
+
+-- Gildenmitglieder (Name-Realm -> true), um "In Gilde einladen" nur Nicht-Mitgliedern anzubieten
+local function GuildNames()
+    local set = {}
+    for i = 1, GetNumGuildMembers() do
+        local name = GetGuildRosterInfo(i)
+        if name then set[FullName(name)] = true end
     end
+    return set
+end
+
+local function GuildData()
     local data, total, online = {}, 0, 0
     for i = 1, GetNumGuildMembers() do
         local name, rank, _, level, _, zone, _, _, isOnline, _, classFile = GetGuildRosterInfo(i)
@@ -378,13 +534,58 @@ function members:Refresh()
             total = total + 1
             if isOnline then online = online + 1 end
             if isOnline or showOffline then
-                data[#data + 1] = { name = Ambiguate(name, "guild"), rank = rank, level = level, zone = zone,
-                                    online = isOnline, class = classFile,
+                local full = FullName(name)
+                data[#data + 1] = { name = Ambiguate(name, "guild"), full = full, rank = rank, level = level, zone = zone,
+                                    online = isOnline, class = classFile, inGuild = true,
+                                    isSelf = full == ns.Me(),
                                     last = not isOnline and LastOnline(i) or nil,
                                     hours = not isOnline and LastOnlineHours(i) or 0 }
             end
         end
     end
+    return data, total, online
+end
+
+local function ClubData(club, inGuild)
+    local data, total, online = {}, 0, 0
+    local P = Enum.ClubMemberPresence or {}
+    for _, id in ipairs(C_Club.GetClubMembers(club.id) or {}) do
+        local info = C_Club.GetMemberInfo(club.id, id)
+        if info and info.name and not (issecretvalue and issecretvalue(info.name)) then
+            total = total + 1
+            local p = info.presence
+            local isOnline = p ~= nil and p ~= P.Offline and p ~= P.Unknown
+            local mobile = p ~= nil and p == P.OnlineMobile
+            if isOnline then online = online + 1 end
+            if isOnline or showOffline then
+                local full = not club.bnet and FullName(info.name) or nil
+                local y, mo, d, h = info.lastOnlineYear, info.lastOnlineMonth, info.lastOnlineDay, info.lastOnlineHour
+                data[#data + 1] = { name = club.bnet and info.name or Ambiguate(info.name, "guild"), full = full,
+                                    rank = CLUB_ROLES[info.role] or "", level = info.level, online = isOnline,
+                                    zone = mobile and L["Battle.net-App"] or info.zone,
+                                    class = ClassFile(info.classID), isSelf = info.isSelf, clubId = club.id,
+                                    inGuild = full and inGuild[full] or false,
+                                    last = not isOnline and AgoText(y, mo, d, h) or nil,
+                                    hours = not isOnline and (((y or 0) * 365 + (mo or 0) * 30 + (d or 0)) * 24 + (h or 0)) or 0 }
+            end
+        end
+    end
+    return data, total, online
+end
+
+function members:Refresh()
+    -- Community nicht mehr vorhanden (verlassen) -> zurück zur Gilde
+    if source and not (C_Club.GetClubInfo and C_Club.GetClubInfo(source.id)) then source = nil end
+    local function mark(btn, on)
+        if btn.gpBg then btn.gpBg:SetTexture(MEDIA .. (on and "nav_active" or "nav")) end
+    end
+    mark(bOnline, not showOffline); mark(bAll, showOffline)
+    mark(bSrcGuild, source == nil); mark(bSrcClub, source ~= nil)
+    bSrcClub:SetText(source and (source.name .. "  ▾") or "Communities  ▾")
+    inviteBtn:SetText(source and L["In Community einladen"] or L["In Gilde einladen"])
+
+    local data, total, online
+    if source then data, total, online = ClubData(source, GuildNames()) else data, total, online = GuildData() end
     table.sort(data, function(a, b)
         if a.online ~= b.online then return a.online end
         if not a.online and a.hours ~= b.hours then return a.hours < b.hours end
@@ -393,14 +594,43 @@ function members:Refresh()
     countText:SetText((L["%d online · %d offline"]):format(online, total - online))
     for i, m in ipairs(data) do
         local row = memberList:GetRow(i)
+        if not row.gpMenu then
+            row.gpMenu = true
+            row:EnableMouse(true)
+            row:SetScript("OnMouseUp", function(self, button) if button == "RightButton" then MemberMenu(self) end end)
+        end
+        row.data = m
         local c = CLASS_COLORS[m.class] or NORMAL_FONT_COLOR
         local alpha = m.online and 1 or 0.55   -- Offline-Mitglieder gedimmt
         row.left:SetText(("|cff%02x%02x%02x%s|r"):format(c.r * 255, c.g * 255, c.b * 255, m.name))
         row.left:SetAlpha(alpha); row.mid:SetAlpha(alpha)
-        row.mid:SetText(("Lvl %d · %s"):format(m.level or 0, m.rank or ""))
-        row.right:SetText(m.online and ("|cff40ff40●|r " .. (m.zone or "")) or ("|cff777777" .. m.last .. "|r"))
+        local mid = (m.level and m.level > 0) and ("Lvl %d · %s"):format(m.level, m.rank or "") or (m.rank or "")
+        if source and m.inGuild then mid = mid .. "  |cff999999(" .. L["Gilde"] .. ")|r" end
+        row.mid:SetText(mid)
+        row.right:SetText(m.online and ("|cff40ff40●|r " .. (m.zone or "")) or ("|cff777777" .. (m.last or "") .. "|r"))
     end
     memberList:Finish(#data)
+end
+
+-- Community-Mitglieder ändern sich -> Liste neu zeichnen (gebündelt)
+if HAS_CLUB then
+    local pending
+    local cf = CreateFrame("Frame")
+    for _, e in ipairs({ "CLUB_MEMBER_ADDED", "CLUB_MEMBER_REMOVED", "CLUB_MEMBER_UPDATED",
+                         "CLUB_MEMBER_PRESENCE_UPDATED", "CLUB_REMOVED" }) do
+        pcall(cf.RegisterEvent, cf, e)
+    end
+    cf:SetScript("OnEvent", function(_, _, clubId)
+        if not (source and members:IsVisible()) or pending then return end
+        if clubId and clubId ~= source.id then return end
+        pending = C_Timer.NewTimer(0.5, function() pending = nil; members:Refresh() end)
+    end)
+    members:HookScript("OnHide", function()
+        if C_Club.ClearClubPresenceSubscription then pcall(C_Club.ClearClubPresenceSubscription) end
+    end)
+    members:HookScript("OnShow", function()
+        if source and C_Club.SetClubPresenceSubscription then pcall(C_Club.SetClubPresenceSubscription, source.id) end
+    end)
 end
 
 ---------------------------------------------------------------------
@@ -439,7 +669,6 @@ local options = {
     { key = "chatIcon",      label = L["Gilden-Logo im Chat"] },
     { key = "memberAlerts",  label = L["Warnung bei Beitritt / Austritt"] },
     { key = "helpAlerts",    label = L["Hinweis, wenn jemand Gruppe / Quest-Hilfe sucht"] },
-    { key = "btagAuto",      label = L["BattleTags neuer Mitglieder in Offiziersnotiz eintragen (nur Offiziere)"] },
 }
 local checks = {}
 for i, opt in ipairs(options) do

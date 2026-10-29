@@ -42,16 +42,33 @@ end
 ---------------------------------------------------------------------
 -- Senden (mit Warteschlange gegen Drosselung)
 ---------------------------------------------------------------------
+-- Der Server drosselt Addon-Nachrichten pro Prefix. Gedrosselte Nachrichten
+-- gingen früher verloren; jetzt kommen sie zurück in die Warteschlange.
 local queue = {}
+local pauseUntil = 0
+local RESULT = Enum and Enum.SendAddonMessageResult
+local function Throttled(res)
+    if not RESULT then return false end
+    return (RESULT.AddonMessageThrottle ~= nil and res == RESULT.AddonMessageThrottle)
+        or (RESULT.ChannelThrottle ~= nil and res == RESULT.ChannelThrottle)
+end
+
 C_Timer.NewTicker(0.3, function()
+    if GetTime() < pauseUntil then return end
     local item = table.remove(queue, 1)
     if not item then return end
+    local res
     if item.target == "@OFFICER" then
-        if IsInGuild() then C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "OFFICER") end
+        if IsInGuild() then res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "OFFICER") end
     elseif item.target then
-        C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.target)
+        res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.target)
     elseif IsInGuild() then
-        C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "GUILD")
+        res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "GUILD")
+    end
+    if Throttled(res) then
+        item.tries = (item.tries or 0) + 1
+        if item.tries <= 10 then table.insert(queue, 1, item) end
+        pauseUntil = GetTime() + 1.5
     end
 end)
 

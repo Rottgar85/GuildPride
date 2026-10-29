@@ -18,19 +18,19 @@
 - **Guild rules** – officers write the rules once, they are synced to everyone. Members are shown new rules the next time they open the window.
 - **Guild chat & communities** – guild chat, officer chat and all your Blizzard communities inside the window, including the server-side history.
 - **Guild tabard in chat** – members who use GuildPride get your guild emblem in front of their name in chat.
-- **Members list** – online members or everyone incl. offline, with "last online" info.
-- **BattleTag in officer notes (opt-in)** – new members can choose to send their BattleTag to the officers. Officers get a notification and confirm it with one click. Nothing is sent without the member's consent.
+- **Members list** – your guild or any of your communities, online members or everyone incl. offline, with "last online" info.
+- **Invite players** – type a name to invite someone to the guild or the selected community, or right-click a member to whisper or invite them.
 - **Version check** – members with an outdated version get a reminder to update.
 - **English & German** – switches automatically to your game client's language.
 
 ### Commands
 
-`/gp` – open the window · `/gp help` – all commands · `/gp tag XYZ` – set your guild tag · `/gp badge 30` – preview a milestone pop-up · `/gp version` – who uses which version · `/gp btags` – (officers) review pending BattleTags
+`/gp` – open the window · `/gp help` – all commands · `/gp tag XYZ` – set your guild tag · `/gp badge 30` – preview a milestone pop-up · `/gp version` – who uses which version · `/gp invite Name` – invite a player to the guild
 
 ### Good to know
 
 - Features like milestones, events, rules and the group finder sync between guild members who **all have GuildPride installed**.
-- Data is shared through the guild's addon channel only. BattleTags are only ever sent to officers and are never broadcast to the whole guild.
+- Data is shared through the guild's addon channel only.
 - This is an early release – feedback and bug reports are very welcome!
 
 ---
@@ -49,19 +49,19 @@
 - **Gildenregeln** – Offiziere schreiben die Regeln einmal, sie werden an alle verteilt. Neue Regeln werden beim nächsten Öffnen zuerst angezeigt.
 - **Gildenchat & Communities** – Gildenchat, Offizierschat und alle Blizzard-Communities direkt im Fenster, inklusive Verlauf vom Server.
 - **Wappenrock im Chat** – wer GuildPride nutzt, bekommt euer Gildenemblem vor seinen Namen im Chat.
-- **Mitgliederliste** – nur online oder alle inkl. offline, mit „zuletzt online“.
-- **BattleTag in der Offiziersnotiz (freiwillig)** – neue Mitglieder können ihren BattleTag an die Offiziere schicken. Offiziere werden benachrichtigt und bestätigen mit einem Klick. Ohne Zustimmung des Mitglieds wird nichts gesendet.
+- **Mitgliederliste** – eure Gilde oder jede deiner Communities, nur online oder alle inkl. offline, mit „zuletzt online“.
+- **Spieler einladen** – Namen eingeben und in die Gilde oder die gewählte Community einladen, oder per Rechtsklick auf ein Mitglied anflüstern und einladen.
 - **Versionscheck** – wer eine alte Version nutzt, wird ans Aktualisieren erinnert.
 - **Deutsch & Englisch** – stellt sich automatisch auf die Sprache deines Clients ein.
 
 ### Befehle
 
-`/gp` – Fenster öffnen · `/gp help` – alle Befehle · `/gp kuerzel XYZ` – Gildenkürzel festlegen · `/gp badge 30` – Meilenstein-Popup testen · `/gp version` – wer welche Version nutzt · `/gp btags` – (Offiziere) offene BattleTags bestätigen
+`/gp` – Fenster öffnen · `/gp help` – alle Befehle · `/gp kuerzel XYZ` – Gildenkürzel festlegen · `/gp badge 30` – Meilenstein-Popup testen · `/gp version` – wer welche Version nutzt · `/gp einladen Name` – Spieler in die Gilde einladen
 
 ### Gut zu wissen
 
 - Meilensteine, Events, Regeln und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die **alle GuildPride installiert haben**.
-- Daten laufen nur über den Addon-Kanal der Gilde. BattleTags gehen ausschließlich an Offiziere und werden nie an die ganze Gilde geschickt.
+- Daten laufen nur über den Addon-Kanal der Gilde.
 - Dies ist eine frühe Version – Feedback und Fehlermeldungen sind sehr willkommen!
 
 ---
