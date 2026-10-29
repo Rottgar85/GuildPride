@@ -249,6 +249,7 @@ local function MyRank()
 end
 
 local function YesNo(v) return v and ("|cff40ff40" .. L["ja"] .. "|r") or ("|cffff4040" .. L["nein"] .. "|r") end
+ns.RecvStats = { total = 0, others = 0, secret = 0 }
 
 ns.On("PING", function(_, sender)
     if sender == ns.Me() or not ns.Queue then return end
@@ -275,9 +276,17 @@ local function Status()
         end
     end
     Print(("GuildPride %s · %s %s (%d)"):format(ns.VERSION or "?", L["Rang"], rankName, rankIndex))
-    Print((L["Gildenchat schreiben: %s · lesen: %s · Chat-Sperre: %s"]):format(
-        YesNo(not ns.CanSpeakGuild or ns.CanSpeakGuild()), YesNo(not ns.CanListenGuild or ns.CanListenGuild()),
-        YesNo(ns.ChatLocked and ns.ChatLocked())))
+    local inInstance, instanceType = IsInInstance()
+    local lockdown = C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() or false
+    Print((L["Gildenchat schreiben: %s · lesen: %s"]):format(
+        YesNo(not ns.CanSpeakGuild or ns.CanSpeakGuild()), YesNo(not ns.CanListenGuild or ns.CanListenGuild())))
+    Print((L["Instanz: %s (%s) · Blizzard-Chat-Sperre: %s"]):format(YesNo(inInstance), tostring(instanceType), YesNo(lockdown)))
+    local r = ns.RecvStats
+    Print((L["Empfangen: %d, davon %d von anderen, %d gesperrt (geschützt)"]):format(r.total, r.others, r.secret))
+    if r.lastFrom then
+        Print((L["Zuletzt von anderen: %s (%s) vor %d s"]):format(Ambiguate(r.lastFrom, "guild"), tostring(r.lastKind),
+            math.floor(GetTime() - r.lastAt)))
+    end
     Print((L["Gesendet: %d direkt, %d weitergeleitet, %d fehlgeschlagen · letztes Ergebnis: %s · Warteschlange: %d"]):format(
         s.direct or 0, s.relayed or 0, s.failed or 0, tostring(s.lastResult), ns.QueueLength and ns.QueueLength() or 0))
     Print((L["Online: %d Mitglieder, davon %d mit GuildPride bekannt"]):format(online, known))
@@ -485,10 +494,19 @@ f:SetScript("OnEvent", function(_, event, ...)
     elseif event == "CHAT_MSG_ADDON" then
         local prefix, message, channel, sender = ...
         -- Geschützte Werte zuerst prüfen: schon ein Vergleich damit wirft einen Fehler
-        if IsSecret(message) or IsSecret(sender) or IsSecret(prefix) or IsSecret(channel) then return end
+        if IsSecret(message) or IsSecret(sender) or IsSecret(prefix) or IsSecret(channel) then
+            ns.RecvStats.secret = ns.RecvStats.secret + 1
+            return
+        end
         if prefix ~= PREFIX or (channel ~= "GUILD" and channel ~= "WHISPER" and channel ~= "OFFICER") then return end
         if type(message) ~= "string" or type(sender) ~= "string" then return end
-        ns.AddonUsers[Normalize(sender)] = true
+        -- Absender immer als "Name-Realm": manchmal kommt er ohne Realm an, dann
+        -- wurden eigene Nachrichten für fremde gehalten (z. B. doppelte Hinweise)
+        sender = Normalize(sender)
+        local r = ns.RecvStats
+        r.total = r.total + 1
+        if sender ~= ns.Me() then r.others = r.others + 1; r.lastFrom, r.lastKind, r.lastAt = sender, message:match("^(%u+)"), GetTime() end
+        ns.AddonUsers[sender] = true
         Dispatch(message, sender)
     end
 end)
