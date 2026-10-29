@@ -3,11 +3,13 @@
 ## 1.5.2
 
 **English**
-- The "Rules" tab is now "Guild Info": it shows the guild info text from Blizzard's guild window, so everyone sees the same text, even without GuildPride. Officers edit it with "Edit in Blizzard's window" (Blizzard does not let addons change it). When it changes, the tab is shown first the next time you open the window
+- The "Rules" tab is now "Guild Info": it shows the guild info text from Blizzard's guild window, so everyone sees the same text, even without GuildPride. Whoever may change it can edit it right there (with a character counter, max. 500); GuildPride checks afterwards whether the server took the new text, otherwise "Blizzard window" helps. When it changes, the tab is shown first the next time you open the window
+- Chat: names of older messages are looked up (member list, otherwise the character) instead of showing "Unknown". Guild and officer chat are also recorded while the window is closed, so the history keeps growing
 - English client: dates in the overview, milestones and event messages now use the English format (31 Oct instead of 31.10.)
 
 **Deutsch**
-- Der Reiter „Regeln“ heißt jetzt „Gildeninfo“: Er zeigt den Info-Text aus dem Blizzard-Gildenfenster, alle sehen also denselben Text, auch ohne GuildPride. Offiziere bearbeiten ihn über „Im Blizzard-Fenster bearbeiten“ (Blizzard lässt Addons ihn nicht ändern). Ändert er sich, wird der Reiter beim nächsten Öffnen zuerst gezeigt
+- Der Reiter „Regeln“ heißt jetzt „Gildeninfo“: Er zeigt den Info-Text aus dem Blizzard-Gildenfenster, alle sehen also denselben Text, auch ohne GuildPride. Wer ihn ändern darf, bearbeitet ihn direkt dort (mit Zeichenzähler, max. 500); GuildPride prüft danach, ob der Server den neuen Text übernommen hat, sonst hilft „Blizzard-Fenster“. Ändert er sich, wird der Reiter beim nächsten Öffnen zuerst gezeigt
+- Chat: Namen älterer Nachrichten werden nachgeschlagen (Mitgliederliste, sonst der Charakter), statt „Unbekannt“ anzuzeigen. Gilden- und Offizierschat werden auch bei geschlossenem Fenster mitgeschrieben, der Verlauf wächst also weiter
 - Englischer Client: Datumsangaben in Übersicht, Meilensteinen und Event-Meldungen im englischen Format (31 Oct statt 31.10.)
 
 ## 1.5.1

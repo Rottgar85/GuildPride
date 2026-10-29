@@ -1,14 +1,15 @@
 -- GuildPride: Gildeninfo (der Info-Text aus dem Blizzard-Gildenfenster)
 -- Der Text kommt direkt vom Server: alle Mitglieder sehen denselben Stand,
--- auch ohne GuildPride. Addons dürfen ihn nur lesen, nicht ändern – bearbeitet
--- wird er deshalb im Blizzard-Gildenfenster (Reiter "Info").
+-- auch ohne GuildPride. Wer die Gildeninfo ändern darf, bearbeitet sie hier;
+-- klappt das Speichern nicht, bleibt der Weg über das Blizzard-Gildenfenster.
 local ADDON, ns = ...
 local L = ns.L
+local MAX_LEN = 500   -- Grenze von Blizzard für die Gildeninfo
 
 local page = ns.AddTab(L["Gildeninfo"])
 
 ---------------------------------------------------------------------
--- Anzeige
+-- Anzeige und Bearbeiten
 ---------------------------------------------------------------------
 local scroll = CreateFrame("ScrollFrame", nil, page, "UIPanelScrollFrameTemplate")
 scroll:SetPoint("TOPLEFT", 0, -4)
@@ -21,16 +22,40 @@ local text = view:CreateFontString(nil, "OVERLAY", "GPFont_Text")
 text:SetPoint("TOPLEFT", 4, -4)
 text:SetWidth(620); text:SetJustifyH("LEFT"); text:SetSpacing(4)
 
+local edit = CreateFrame("EditBox", nil, scroll)
+edit:SetMultiLine(true)
+edit:SetFontObject(GPFont_Text)
+edit:SetWidth(620)
+edit:SetAutoFocus(false)
+edit:SetMaxLetters(MAX_LEN)
+edit:SetTextInsets(6, 6, 6, 6)
+edit:Hide()
+local editBg = edit:CreateTexture(nil, "BACKGROUND")
+editBg:SetAllPoints(); editBg:SetColorTexture(0, 0, 0, 0.45)
+edit:SetScript("OnEscapePressed", edit.ClearFocus)
+
 local info = page:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
 info:SetPoint("BOTTOMLEFT", 2, 8)
-info:SetWidth(420); info:SetJustifyH("LEFT")
+info:SetWidth(300); info:SetJustifyH("LEFT")
 
-local bEdit = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bEdit:SetSize(220, 24); bEdit:SetPoint("BOTTOMRIGHT", 0, 0); bEdit:SetText(L["Im Blizzard-Fenster bearbeiten"])
-bEdit:SetScript("OnClick", function()
+local bBlizz = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bBlizz:SetSize(150, 24); bBlizz:SetPoint("BOTTOMRIGHT", -236, 0); bBlizz:SetText(L["Blizzard-Fenster"])
+bBlizz:SetScript("OnClick", function()
     ns.OpenBlizzardGuild()
     ns.Print(L["Gildeninfo bearbeiten: im Blizzard-Gildenfenster den Reiter „Info“ öffnen und dort auf „Bearbeiten“ klicken."])
 end)
+local bEdit = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bEdit:SetSize(110, 24); bEdit:SetPoint("BOTTOMRIGHT", -118, 0); bEdit:SetText(L["Bearbeiten"])
+local bSave = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bSave:SetSize(110, 24); bSave:SetPoint("BOTTOMRIGHT", 0, 0); bSave:SetText(L["Speichern"])
+
+local counter = page:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
+counter:SetPoint("BOTTOMRIGHT", bBlizz, "BOTTOMLEFT", -10, 8)
+edit:SetScript("OnTextChanged", function(self)
+    counter:SetText(("%d / %d"):format(#(self:GetText() or ""), MAX_LEN))
+end)
+
+local editing = false
 
 local function InfoText()
     local t
@@ -53,17 +78,61 @@ local function Hash(s)
 end
 
 function page:Refresh()
-    local t = InfoText()
-    if t == nil then
-        text:SetText(L["|cff888888Die Gildeninfo ist gerade nicht verfügbar.|r"])
+    local can = CanEdit()
+    if not can then editing = false end
+    if editing then
+        scroll:SetScrollChild(edit); view:Hide(); edit:Show()
+        edit:SetHeight(math.max(200, scroll:GetHeight()))
     else
-        text:SetText(t ~= "" and t or L["|cff888888Es wurde noch keine Gildeninfo festgelegt.|r"])
-        GuildPrideDB.infoSeen = Hash(t)   -- gelesen
+        scroll:SetScrollChild(view); edit:Hide(); view:Show()
+        local t = InfoText()
+        if t == nil then
+            text:SetText(L["|cff888888Die Gildeninfo ist gerade nicht verfügbar.|r"])
+        else
+            text:SetText(t ~= "" and t or L["|cff888888Es wurde noch keine Gildeninfo festgelegt.|r"])
+            GuildPrideDB.infoSeen = Hash(t)   -- gelesen
+        end
+        view:SetHeight(text:GetStringHeight() + 10)
     end
-    view:SetHeight(text:GetStringHeight() + 10)
-    info:SetText(CanEdit() and L["Du darfst die Gildeninfo ändern."] or L["Die Gildeninfo wird von der Gildenleitung gepflegt."])
-    bEdit:SetShown(CanEdit())
+    info:SetText(can and L["Du darfst die Gildeninfo ändern."] or L["Die Gildeninfo wird von der Gildenleitung gepflegt."])
+    bEdit:SetShown(can); bBlizz:SetShown(can)
+    bSave:SetShown(can and editing)
+    counter:SetShown(can and editing)
+    bEdit:SetText(editing and L["Abbrechen"] or L["Bearbeiten"])
 end
+
+bEdit:SetScript("OnClick", function()
+    editing = not editing
+    if editing then
+        edit:SetText(InfoText() or "")
+        edit:SetFocus(); edit:SetCursorPosition(0)
+    end
+    page:Refresh()
+end)
+
+-- Speichern und danach prüfen, ob der Server den neuen Text übernommen hat
+local SetInfo = (C_GuildInfo and C_GuildInfo.SetInfoText) or SetGuildInfoText
+bSave:SetScript("OnClick", function()
+    if not CanEdit() or not SetInfo then return end
+    local new = (edit:GetText() or ""):gsub("|", ""):sub(1, MAX_LEN)
+    SetInfo(new)
+    editing = false
+    edit:ClearFocus()
+    ns.Print(L["Gildeninfo wird gespeichert …"])
+    page:Refresh()
+    C_Timer.After(1, function() if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end end)
+    C_Timer.After(4, function()
+        local now = InfoText()
+        if now == nil then return end
+        if strtrim(now) == strtrim(new) then
+            GuildPrideDB.infoSeen = Hash(now)
+            ns.Print(L["Gildeninfo gespeichert. Alle Mitglieder sehen jetzt den neuen Text."])
+        else
+            ns.Print(L["|cffff4040Die Gildeninfo konnte nicht gespeichert werden.|r Bitte über „Blizzard-Fenster“ bearbeiten."])
+        end
+        if page:IsVisible() then page:Refresh() end
+    end)
+end)
 
 ---------------------------------------------------------------------
 -- Geänderte Gildeninfo melden und beim Öffnen zuerst zeigen

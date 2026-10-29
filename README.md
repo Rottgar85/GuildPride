@@ -16,7 +16,7 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - **Join and leave alerts**: a clear notice when someone joins or leaves, so nobody gets overlooked
 - **Event planner**: officers create events with date, description and officer note. Members sign up as Attending, Maybe or Declined with their role. Reminder 15 minutes before the start
 - **Group finder and quest help**: sign up with a note and the roles you still need. Everyone sees class, level, role, zone and how full the group is
-- **Guild info**: the info text from Blizzard's guild window, the same for everyone. Officers edit it in Blizzard's window
+- **Guild info**: the info text from Blizzard's guild window, the same for everyone. Whoever may change it edits it right in GuildPride
 - **Guild chat and communities**: guild chat, officer chat and your Blizzard communities inside the window, including the server-side history
 - **Guild tabard in chat** for members who use GuildPride
 - **Members list**: your guild or any of your communities, online only or everyone, with "last online"
@@ -52,7 +52,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - **Hinweis bei Beitritt und Austritt**: eine deutliche Meldung, wenn jemand kommt oder geht, damit niemand untergeht
 - **Event-Planer**: Offiziere legen Events mit Datum, Beschreibung und Offiziers-Notiz an. Mitglieder melden sich mit Zusagen, Vielleicht oder Absagen und ihrer Rolle an. Erinnerung 15 Minuten vor Beginn
 - **Gruppensuche und Quest-Hilfe**: mit Notiz und fehlenden Rollen eintragen. Alle sehen Klasse, Level, Rolle, Zone und wie voll die Gruppe ist
-- **Gildeninfo**: der Info-Text aus dem Blizzard-Gildenfenster, für alle gleich. Offiziere bearbeiten ihn im Blizzard-Fenster
+- **Gildeninfo**: der Info-Text aus dem Blizzard-Gildenfenster, für alle gleich. Wer ihn ändern darf, bearbeitet ihn direkt in GuildPride
 - **Gildenchat und Communities**: Gildenchat, Offizierschat und eure Blizzard-Communities direkt im Fenster, inklusive Verlauf vom Server
 - **Wappenrock im Chat** für alle, die GuildPride nutzen
 - **Mitgliederliste**: eure Gilde oder jede deiner Communities, nur online oder alle, mit „zuletzt online“
