@@ -315,6 +315,37 @@ end
 ns.ChatFilter = ChatFilter
 
 ---------------------------------------------------------------------
+-- Addon-Nachrichten verteilen; mehrteilige ("MP") erst zusammensetzen
+---------------------------------------------------------------------
+local multipart = {}   -- ["Sender:id"] = { n, got, parts, t }
+
+local function Dispatch(message, sender)
+    local kind, value = message:match("^(%u+):(.+)$")
+    if not kind then return end
+    if kind == "MP" then
+        local id, i, n, part = value:match("^([^\031]+)\031(%d+)\031(%d+)\031(.*)$")
+        i, n = tonumber(i), tonumber(n)
+        if not id or not i or not n or n > 20 then return end
+        local now = GetTime()
+        for k, b in pairs(multipart) do if now - b.t > 60 then multipart[k] = nil end end
+        local key = sender .. ":" .. id
+        local buf = multipart[key] or { n = n, got = 0, parts = {}, t = now }
+        multipart[key] = buf
+        if not buf.parts[i] then buf.parts[i] = part; buf.got = buf.got + 1 end
+        if buf.got < buf.n then return end
+        multipart[key] = nil
+        local full = table.concat(buf.parts)
+        if not full:match("^MP:") then Dispatch(full, sender) end
+        return
+    end
+    if ns.Handlers[kind] then
+        for _, fn in ipairs(ns.Handlers[kind]) do fn(value, sender) end
+    elseif kind == "LEVEL" then
+        ShowMilestone(sender, kind, value)
+    end
+end
+
+---------------------------------------------------------------------
 -- Events
 ---------------------------------------------------------------------
 local f = CreateFrame("Frame")
@@ -373,14 +404,9 @@ f:SetScript("OnEvent", function(_, event, ...)
     elseif event == "CHAT_MSG_ADDON" then
         local prefix, message, channel, sender = ...
         if prefix ~= PREFIX or (channel ~= "GUILD" and channel ~= "WHISPER" and channel ~= "OFFICER") then return end
-        if sender then ns.AddonUsers[Normalize(sender)] = true end
-        local kind, value = message:match("^(%u+):(.+)$")
-        if not kind then return end
-        if ns.Handlers[kind] then
-            for _, fn in ipairs(ns.Handlers[kind]) do fn(value, sender) end
-        elseif kind == "LEVEL" then
-            ShowMilestone(sender, kind, value)
-        end
+        if not sender or not message or (issecretvalue and (issecretvalue(message) or issecretvalue(sender))) then return end
+        ns.AddonUsers[Normalize(sender)] = true
+        Dispatch(message, sender)
     end
 end)
 

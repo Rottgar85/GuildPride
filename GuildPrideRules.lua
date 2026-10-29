@@ -98,8 +98,18 @@ ns.On("RUL", function(payload, sender)
     end
 end)
 
-ns.On("REQ", function(_, sender)
-    if sender ~= ns.Me() then SendRules(sender) end
+-- REQ: Login-Abgleich · RUQ: jemand hat den Reiter Regeln geöffnet
+for _, k in ipairs({ "REQ", "RUQ" }) do
+    ns.On(k, function(_, sender)
+        if sender ~= ns.Me() then C_Timer.After(math.random() * 3, function() SendRules(sender) end) end
+    end)
+end
+
+local lastAsk = 0
+page:HookScript("OnShow", function()
+    if GetTime() - lastAsk < 120 then return end
+    lastAsk = GetTime()
+    ns.Queue("RUQ", nil, "1")
 end)
 
 ---------------------------------------------------------------------

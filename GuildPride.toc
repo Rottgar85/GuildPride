@@ -3,7 +3,7 @@
 ## Notes: Guild window, milestones, events, rules and guild chat for your guild
 ## Notes-deDE: Gildenfenster, Meilensteine, Events, Regeln und Gildenchat für deine Gilde
 ## Author: Rage Quitters Anonymous
-## Version: 1.5.0
+## Version: 1.5.1
 ## SavedVariables: GuildPrideDB
 ## IconTexture: Interface\AddOns\GuildPride\Media\logo_small
 ## X-Curse-Project-ID: 1771937
