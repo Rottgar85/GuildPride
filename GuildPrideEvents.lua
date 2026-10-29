@@ -116,6 +116,8 @@ end
 
 C_Timer.NewTicker(0.3, function()
     if GetTime() < pauseUntil then return end
+    -- Während der Chat-Sperre (Bosskampf, M+, PvP) nichts senden; die Warteschlange bleibt erhalten
+    if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return end
     local item = table.remove(queue, 1)
     if not item then return end
     local res

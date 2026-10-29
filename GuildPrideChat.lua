@@ -94,10 +94,30 @@ local function IsUnknown(name)
     return name == nil or name == "" or name == "?" or name == UNKNOWNOBJECT or name == UNKNOWN
 end
 
--- Autorennamen nachschlagen: Mitgliederliste des Clubs, sonst über die GUID
+-- GUID -> Name aus der Gildenliste (für Gilden- und Offizierschat)
+local rosterByGuid, rosterAt = {}, 0
+local function RosterName(guid)
+    if not guid or not IsInGuild() then return end
+    if GetTime() - rosterAt > 30 then
+        rosterAt = GetTime()
+        wipe(rosterByGuid)
+        for i = 1, GetNumGuildMembers() do
+            local n, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, g = GetGuildRosterInfo(i)
+            if n and g then rosterByGuid[g] = n end
+        end
+    end
+    return rosterByGuid[guid]
+end
+
+-- Autorennamen nachschlagen: eigene Nachricht, Mitgliederliste des Clubs,
+-- Gildenliste, sonst über die GUID
 local function AuthorName(clubId, a)
     local name = a.name
     if issecretvalue and issecretvalue(name) then name = nil end
+    if IsUnknown(name) and a.isSelf then
+        name = UnitName("player") .. "-" .. (GetNormalizedRealmName() or "")
+    end
+    if IsUnknown(name) and a.guid then name = RosterName(a.guid) or name end
     if IsUnknown(name) and clubId and a.memberId and C_Club.GetMemberInfo then
         local info = C_Club.GetMemberInfo(clubId, a.memberId)
         if info and not IsUnknown(info.name) and not (issecretvalue and issecretvalue(info.name)) then
@@ -121,7 +141,7 @@ local function ClubEntry(clubId, m, kind)
     -- Battle.net-Communities: kein Charaktername -> kein Player-Link
     local link = full and (kind ~= "CLUB" or a.clubType ~= Enum.ClubType.BattleNet) and full or nil
     return { t = t, who = full and Ambiguate(full, "guild") or nil, full = link, hex = ClassHex(a.classID),
-             text = m.content, memberId = a.memberId, guid = a.guid }
+             text = m.content, memberId = a.memberId, guid = a.guid, isSelf = a.isSelf }
 end
 
 local function EntryLine(e, kind)
@@ -139,11 +159,14 @@ local function Cache(clubId, streamId)
     return GuildPrideDB.clubCache[key]
 end
 
--- Dieselbe Nachricht? Gleicher Text, höchstens 2 Minuten auseinander
--- (Chat-Ereignis und Server-Verlauf haben leicht andere Zeitstempel).
+-- Dieselbe Nachricht? Gleicher Text und zeitlich nah beieinander (Chat-Ereignis
+-- und Server-Verlauf haben andere Zeitstempel). Fehlt einer Seite der Name,
+-- großzügiger vergleichen – sonst taucht sie doppelt als "Unbekannt" auf.
 local function Same(a, b)
-    return a.text == b.text and math.abs((a.t or 0) - (b.t or 0)) < 120
-        and (a.who == nil or b.who == nil or a.who == b.who)
+    if a.text ~= b.text then return false end
+    local dt = math.abs((a.t or 0) - (b.t or 0))
+    if a.who and b.who then return a.who == b.who and dt < 120 end
+    return dt < 900
 end
 
 -- Einträge in den Speicher übernehmen: ohne Doppelte, fehlende Namen ergänzen
@@ -171,13 +194,22 @@ local function Remember(cache, entries)
     end
 end
 
--- Alte Einträge ohne Namen beim Anzeigen erneut nachschlagen
+-- Alte Einträge ohne Namen beim Anzeigen erneut nachschlagen; was dann noch
+-- namenlos ist, aber als Eintrag mit Namen schon existiert, fliegt raus
 local function FixNames(clubId, cache)
     for _, e in ipairs(cache) do
         if not e.who or IsUnknown(e.who) then
-            local full = AuthorName(clubId, { memberId = e.memberId, guid = e.guid })
+            local full = AuthorName(clubId, { memberId = e.memberId, guid = e.guid, isSelf = e.isSelf })
             if full then e.who, e.full = Ambiguate(full, "guild"), full end
             if IsUnknown(e.who) then e.who = nil end
+        end
+    end
+    for i = #cache, 1, -1 do
+        local e = cache[i]
+        if not e.who then
+            for j = 1, #cache do
+                if j ~= i and cache[j].who and Same(cache[j], e) then table.remove(cache, i); break end
+            end
         end
     end
 end
@@ -413,9 +445,10 @@ if HAS_CLUB then
     gc:RegisterEvent("CHAT_MSG_GUILD")
     gc:RegisterEvent("CHAT_MSG_OFFICER")
     gc:SetScript("OnEvent", function(_, event, text, author, _, _, _, _, _, _, _, _, _, guid)
-        if not GuildPrideDB or issecretvalue and (issecretvalue(text) or issecretvalue(author)) then return end
+        if issecretvalue and (issecretvalue(text) or issecretvalue(author) or issecretvalue(guid)) then return end
+        if not GuildPrideDB or type(text) ~= "string" or type(author) ~= "string" or author == "" then return end
         local clubId, streamId = Resolve({ kind = event == "CHAT_MSG_OFFICER" and "OFFICER" or "GUILD" })
-        if not clubId or not author or author == "" then return end
+        if not clubId then return end
         local _, class = nil, nil
         if guid and guid ~= "" and GetPlayerInfoByGUID then _, class = GetPlayerInfoByGUID(guid) end
         Remember(Cache(clubId, streamId), { { t = GetServerTime(), who = Ambiguate(author, "guild"), full = author,

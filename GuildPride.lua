@@ -309,14 +309,27 @@ function ns.UpdateChatEmblem()
     _G["CHAT_FLAG_GUILDPRIDE"] = (GuildEmblemString(14) or IconString(14)) .. " "
 end
 
+-- Midnight: In Dungeons, PvP, Schlachtzügen und M+ ist der Chat gesperrt
+-- ("Chat Messaging Lockdown"): Texte und Namen sind dann geschützt, schon ein
+-- Vergleich löst einen Fehler aus – und ein Fehler im Filter lässt WoW die ganze
+-- Zeile verwerfen. Deshalb fassen wir den Chat dort überhaupt nicht an.
+local function ChatLocked()
+    if C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return true end
+    return IsInInstance and IsInInstance() and true or false
+end
+ns.ChatLocked = ChatLocked
+
+local function IsSecret(v) return issecretvalue and issecretvalue(v) or false end
+
 local function ChatFilter(self, event, msg, author, a3, a4, a5, flag, ...)
-    if not GuildPrideDB or not GuildPrideDB.chatIcon then return false end
-    -- Midnight: Chatdaten können "secret" sein -> dann nicht anfassen
-    if issecretvalue and (issecretvalue(msg) or issecretvalue(author) or issecretvalue(flag)) then
-        return false
-    end
+    if not GuildPrideDB or not GuildPrideDB.chatIcon or ChatLocked() then return false end
+    -- Geschützte Werte zuerst prüfen, erst danach Typ und Inhalt
+    if IsSecret(msg) or IsSecret(author) or IsSecret(flag) then return false end
+    if type(author) ~= "string" or author == "" then return false end
     -- AFK/DND/GM-Markierungen nicht überschreiben
-    if author and (flag == nil or flag == "") and ns.AddonUsers[Normalize(author)] then
+    if flag ~= nil and flag ~= "" then return false end
+    local ok, known = pcall(function() return ns.AddonUsers[Normalize(author)] end)
+    if ok and known then
         return false, msg, author, a3, a4, a5, FLAG, ...
     end
     return false
@@ -427,8 +440,10 @@ f:SetScript("OnEvent", function(_, event, ...)
 
     elseif event == "CHAT_MSG_ADDON" then
         local prefix, message, channel, sender = ...
+        -- Geschützte Werte zuerst prüfen: schon ein Vergleich damit wirft einen Fehler
+        if IsSecret(message) or IsSecret(sender) or IsSecret(prefix) or IsSecret(channel) then return end
         if prefix ~= PREFIX or (channel ~= "GUILD" and channel ~= "WHISPER" and channel ~= "OFFICER") then return end
-        if not sender or not message or (issecretvalue and (issecretvalue(message) or issecretvalue(sender))) then return end
+        if type(message) ~= "string" or type(sender) ~= "string" then return end
         ns.AddonUsers[Normalize(sender)] = true
         Dispatch(message, sender)
     end
