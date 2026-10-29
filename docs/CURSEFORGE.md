@@ -15,7 +15,7 @@
 - **Join / leave alerts** – a clear on-screen notice when someone joins or leaves, so nobody gets overlooked. Greeting stays personal – you type "hello" yourself.
 - **Event planner** – officers create events with date, description and an officer note (e.g. meeting point). Members sign up as *Attending / Maybe / Declined* and pick their role (Tank / Healer / DPS). Reminder 15 minutes before the start.
 - **Group finder & quest help** – sign up with a note and the roles you still need. Everyone sees who is looking, their class, level, role, zone and how full the group is (e.g. *Group 3/5*). The group size updates automatically.
-- **Guild info** – shows the info text from Blizzard's guild window, the same for everyone, even without GuildPride. Whoever may change it edits it right in GuildPride. Changes are shown first the next time you open the window.
+- **Guild info** – shows the info text from Blizzard's guild window, the same for everyone, even without GuildPride. It is edited in Blizzard's guild window, one click away. Changes are shown first the next time you open the window.
 - **Guild chat & communities** – guild chat, officer chat and all your Blizzard communities inside the window, including the server-side history.
 - **Guild tabard in chat** – members who use GuildPride get your guild emblem in front of their name in chat.
 - **Members list** – your guild or any of your communities, online members or everyone incl. offline, with "last online" info.
@@ -48,7 +48,7 @@
 - **Hinweis bei Beitritt / Austritt** – eine deutliche Bildschirmmeldung, wenn jemand kommt oder geht, damit niemand untergeht. Begrüßt wird persönlich – „Hallo“ schreibt ihr selbst.
 - **Event-Planer** – Offiziere legen Events mit Datum, Beschreibung und Offiziers-Notiz (z. B. Treffpunkt) an. Mitglieder melden sich mit *Zusagen / Vielleicht / Absagen* an und wählen ihre Rolle (Tank / Heiler / DD). Erinnerung 15 Minuten vor Beginn.
 - **Gruppensuche & Quest-Hilfe** – mit Notiz und fehlenden Rollen eintragen. Alle sehen, wer sucht, mit Klasse, Level, Rolle, Zone und wie voll die Gruppe ist (z. B. *Gruppe 3/5*). Die Gruppengröße wird automatisch aktualisiert.
-- **Gildeninfo** – zeigt den Info-Text aus dem Blizzard-Gildenfenster, für alle gleich, auch ohne GuildPride. Wer ihn ändern darf, bearbeitet ihn direkt in GuildPride. Änderungen werden beim nächsten Öffnen zuerst angezeigt.
+- **Gildeninfo** – zeigt den Info-Text aus dem Blizzard-Gildenfenster, für alle gleich, auch ohne GuildPride. Bearbeitet wird er im Blizzard-Gildenfenster, einen Klick entfernt. Änderungen werden beim nächsten Öffnen zuerst angezeigt.
 - **Gildenchat & Communities** – Gildenchat, Offizierschat und alle Blizzard-Communities direkt im Fenster, inklusive Verlauf vom Server.
 - **Wappenrock im Chat** – wer GuildPride nutzt, bekommt euer Gildenemblem vor seinen Namen im Chat.
 - **Mitgliederliste** – eure Gilde oder jede deiner Communities, nur online oder alle inkl. offline, mit „zuletzt online“.
