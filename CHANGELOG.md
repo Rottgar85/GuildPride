@@ -11,6 +11,7 @@
 - Notes are shown in the member list
 - Milestones are now synced: on login and when you open the Milestones tab, missed entries are fetched from other guild members. Level-ups are also detected from the guild roster, so they show up for members without GuildPride too. Joins and leaves are synced the same way
 - New event: date and time now have separate fields, prefilled with today (or tomorrow) at 20:00. Many formats work (24.12., 24.12.2026, 20, 20:00, 20.00, 20 Uhr); without a year the next matching date is used, and impossible dates like 31.02. are rejected
+- Group Finder: instead of "Whisper" the button now sends a join request to the player's group ("Join"), or invites a solo player looking for a group into yours ("Invite"). It shows "In group" or "Full" when that applies. Right-click still whispers
 
 **Deutsch**
 - Gildenverwaltung: Klick auf ein Gildenmitglied öffnet Details mit öffentlicher Notiz und Offiziersnotiz, dort befördern, degradieren, beliebigen Rang setzen, aus der Gilde entfernen oder Gildenleitung übergeben (je nach deinen Rechten)
@@ -21,6 +22,7 @@
 - Notizen werden in der Mitgliederliste angezeigt
 - Meilensteine werden jetzt abgeglichen: beim Login und beim Öffnen des Reiters Meilensteine kommen verpasste Einträge von anderen Gildenmitgliedern. Level-Aufstiege werden zusätzlich aus der Gildenliste erkannt, also auch bei Mitgliedern ohne GuildPride. Beitritte und Austritte werden genauso abgeglichen
 - Neues Event: Datum und Uhrzeit haben jetzt getrennte Felder, vorausgefüllt mit heute (oder morgen) um 20:00. Viele Schreibweisen gehen (24.12., 24.12.2026, 20, 20:00, 20.00, 20 Uhr); ohne Jahr gilt der nächste passende Termin, unmögliche Daten wie 31.02. werden abgelehnt
+- Gruppensuche: statt „Anflüstern“ schickt der Knopf jetzt eine Beitrittsanfrage an die Gruppe des Spielers („Beitreten“) oder lädt einen Spieler, der allein eine Gruppe sucht, in deine Gruppe ein („Einladen“). Er zeigt „In Gruppe“ oder „Voll“, wenn das zutrifft. Rechtsklick flüstert weiterhin an
 
 ## 1.4.0
 
