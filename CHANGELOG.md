@@ -6,11 +6,13 @@
 - Sync fixed in all windows: messages longer than WoW's limit of 255 bytes (e.g. events with description and officer note) never arrived. They are now split into parts and put back together automatically
 - Events and rules are also requested when you open their tab, not only at login
 - Community and guild chat: the history no longer disappears. All loaded parts of the history are shown, and the last 150 messages per channel are also kept locally
+- All ranks can now take part: members whose rank may not write in guild chat could not send anything (event sign-ups, Group Finder, milestones). Their messages are now passed on to the guild by another GuildPride user. Members who may not read guild chat get the data by whisper when they open a tab
 
 **Deutsch**
 - Abgleich in allen Fenstern repariert: Nachrichten über WoWs Grenze von 255 Byte (z. B. Events mit Beschreibung und Offiziers-Notiz) kamen nie an. Sie werden jetzt automatisch in Teile zerlegt und wieder zusammengesetzt
 - Events und Regeln werden zusätzlich beim Öffnen ihres Reiters abgefragt, nicht nur beim Login
 - Community- und Gildenchat: der Verlauf verschwindet nicht mehr. Alle geladenen Teile des Verlaufs werden angezeigt, und die letzten 150 Nachrichten je Kanal werden zusätzlich lokal gespeichert
+- Alle Ränge können mitmachen: Mitglieder, deren Rang im Gildenchat nicht schreiben darf, konnten nichts senden (Event-Anmeldungen, Gruppensuche, Meilensteine). Ihre Nachrichten gibt jetzt ein anderer GuildPride-Nutzer an die Gilde weiter. Wer den Gildenchat nicht lesen darf, bekommt die Daten per Flüstern, sobald er einen Reiter öffnet
 
 ## 1.5.0
 

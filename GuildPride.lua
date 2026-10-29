@@ -88,9 +88,10 @@ end
 ns.IconString = IconString
 ns.Print = Print
 
+-- Über die Warteschlange (Drosselung, Weiterleitung für Ränge ohne Gildenchat)
 local function Broadcast(kind, value)
-    if not IsInGuild() then return end
-    C_ChatInfo.SendAddonMessage(PREFIX, kind .. ":" .. tostring(value), "GUILD")
+    if not IsInGuild() or not ns.Queue then return end
+    ns.Queue(kind, nil, value)
 end
 
 local function DescribeMilestone(kind, value)
@@ -196,7 +197,8 @@ end
 -- Antwort sieht, schickt keine zweite.
 local answered = {}
 
-local function SendHistory(requester, since)
+-- whisper: Anfragender kann den Gildenchat nicht lesen -> Antwort per Flüstern
+local function SendHistory(requester, since, whisper)
     local list = {}
     for _, e in ipairs(Log()) do
         if e.kind and e.t and e.t > since then list[#list + 1] = e end
@@ -204,13 +206,19 @@ local function SendHistory(requester, since)
     end
     for i = #list, 1, -1 do
         local e = list[i]
-        ns.Queue("MSL", nil, requester, e.t, e.who, e.kind, e.value or "")
+        ns.Queue("MSL", whisper and requester or nil, requester, e.t, e.who, e.kind, e.value or "")
     end
 end
 
 ns.On("MSQ", function(payload, sender)
     if sender == ns.Me() then return end
-    local since = tonumber(payload) or 0
+    local sinceStr, listen = strsplit(ns.SEP, payload)
+    local since = tonumber(sinceStr) or 0
+    if listen == "0" then
+        -- Antworten anderer sieht er nicht; jeder antwortet direkt, aber versetzt
+        C_Timer.After(math.random() * 5, function() SendHistory(sender, since, true) end)
+        return
+    end
     local newest = Log()[1]
     if not newest or (newest.t or 0) <= since then return end
     answered[sender] = nil
@@ -234,7 +242,8 @@ end)
 
 local function RequestHistory()
     local newest = Log()[1]
-    if ns.Queue then ns.Queue("MSQ", nil, newest and newest.t or 0) end
+    local listen = (not ns.CanListenGuild or ns.CanListenGuild()) and 1 or 0
+    if ns.Queue then ns.Queue("MSQ", nil, newest and newest.t or 0, listen) end
 end
 ns.RequestHistory = RequestHistory
 
@@ -318,10 +327,30 @@ ns.ChatFilter = ChatFilter
 -- Addon-Nachrichten verteilen; mehrteilige ("MP") erst zusammensetzen
 ---------------------------------------------------------------------
 local multipart = {}   -- ["Sender:id"] = { n, got, parts, t }
+local forwarded = {}   -- ["Name:id"] = Zeit, gegen doppelte Weiterleitungen
 
 local function Dispatch(message, sender)
     local kind, value = message:match("^(%u+):(.+)$")
     if not kind then return end
+    if kind == "RLY" then
+        -- Ein Mitglied ohne Gildenchat-Recht bittet uns, an die Gilde weiterzugeben
+        local id, msg = value:match("^([^\031]+)\031(.+)$")
+        if id and guildMembers[Normalize(sender)] and ns.CanSpeakGuild and ns.CanSpeakGuild() and ns.Queue then
+            ns.Queue("FWD", nil, Normalize(sender), id, msg)
+        end
+        return
+    end
+    if kind == "FWD" then
+        local origin, id, msg = value:match("^([^\031]+)\031([^\031]+)\031(.+)$")
+        if not origin or not guildMembers[origin] or msg:match("^FWD:") or msg:match("^RLY:") then return end
+        local now, key = GetTime(), origin .. ":" .. id
+        for k, t in pairs(forwarded) do if now - t > 120 then forwarded[k] = nil end end
+        if forwarded[key] then return end
+        forwarded[key] = now
+        ns.AddonUsers[origin] = true
+        Dispatch(msg, origin)
+        return
+    end
     if kind == "MP" then
         local id, i, n, part = value:match("^([^\031]+)\031(%d+)\031(%d+)\031(.*)$")
         i, n = tonumber(i), tonumber(n)
