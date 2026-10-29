@@ -53,6 +53,67 @@ local function Throttled(res)
         or (RESULT.ChannelThrottle ~= nil and res == RESULT.ChannelThrottle)
 end
 
+---------------------------------------------------------------------
+-- Ränge ohne Gildenchat-Recht
+-- Wer im Gildenchat nicht schreiben darf, kann auch keine Addon-Nachrichten an
+-- die Gilde schicken. Solche Nachrichten gehen deshalb als Flüstern ("RLY") an
+-- ein GuildPride-Mitglied mit Schreibrecht, das sie unter dem ursprünglichen
+-- Namen an die Gilde weitergibt ("FWD", siehe GuildPride.lua).
+---------------------------------------------------------------------
+local function RankFlags(rankIndex)
+    if not (rankIndex and C_GuildInfo and C_GuildInfo.GuildControlGetRankFlags) then return nil end
+    return C_GuildInfo.GuildControlGetRankFlags(rankIndex + 1)
+end
+
+function ns.CanSpeakGuild()
+    if C_GuildInfo and C_GuildInfo.CanSpeakInGuildChat then return C_GuildInfo.CanSpeakInGuildChat() and true or false end
+    return true
+end
+
+function ns.CanListenGuild()
+    local _, _, rankIndex = GetGuildInfo("player")
+    local flags = RankFlags(rankIndex)
+    if not flags or flags[1] == nil then return true end
+    return flags[1] and true or false
+end
+
+-- Wer leitet weiter? Bekannte GuildPride-Nutzer mit Schreibrecht zuerst;
+-- kennt man noch keinen, ein paar zufällige Mitglieder mit Schreibrecht
+-- (Addon-Nachrichten sind für Spieler ohne GuildPride unsichtbar).
+local function Relays()
+    local known, others = {}, {}
+    local me = Me()
+    for i = 1, GetNumGuildMembers() do
+        local name, _, rankIndex, _, _, _, _, _, online = GetGuildRosterInfo(i)
+        if name and online then
+            local full = ns.FullName and ns.FullName(name) or name
+            local flags = RankFlags(rankIndex)
+            local canSpeak = not flags or flags[2] ~= false
+            if full ~= me and canSpeak then
+                if ns.AddonUsers and ns.AddonUsers[full] then known[#known + 1] = full else others[#others + 1] = full end
+            end
+        end
+    end
+    if #known > 0 then return { known[math.random(#known)] } end
+    local pick = {}
+    while #others > 0 and #pick < 3 do pick[#pick + 1] = table.remove(others, math.random(#others)) end
+    return pick
+end
+
+local relayId = 0
+local function SendToGuild(msg)
+    if ns.CanSpeakGuild() then
+        return C_ChatInfo.SendAddonMessage(PREFIX, msg, "GUILD")
+    end
+    relayId = relayId % 9999 + 1
+    local id = math.random(10, 99) .. relayId
+    local res
+    for _, r in ipairs(Relays()) do
+        res = C_ChatInfo.SendAddonMessage(PREFIX, "RLY:" .. id .. SEP .. msg, "WHISPER", r)
+    end
+    return res
+end
+
 C_Timer.NewTicker(0.3, function()
     if GetTime() < pauseUntil then return end
     local item = table.remove(queue, 1)
@@ -63,7 +124,7 @@ C_Timer.NewTicker(0.3, function()
     elseif item.target then
         res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.target)
     elseif IsInGuild() then
-        res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "GUILD")
+        res = SendToGuild(item.msg)
     end
     if Throttled(res) then
         item.tries = (item.tries or 0) + 1
@@ -75,8 +136,8 @@ end)
 -- Addon-Nachrichten dürfen höchstens 255 Byte lang sein; längere (z. B. Events
 -- mit Beschreibung und Notiz) kamen früher nie an. Sie werden jetzt als
 -- "MP:id·nr·anzahl·stück" verschickt und beim Empfänger wieder zusammengesetzt
--- (siehe GuildPride.lua).
-local MAX_LEN, PART_LEN = 250, 220
+-- (siehe GuildPride.lua). Die Grenze lässt Platz für die Weiterleitung (RLY/FWD).
+local MAX_LEN, PART_LEN = 195, 175
 local multiId = 0
 
 local function Queue(kind, target, ...)
