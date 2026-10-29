@@ -314,8 +314,8 @@ function overview:Refresh()
     local lines = {}
     for i = 1, math.min(6, #(GuildPrideDB.log or {})) do
         local e = GuildPrideDB.log[i]
-        local icon = (e.kind and ns.BadgeFor) and ("|T%s:18|t"):format(ns.BadgeFor(e.kind, e.value)) or "|cffff8c40•|r"
-        lines[#lines + 1] = ("%s |cfff0c88c%s|r %s  |cff777777%s|r"):format(icon, e.who, e.text, date("%d.%m.", e.t))
+        local icon = (e.kind == "LEVEL" and ns.BadgeFor) and ("|T%s:18|t"):format(ns.BadgeFor(e.kind, e.value)) or "|cffff8c40•|r"
+        lines[#lines + 1] = ("%s |cfff0c88c%s|r %s  |cff777777%s|r"):format(icon, e.who, ns.LogText(e), date("%d.%m.", e.t))
     end
     recent:SetText(#lines > 0 and table.concat(lines, "\n") or L["|cff888888Noch keine Meilensteine.|r"])
 end
@@ -642,14 +642,22 @@ function milestones:Refresh()
             row.badge:SetPoint("LEFT", 4, 0)
             row.left:SetPoint("LEFT", 32, 0)
         end
-        row.badge:SetShown(e.kind ~= nil)
-        if e.kind and ns.BadgeFor then row.badge:SetTexture(ns.BadgeFor(e.kind, e.value)) end
+        row.badge:SetShown(e.kind == "LEVEL")
+        if e.kind == "LEVEL" and ns.BadgeFor then row.badge:SetTexture(ns.BadgeFor(e.kind, e.value)) end
         row.left:SetText("|cfff0c88c" .. e.who .. "|r")
-        row.mid:SetText(e.text)
+        row.mid:SetText(ns.LogText(e))
         row.right:SetText(date("%d.%m. %H:%M", e.t))
     end
     msList:Finish(#log)
 end
+
+-- Beim Öffnen verpasste Einträge von anderen holen (höchstens alle 2 Minuten)
+local lastHistoryAsk = 0
+milestones:HookScript("OnShow", function()
+    if GetTime() - lastHistoryAsk < 120 or not ns.RequestHistory then return end
+    lastHistoryAsk = GetTime()
+    ns.RequestHistory()
+end)
 
 ---------------------------------------------------------------------
 -- 4) Einstellungen

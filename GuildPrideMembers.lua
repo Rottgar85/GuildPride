@@ -47,7 +47,7 @@ dismiss:SetPoint("TOPRIGHT", -2, -2)
 dismiss:SetScript("OnClick", function() toast:Hide() end)
 
 local hideTimer
-local function ShowToast(kind, name)
+local function ShowToast(kind, name, test)
     local short = Ambiguate(name, "guild")
     if kind == "join" then
         headline:SetText(L["|cff40ff40Neues Gildenmitglied!|r"])
@@ -65,12 +65,10 @@ local function ShowToast(kind, name)
     if hideTimer then hideTimer:Cancel() end
     hideTimer = C_Timer.NewTimer(kind == "join" and 30 or 12, function() toast:Hide() end)
 
-    -- Im Verlauf (Reiter L["Meilensteine"]) festhalten
-    GuildPrideDB.log = GuildPrideDB.log or {}
-    table.insert(GuildPrideDB.log, 1, { t = time(), who = short,
-        text = kind == "join" and L["ist der Gilde beigetreten"] or L["hat die Gilde verlassen"] })
-    while #GuildPrideDB.log > 100 do table.remove(GuildPrideDB.log) end
-    if ns.RefreshUI then ns.RefreshUI() end
+    -- Im Verlauf (Reiter Meilensteine) festhalten; Testspieler nicht
+    if not test then
+        ns.AddLog(kind == "join" and "JOIN" or (kind == "kick" and "KICK" or "LEAVE"), short)
+    end
     if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
 end
 
@@ -102,9 +100,9 @@ local orig = SlashCmdList.GUILDPRIDE
 SlashCmdList.GUILDPRIDE = function(arg)
     local cmd = (arg or ""):match("^(%S*)")
     if cmd:lower() == "testjoin" then
-        ShowToast("join", L["Testspieler"])
+        ShowToast("join", L["Testspieler"], true)
     elseif cmd:lower() == "testleave" then
-        ShowToast("leave", L["Testspieler"])
+        ShowToast("leave", L["Testspieler"], true)
     else
         orig(arg)
     end

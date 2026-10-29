@@ -85,25 +85,6 @@ local function RefreshRoster()
     end
 end
 
----------------------------------------------------------------------
--- Popup
----------------------------------------------------------------------
-local function ShowMilestone(sender, text, kind, value)
-    local line = ("%s |cff00ff00%s|r %s"):format(IconString(20), Ambiguate(sender, "guild"), text)
-    if GuildPrideDB.popup then
-        if ns.ShowMilestonePopup then
-            ns.ShowMilestonePopup(Ambiguate(sender, "guild"), text, kind, value)
-        else
-            RaidNotice_AddMessage(RaidWarningFrame, line, ChatTypeInfo["GUILD"])
-        end
-    end
-    Print(line)
-    -- Verlauf speichern (für das Gildenfenster)
-    GuildPrideDB.log = GuildPrideDB.log or {}
-    table.insert(GuildPrideDB.log, 1, { t = time(), who = Ambiguate(sender, "guild"), text = text, kind = kind, value = value })
-    while #GuildPrideDB.log > 100 do table.remove(GuildPrideDB.log) end
-    if ns.RefreshUI then ns.RefreshUI() end
-end
 ns.IconString = IconString
 ns.Print = Print
 
@@ -118,6 +99,144 @@ local function DescribeMilestone(kind, value)
     end
     return (L["hat einen Meilenstein erreicht (%s %s)"]):format(kind, value)
 end
+
+---------------------------------------------------------------------
+-- Verlauf (Meilensteine, Beitritte, Austritte)
+-- Jeder Eintrag hat einen Schlüssel (Art + Name + Wert). So kommt er nur einmal
+-- in den Verlauf, egal ob er live, über die Gildenliste oder über den Abgleich
+-- mit anderen Spielern ankommt.
+---------------------------------------------------------------------
+local LOG_MAX = 100
+local DAY = 86400
+
+function ns.LogText(e)
+    if e.kind == "LEVEL" then return DescribeMilestone("LEVEL", e.value) end
+    if e.kind == "JOIN" then return L["ist der Gilde beigetreten"] end
+    if e.kind == "LEAVE" then return L["hat die Gilde verlassen"] end
+    if e.kind == "KICK" then return L["wurde aus der Gilde entfernt."] end
+    return e.text or ""
+end
+
+local function LogKey(e)
+    -- Beitritt/Austritt: ein Eintrag pro Tag und Person
+    local v = (e.kind == "LEVEL") and e.value or math.floor((e.t or 0) / DAY)
+    return (e.kind or "?") .. ":" .. tostring(e.who) .. ":" .. tostring(v)
+end
+
+local function Log()
+    GuildPrideDB.log = GuildPrideDB.log or {}
+    return GuildPrideDB.log
+end
+
+-- Neuen Eintrag aufnehmen; true, wenn er neu war
+function ns.AddLog(kind, who, value, t)
+    local e = { kind = kind, who = who, value = value, t = t or GetServerTime() }
+    local key = LogKey(e)
+    for _, old in ipairs(Log()) do
+        if LogKey(old) == key then
+            -- Schon bekannt: den früheren (genaueren) Zeitpunkt behalten
+            if e.t < (old.t or e.t) then
+                old.t = e.t
+                table.sort(Log(), function(a, b) return (a.t or 0) > (b.t or 0) end)
+                if ns.RefreshUI then ns.RefreshUI() end
+            end
+            return false
+        end
+    end
+    table.insert(Log(), e)
+    table.sort(Log(), function(a, b) return (a.t or 0) > (b.t or 0) end)
+    while #Log() > LOG_MAX do table.remove(Log()) end
+    if ns.RefreshUI then ns.RefreshUI() end
+    return true
+end
+
+-- Meilenstein anzeigen (Popup + Chat), aber nur beim ersten Mal
+local function ShowMilestone(sender, kind, value, silent)
+    local who = Ambiguate(sender, "guild")
+    if not ns.AddLog(kind, who, tonumber(value) or value) or silent then return end
+    local text = DescribeMilestone(kind, value)
+    local line = ("%s |cff00ff00%s|r %s"):format(IconString(20), who, text)
+    if GuildPrideDB.popup then
+        if ns.ShowMilestonePopup then
+            ns.ShowMilestonePopup(who, text, kind, value)
+        else
+            RaidNotice_AddMessage(RaidWarningFrame, line, ChatTypeInfo["GUILD"])
+        end
+    end
+    Print(line)
+end
+
+-- Level-Aufstiege aus der Gildenliste erkennen – funktioniert auch für
+-- Mitglieder ohne GuildPride. Aufstiege, die während man offline war passiert
+-- sind, kommen nach dem Login nur still in den Verlauf (kein Popup-Schwall).
+local rosterSeen = false
+local function CheckRosterLevels()
+    if not IsInGuild() or GetNumGuildMembers() == 0 then return end
+    GuildPrideDB.levels = GuildPrideDB.levels or {}
+    local known = GuildPrideDB.levels
+    local silent = not rosterSeen
+    for i = 1, GetNumGuildMembers() do
+        local name, _, _, level = GetGuildRosterInfo(i)
+        if name and level and level > 0 then
+            local full = Normalize(name)
+            local before = known[full]
+            if before and level > before then
+                for lv = before + 1, level do
+                    if MILESTONES[lv] then ShowMilestone(full, "LEVEL", lv, silent) end
+                end
+            end
+            known[full] = level
+        end
+    end
+    rosterSeen = true
+end
+
+-- Abgleich: beim Login fragt man nach Einträgen, die neuer sind als der eigene
+-- neueste. Ein zufälliger anderer Spieler antwortet für alle sichtbar; wer die
+-- Antwort sieht, schickt keine zweite.
+local answered = {}
+
+local function SendHistory(requester, since)
+    local list = {}
+    for _, e in ipairs(Log()) do
+        if e.kind and e.t and e.t > since then list[#list + 1] = e end
+        if #list >= 25 then break end
+    end
+    for i = #list, 1, -1 do
+        local e = list[i]
+        ns.Queue("MSL", nil, requester, e.t, e.who, e.kind, e.value or "")
+    end
+end
+
+ns.On("MSQ", function(payload, sender)
+    if sender == ns.Me() then return end
+    local since = tonumber(payload) or 0
+    local newest = Log()[1]
+    if not newest or (newest.t or 0) <= since then return end
+    answered[sender] = nil
+    C_Timer.After(1 + math.random() * 5, function()
+        if not answered[sender] then
+            answered[sender] = true
+            SendHistory(sender, since)
+        end
+    end)
+end)
+
+ns.On("MSL", function(payload, sender)
+    local requester, t, who, kind, value = strsplit(ns.SEP, payload)
+    if requester then answered[requester] = true end
+    if sender == ns.Me() then return end
+    if kind ~= "LEVEL" and kind ~= "JOIN" and kind ~= "LEAVE" and kind ~= "KICK" then return end
+    t = tonumber(t)
+    if not t or not who or who == "" then return end
+    ns.AddLog(kind, who, tonumber(value) or (value ~= "" and value or nil), t)
+end)
+
+local function RequestHistory()
+    local newest = Log()[1]
+    if ns.Queue then ns.Queue("MSQ", nil, newest and newest.t or 0) end
+end
+ns.RequestHistory = RequestHistory
 
 ---------------------------------------------------------------------
 -- Chat-Filter: Logo vor Nachrichten von Gildenmitgliedern
@@ -239,9 +358,11 @@ f:SetScript("OnEvent", function(_, event, ...)
     elseif event == "PLAYER_LOGIN" then
         if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
         Print(L["geladen. /gp für Befehle"])
+        C_Timer.After(15, RequestHistory)   -- verpasste Meilensteine von anderen holen
 
     elseif event == "GUILD_ROSTER_UPDATE" then
         RefreshRoster()
+        CheckRosterLevels()
         ns.UpdateChatEmblem()   -- Wappen kann sich geändert haben
         if ns.RefreshUI then ns.RefreshUI() end
 
@@ -258,7 +379,7 @@ f:SetScript("OnEvent", function(_, event, ...)
         if ns.Handlers[kind] then
             for _, fn in ipairs(ns.Handlers[kind]) do fn(value, sender) end
         elseif kind == "LEVEL" then
-            ShowMilestone(sender, DescribeMilestone(kind, value), kind, value)
+            ShowMilestone(sender, kind, value)
         end
     end
 end)
@@ -290,7 +411,8 @@ SlashCmdList.GUILDPRIDE = function(arg)
         local name = raw:match("^%S+%s+(%S+)")
         if name and ns.InviteToGuild then ns.InviteToGuild(name) else Print(L["Bitte einen Charakternamen eingeben."]) end
     elseif arg == "test" then
-        ShowMilestone(UnitName("player"), DescribeMilestone("LEVEL", 20), "LEVEL", 20)
+        -- Nur anzeigen, nicht in den Verlauf schreiben
+        if ns.ShowMilestonePopup then ns.ShowMilestonePopup(UnitName("player"), DescribeMilestone("LEVEL", 20), "LEVEL", 20) end
     elseif arg == "testall" then
         Broadcast("LEVEL", 20)   -- alle Gildenmitglieder mit Addon sehen es
     else

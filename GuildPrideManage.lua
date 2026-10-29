@@ -100,18 +100,53 @@ local offText = Text("GPFont_TextSmall", -150); offText:SetHeight(28); offText:S
 local manageLabel = Text("GPFont_TextBold", -222); manageLabel:SetText(L["Verwaltung"])
 
 local function Button(w, label, x, y, secure)
-    local b = CreateFrame("Button", nil, panel, secure and "SecureActionButtonTemplate, UIPanelButtonTemplate" or "UIPanelButtonTemplate")
-    b:SetSize(w, 24); b:SetPoint("TOPLEFT", x, y); b:SetText(label)
-    if secure then
-        b:RegisterForClicks("AnyUp", "AnyDown")
-        b:SetAttribute("type", "macro")
-        -- Nach der Aktion die Gildenliste neu laden
-        b:HookScript("OnClick", function()
-            C_Timer.After(1, function() if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end end)
-        end)
+    if not secure then
+        local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+        b:SetSize(w, 24); b:SetPoint("TOPLEFT", x, y); b:SetText(label)
+        return b
     end
+    -- Nur die sichere Vorlage: eine zweite Vorlage (z. B. UIPanelButtonTemplate)
+    -- kann den sicheren Klick-Handler ersetzen – dann passiert beim Klick nichts.
+    -- Aussehen deshalb selbst gebaut, im Stil der übrigen Knöpfe.
+    local b = CreateFrame("Button", nil, panel, "SecureActionButtonTemplate")
+    b:SetSize(w, 24); b:SetPoint("TOPLEFT", x, y)
+    local bg = b:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(); bg:SetTexture(ns.MEDIA .. "nav")
+    b.gpBg = bg
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetPoint("TOPLEFT", 3, -3); hl:SetPoint("BOTTOMRIGHT", -3, 3)
+    hl:SetColorTexture(1, 0.5, 0.2, 0.15)
+    b:SetNormalFontObject(GPFont_Button)
+    b:SetHighlightFontObject(GPFont_Button)
+    b:SetDisabledFontObject(GPFont_ButtonOff)
+    b:SetText(label)
+    hooksecurefunc(b, "SetEnabled", function(_, on) bg:SetDesaturated(not on); bg:SetAlpha(on and 1 or 0.5) end)
+
+    -- Genau eine Klick-Phase: ohne festes useOnKeyDown hängt es an der
+    -- Einstellung ActionButtonUseKeyDown und der Knopf kann "tot" sein.
+    b:RegisterForClicks("AnyDown")
+    b:SetAttribute("useOnKeyDown", true)
+    b:SetAttribute("type", "macro")
+
+    b:HookScript("OnClick", function(self)
+        local text = self:GetAttribute("macrotext")
+        if text and text ~= "" then
+            ns.Print((L["Befehl gesendet: |cffffd100%s|r"]):format((text:gsub("\n", " · "))))
+        end
+        -- Nach der Aktion die Gildenliste neu laden
+        C_Timer.After(1, function() if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end end)
+    end)
     return b
 end
+
+-- Falls WoW eine Aktion trotzdem blockiert: klar melden statt still nichts zu tun
+local blocked = CreateFrame("Frame")
+blocked:RegisterEvent("ADDON_ACTION_BLOCKED")
+blocked:RegisterEvent("ADDON_ACTION_FORBIDDEN")
+blocked:SetScript("OnEvent", function(_, _, addon, func)
+    if addon ~= ADDON then return end
+    ns.Print((L["|cffff4040WoW hat die Aktion blockiert (%s). Bitte im Blizzard-Gildenfenster ausführen.|r"]):format(tostring(func)))
+end)
 
 local bNotes   = Button(268, L["Notizen bearbeiten (Blizzard-Fenster)"], 16, -186)
 local bPromote = Button(132, L["Befördern"], 16, -242, true)

@@ -172,6 +172,8 @@ local enUS = {
     ["Rolle ändern"] = "Change role",
     ["|cffff4040Rolle konnte nicht geändert werden.|r"] = "|cffff4040The role could not be changed.|r",
     ["|cffff4040Aus der Community entfernen|r"] = "|cffff4040Remove from community|r",
+    ["Befehl gesendet: |cffffd100%s|r"] = "Command sent: |cffffd100%s|r",
+    ["|cffff4040WoW hat die Aktion blockiert (%s). Bitte im Blizzard-Gildenfenster ausführen.|r"] = "|cffff4040WoW blocked the action (%s). Please use Blizzard's guild window instead.|r",
     ["an"] = "on",
     ["aus"] = "off",
 }
