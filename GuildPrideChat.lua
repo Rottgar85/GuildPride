@@ -88,15 +88,48 @@ local function Line(t, who, full, hex, text, kind)
     return ("|cff777777%s|r  %s: %s%s|r"):format(date("%H:%M", t), name, TEXT_COLOR[kind] or "|cffffffff", text)
 end
 
-local function ClubLine(m, kind)
+-- Server-Nachricht -> gespeicherter Eintrag { t, who, full, hex, text }
+local function ClubEntry(m, kind)
     if not m or m.destroyed or not m.content then return end
     if issecretvalue and issecretvalue(m.content) then return end
     local a = m.author or {}
     local full = a.name or "?"
+    if issecretvalue and issecretvalue(full) then return end
     local t = (m.messageId and m.messageId.epoch or 0) / 1000000
     -- Battle.net-Communities: kein Charaktername -> kein Player-Link
     local link = (kind ~= "CLUB" or a.clubType ~= Enum.ClubType.BattleNet) and full or nil
-    return Line(t, Ambiguate(full, "guild"), link, ClassHex(a.classID), m.content, kind)
+    return { t = t, who = Ambiguate(full, "guild"), full = link, hex = ClassHex(a.classID), text = m.content }
+end
+
+local function EntryLine(e, kind)
+    return Line(e.t, e.who, e.full, e.hex, e.text, kind)
+end
+
+-- Verlauf je Kanal lokal merken: der Server liefert nach dem Login oft nur
+-- einen Teil, so bleibt das bisher Gesagte trotzdem sichtbar.
+local CACHE_MAX = 150
+local function EntryKey(e) return math.floor(e.t) .. "\031" .. tostring(e.who) .. "\031" .. tostring(e.text) end
+
+local function Cache(clubId, streamId)
+    GuildPrideDB.clubCache = GuildPrideDB.clubCache or {}
+    local key = tostring(clubId) .. ":" .. tostring(streamId)
+    GuildPrideDB.clubCache[key] = GuildPrideDB.clubCache[key] or {}
+    return GuildPrideDB.clubCache[key]
+end
+
+-- Einträge in den Speicher übernehmen (ohne Doppelte, nach Zeit sortiert)
+local function Remember(cache, entries)
+    local seen = {}
+    for _, e in ipairs(cache) do seen[EntryKey(e)] = true end
+    local added = false
+    for _, e in ipairs(entries) do
+        local k = EntryKey(e)
+        if not seen[k] then seen[k] = true; cache[#cache + 1] = e; added = true end
+    end
+    if added then
+        table.sort(cache, function(a, b) return a.t < b.t end)
+        while #cache > CACHE_MAX do table.remove(cache, 1) end
+    end
 end
 
 -- Welcher Club/Stream gehört zum aktuellen Kanal?
@@ -140,21 +173,30 @@ local function Redraw()
             C_Club.FocusStream(clubId, streamId)
             focused = { clubId, streamId }
         end
+        -- ALLE geladenen Bereiche lesen (früher nur den letzten -> älterer Verlauf fehlte)
         local ranges = C_Club.GetMessageRanges(clubId, streamId) or {}
-        local last = ranges[#ranges]
-        if last then
-            local list = C_Club.GetMessagesInRange(clubId, streamId, last.oldestMessageId, last.newestMessageId) or {}
-            for i = math.max(1, #list - HISTORY + 1), #list do
-                local line = ClubLine(list[i], channel.kind)
-                if line then msgs:AddMessage(line) end
+        local server, oldest = {}, nil
+        for _, rg in ipairs(ranges) do
+            local o = rg.oldestMessageId
+            if o and (not oldest or (o.epoch or 0) < (oldest.epoch or 0)) then oldest = o end
+            for _, m in ipairs(C_Club.GetMessagesInRange(clubId, streamId, rg.oldestMessageId, rg.newestMessageId) or {}) do
+                local e = ClubEntry(m, channel.kind)
+                if e then server[#server + 1] = e end
             end
-        else
+        end
+        local cache = Cache(clubId, streamId)
+        Remember(cache, server)
+        if #cache == 0 then
             msgs:AddMessage(L["|cff888888Noch keine Nachrichten.|r"])
         end
+        for i = math.max(1, #cache - HISTORY + 1), #cache do
+            msgs:AddMessage(EntryLine(cache[i], channel.kind))
+        end
+        -- Mehr Verlauf vom Server holen (höchstens alle 30 Sekunden je Kanal)
         local key = clubId .. ":" .. streamId
-        if not requested[key] and C_Club.RequestMoreMessagesBefore then
-            requested[key] = true
-            C_Club.RequestMoreMessagesBefore(clubId, streamId, last and last.oldestMessageId or nil, HISTORY)
+        if #server < HISTORY and C_Club.RequestMoreMessagesBefore and GetTime() - (requested[key] or -999) > 30 then
+            requested[key] = GetTime()
+            C_Club.RequestMoreMessagesBefore(clubId, streamId, oldest, HISTORY)
         end
     else
         if channel.kind == "CLUB" then return end
@@ -294,8 +336,11 @@ if HAS_CLUB then
         if clubId ~= myClub then return end
         if event == "CLUB_MESSAGE_ADDED" then
             if streamId ~= myStream then return end
-            local line = ClubLine(C_Club.GetMessageInfo(clubId, streamId, messageId), channel.kind)
-            if line then msgs:AddMessage(line) end
+            local e = ClubEntry(C_Club.GetMessageInfo(clubId, streamId, messageId), channel.kind)
+            if e then
+                Remember(Cache(clubId, streamId), { e })
+                msgs:AddMessage(EntryLine(e, channel.kind))
+            end
         else
             Redraw()
         end

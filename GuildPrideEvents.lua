@@ -72,10 +72,28 @@ C_Timer.NewTicker(0.3, function()
     end
 end)
 
+-- Addon-Nachrichten dürfen höchstens 255 Byte lang sein; längere (z. B. Events
+-- mit Beschreibung und Notiz) kamen früher nie an. Sie werden jetzt als
+-- "MP:id·nr·anzahl·stück" verschickt und beim Empfänger wieder zusammengesetzt
+-- (siehe GuildPride.lua).
+local MAX_LEN, PART_LEN = 250, 220
+local multiId = 0
+
 local function Queue(kind, target, ...)
     local parts = { ... }
     for i = 1, select("#", ...) do parts[i] = tostring(parts[i] == nil and "" or parts[i]) end
-    table.insert(queue, { msg = kind .. ":" .. table.concat(parts, SEP), target = target })
+    local msg = kind .. ":" .. table.concat(parts, SEP)
+    if #msg <= MAX_LEN then
+        table.insert(queue, { msg = msg, target = target })
+        return
+    end
+    multiId = multiId % 999 + 1
+    local id = math.random(100, 999) .. multiId
+    local n = math.ceil(#msg / PART_LEN)
+    for i = 1, n do
+        table.insert(queue, { target = target,
+            msg = ("MP:%s%s%d%s%d%s%s"):format(id, SEP, i, SEP, n, SEP, msg:sub((i - 1) * PART_LEN + 1, i * PART_LEN)) })
+    end
 end
 ns.Queue = Queue
 
@@ -126,6 +144,19 @@ end
 ---------------------------------------------------------------------
 -- Empfangen
 ---------------------------------------------------------------------
+-- Unsere bekannten Events (inkl. Anmeldungen) an jemanden schicken
+local function SendAllEvents(target)
+    local cutoff = Now() - 86400
+    for _, e in pairs(DB()) do
+        if e.deleted then
+            if (e.ver or 0) > cutoff - 6 * 86400 then SendDelete(e, target) end
+        elseif e.title and e.t > cutoff then
+            SendEvent(e, target)
+            for name, s in pairs(e.signups) do SendSign(e.id, name, s, target) end
+        end
+    end
+end
+
 local function OnEventMessage(kind, payload, sender)
     if sender == Me() then return end
     local a = { strsplit(SEP, payload) }
@@ -136,21 +167,15 @@ local function OnEventMessage(kind, payload, sender)
         ApplyDelete(a[1], tonumber(a[2]) or 0)
     elseif kind == "SGN" then
         ApplySign(a[1], a[2], a[3], tonumber(a[4]) or 0, a[5])
-    elseif kind == "REQ" then
-        -- Jemand hat sich eingeloggt: unsere bekannten Events schicken
-        local cutoff = Now() - 86400
-        for _, e in pairs(DB()) do
-            if e.deleted then
-                SendDelete(e, sender)
-            elseif e.title and e.t > cutoff then
-                SendEvent(e, sender)
-                for name, s in pairs(e.signups) do SendSign(e.id, name, s, sender) end
-            end
-        end
+    elseif kind == "REQ" or kind == "EVQ" then
+        -- Jemand hat sich eingeloggt bzw. den Reiter Events geöffnet:
+        -- kurz zufällig warten, damit nicht alle gleichzeitig antworten
+        C_Timer.After(math.random() * 3, function() SendAllEvents(sender) end)
+        return
     end
     if ns.RefreshUI then ns.RefreshUI() end
 end
-for _, k in ipairs({ "EVT", "DEL", "SGN", "REQ" }) do
+for _, k in ipairs({ "EVT", "DEL", "SGN", "REQ", "EVQ" }) do
     ns.On(k, function(payload, sender) OnEventMessage(k, payload, sender) end)
 end
 
@@ -189,7 +214,6 @@ local function SignUp(e, status)
     ns.RefreshUI()
 end
 
--- "24.12. 20:00" oder "24.12.2026 20:00"
 -- Datum: "24.12.", "24.12", "24.12.26", "24.12.2026" (auch mit / oder -)
 -- Rückgabe: Tag, Monat, Jahr (Jahr nil, wenn nicht angegeben)
 local function ParseDay(str)
@@ -249,6 +273,14 @@ end
 -- UI: Reiter "Events"
 ---------------------------------------------------------------------
 local page = ns.AddTab("Events")
+
+-- Beim Öffnen die Events der anderen abfragen (höchstens alle 2 Minuten)
+local lastAsk = 0
+page:HookScript("OnShow", function()
+    if GetTime() - lastAsk < 120 then return end
+    lastAsk = GetTime()
+    Queue("EVQ", nil, "1")
+end)
 local selected
 local ROWS = 6
 local rows = {}
