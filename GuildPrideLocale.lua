@@ -94,13 +94,15 @@ local enUS = {
     ["Testspieler"] = "TestPlayer",
     ["hat Level %d erreicht!"] = "reached level %d!",
     ["MEILENSTEIN ERREICHT"] = "MILESTONE REACHED",
-    ["Regeln"] = "Rules",
-    ["Bearbeiten"] = "Edit",
-    ["|cff888888Es wurden noch keine Regeln festgelegt.|r"] = "|cff888888No rules have been set yet.|r",
-    ["Stand: "] = "Last updated: ",
+    ["Gildeninfo"] = "Guild Info",
+    ["Im Blizzard-Fenster bearbeiten"] = "Edit in Blizzard's window",
+    ["Ändern geht nur im Blizzard-Gildenfenster (für Addons gesperrt)."] = "Can only be changed in Blizzard's guild window (blocked for addons).",
+    ["Gildeninfo bearbeiten: im Blizzard-Gildenfenster den Reiter „Info“ öffnen und dort auf „Bearbeiten“ klicken."] = "To edit the guild info, open the \"Info\" tab in Blizzard's guild window and click \"Edit\".",
+    ["|cff888888Die Gildeninfo ist gerade nicht verfügbar.|r"] = "|cff888888The guild info is not available right now.|r",
+    ["|cff888888Es wurde noch keine Gildeninfo festgelegt.|r"] = "|cff888888No guild info has been set yet.|r",
+    ["Die Gildeninfo wird von der Gildenleitung gepflegt."] = "The guild info is maintained by the guild leadership.",
+    ["Die Gildeninfo wurde geändert. Schau im Gildenfenster unter „Gildeninfo“ nach."] = "The guild info has changed. Check the \"Guild Info\" tab in the guild window.",
     ["Abbrechen"] = "Cancel",
-    ["Die Gildenregeln wurden aktualisiert. Schau im Gildenfenster unter \"Regeln\" nach."] = "The guild rules have been updated. Check the \"Rules\" tab in the guild window.",
-    ["Regeln gespeichert und an die Gilde gesendet."] = "Rules saved and sent to the guild.",
     ["Keine Gilde"] = "No guild",
     ["Übersicht"] = "Overview",
     ["Nachricht des Tages"] = "Message of the Day",
@@ -216,4 +218,12 @@ function ns.FormatDate(t, style)
         return date("%A", t) .. (", %d %s %d at %02d:%02d"):format(d.day, MONTHS_EN[d.month], d.year, d.hour, d.min)
     end
     return date("%a", t) .. (" %d %s %02d:%02d"):format(d.day, MONTHS_EN[d.month]:sub(1, 3), d.hour, d.min)
+end
+
+-- Nur Tag (+ optional Uhrzeit): "31.10." / "31 Oct", mit Zeit "31.10. 20:00" / "31 Oct 20:00"
+function ns.FormatDay(t, withTime)
+    local d = date("*t", t)
+    local s = ns.IS_GERMAN and ("%02d.%02d."):format(d.day, d.month) or ("%d %s"):format(d.day, MONTHS_EN[d.month]:sub(1, 3))
+    if withTime then s = s .. (" %02d:%02d"):format(d.hour, d.min) end
+    return s
 end

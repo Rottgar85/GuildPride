@@ -88,27 +88,69 @@ local function Line(t, who, full, hex, text, kind)
     return ("|cff777777%s|r  %s: %s%s|r"):format(date("%H:%M", t), name, TEXT_COLOR[kind] or "|cffffffff", text)
 end
 
--- Server-Nachricht -> gespeicherter Eintrag { t, who, full, hex, text }
-local function ClubEntry(m, kind)
+-- Name noch nicht geladen? (Der Server liefert ältere Nachrichten oft ohne
+-- Autorennamen; Blizzard zeigt dann "Unbekannt".)
+local function IsUnknown(name)
+    return name == nil or name == "" or name == "?" or name == UNKNOWNOBJECT or name == UNKNOWN
+end
+
+-- GUID -> Name aus der Gildenliste (für Gilden- und Offizierschat)
+local rosterByGuid, rosterAt = {}, 0
+local function RosterName(guid)
+    if not guid or not IsInGuild() then return end
+    if GetTime() - rosterAt > 30 then
+        rosterAt = GetTime()
+        wipe(rosterByGuid)
+        for i = 1, GetNumGuildMembers() do
+            local n, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, g = GetGuildRosterInfo(i)
+            if n and g then rosterByGuid[g] = n end
+        end
+    end
+    return rosterByGuid[guid]
+end
+
+-- Autorennamen nachschlagen: eigene Nachricht, Mitgliederliste des Clubs,
+-- Gildenliste, sonst über die GUID
+local function AuthorName(clubId, a)
+    local name = a.name
+    if issecretvalue and issecretvalue(name) then name = nil end
+    if IsUnknown(name) and a.isSelf then
+        name = UnitName("player") .. "-" .. (GetNormalizedRealmName() or "")
+    end
+    if IsUnknown(name) and a.guid then name = RosterName(a.guid) or name end
+    if IsUnknown(name) and clubId and a.memberId and C_Club.GetMemberInfo then
+        local info = C_Club.GetMemberInfo(clubId, a.memberId)
+        if info and not IsUnknown(info.name) and not (issecretvalue and issecretvalue(info.name)) then
+            name, a.classID = info.name, a.classID or info.classID
+        end
+    end
+    if IsUnknown(name) and a.guid and GetPlayerInfoByGUID then
+        local _, _, _, _, _, n, realm = GetPlayerInfoByGUID(a.guid)
+        if n and n ~= "" then name = (realm and realm ~= "") and (n .. "-" .. realm) or n end
+    end
+    return (not IsUnknown(name)) and name or nil
+end
+
+-- Server-Nachricht -> gespeicherter Eintrag { t, who, full, hex, text, memberId, guid }
+local function ClubEntry(clubId, m, kind)
     if not m or m.destroyed or not m.content then return end
     if issecretvalue and issecretvalue(m.content) then return end
     local a = m.author or {}
-    local full = a.name or "?"
-    if issecretvalue and issecretvalue(full) then return end
+    local full = AuthorName(clubId, a)
     local t = (m.messageId and m.messageId.epoch or 0) / 1000000
     -- Battle.net-Communities: kein Charaktername -> kein Player-Link
-    local link = (kind ~= "CLUB" or a.clubType ~= Enum.ClubType.BattleNet) and full or nil
-    return { t = t, who = Ambiguate(full, "guild"), full = link, hex = ClassHex(a.classID), text = m.content }
+    local link = full and (kind ~= "CLUB" or a.clubType ~= Enum.ClubType.BattleNet) and full or nil
+    return { t = t, who = full and Ambiguate(full, "guild") or nil, full = link, hex = ClassHex(a.classID),
+             text = m.content, memberId = a.memberId, guid = a.guid, isSelf = a.isSelf }
 end
 
 local function EntryLine(e, kind)
-    return Line(e.t, e.who, e.full, e.hex, e.text, kind)
+    return Line(e.t, e.who or UNKNOWNOBJECT or "?", e.full, e.hex, e.text, kind)
 end
 
 -- Verlauf je Kanal lokal merken: der Server liefert nach dem Login oft nur
 -- einen Teil, so bleibt das bisher Gesagte trotzdem sichtbar.
-local CACHE_MAX = 150
-local function EntryKey(e) return math.floor(e.t) .. "\031" .. tostring(e.who) .. "\031" .. tostring(e.text) end
+local CACHE_MAX = 200
 
 local function Cache(clubId, streamId)
     GuildPrideDB.clubCache = GuildPrideDB.clubCache or {}
@@ -117,18 +159,58 @@ local function Cache(clubId, streamId)
     return GuildPrideDB.clubCache[key]
 end
 
--- Einträge in den Speicher übernehmen (ohne Doppelte, nach Zeit sortiert)
+-- Dieselbe Nachricht? Gleicher Text und zeitlich nah beieinander (Chat-Ereignis
+-- und Server-Verlauf haben andere Zeitstempel). Fehlt einer Seite der Name,
+-- großzügiger vergleichen – sonst taucht sie doppelt als "Unbekannt" auf.
+local function Same(a, b)
+    if a.text ~= b.text then return false end
+    local dt = math.abs((a.t or 0) - (b.t or 0))
+    if a.who and b.who then return a.who == b.who and dt < 120 end
+    return dt < 900
+end
+
+-- Einträge in den Speicher übernehmen: ohne Doppelte, fehlende Namen ergänzen
 local function Remember(cache, entries)
-    local seen = {}
-    for _, e in ipairs(cache) do seen[EntryKey(e)] = true end
-    local added = false
+    local changed = false
     for _, e in ipairs(entries) do
-        local k = EntryKey(e)
-        if not seen[k] then seen[k] = true; cache[#cache + 1] = e; added = true end
+        local found
+        for i = #cache, 1, -1 do
+            if Same(cache[i], e) then found = cache[i]; break end
+        end
+        if found then
+            if not found.who and e.who then
+                found.who, found.full, found.hex = e.who, e.full, e.hex
+                changed = true
+            end
+            found.memberId, found.guid = found.memberId or e.memberId, found.guid or e.guid
+        else
+            cache[#cache + 1] = e
+            changed = true
+        end
     end
-    if added then
+    if changed then
         table.sort(cache, function(a, b) return a.t < b.t end)
         while #cache > CACHE_MAX do table.remove(cache, 1) end
+    end
+end
+
+-- Alte Einträge ohne Namen beim Anzeigen erneut nachschlagen; was dann noch
+-- namenlos ist, aber als Eintrag mit Namen schon existiert, fliegt raus
+local function FixNames(clubId, cache)
+    for _, e in ipairs(cache) do
+        if not e.who or IsUnknown(e.who) then
+            local full = AuthorName(clubId, { memberId = e.memberId, guid = e.guid, isSelf = e.isSelf })
+            if full then e.who, e.full = Ambiguate(full, "guild"), full end
+            if IsUnknown(e.who) then e.who = nil end
+        end
+    end
+    for i = #cache, 1, -1 do
+        local e = cache[i]
+        if not e.who then
+            for j = 1, #cache do
+                if j ~= i and cache[j].who and Same(cache[j], e) then table.remove(cache, i); break end
+            end
+        end
     end
 end
 
@@ -180,12 +262,13 @@ local function Redraw()
             local o = rg.oldestMessageId
             if o and (not oldest or (o.epoch or 0) < (oldest.epoch or 0)) then oldest = o end
             for _, m in ipairs(C_Club.GetMessagesInRange(clubId, streamId, rg.oldestMessageId, rg.newestMessageId) or {}) do
-                local e = ClubEntry(m, channel.kind)
+                local e = ClubEntry(clubId, m, channel.kind)
                 if e then server[#server + 1] = e end
             end
         end
         local cache = Cache(clubId, streamId)
         Remember(cache, server)
+        FixNames(clubId, cache)
         if #cache == 0 then
             msgs:AddMessage(L["|cff888888Noch keine Nachrichten.|r"])
         end
@@ -327,23 +410,49 @@ end)
 ---------------------------------------------------------------------
 local f = CreateFrame("Frame")
 if HAS_CLUB then
+    local pendingRedraw
+    local function RedrawSoon()
+        if pendingRedraw then return end
+        pendingRedraw = C_Timer.NewTimer(0.5, function() pendingRedraw = nil; if page:IsVisible() then Redraw() end end)
+    end
     f:RegisterEvent("CLUB_MESSAGE_ADDED")
     f:RegisterEvent("CLUB_MESSAGE_HISTORY_RECEIVED")
     f:RegisterEvent("CLUB_STREAMS_LOADED")
+    f:RegisterEvent("CLUB_MESSAGE_UPDATED")
+    f:RegisterEvent("CLUB_MEMBER_UPDATED")    -- Autorennamen kommen oft erst später
+    f:RegisterEvent("CLUB_MEMBERS_UPDATED")
     f:SetScript("OnEvent", function(_, event, clubId, streamId, messageId)
-        if not page:IsVisible() then return end
-        local myClub, myStream = Resolve(channel)
-        if clubId ~= myClub then return end
         if event == "CLUB_MESSAGE_ADDED" then
-            if streamId ~= myStream then return end
-            local e = ClubEntry(C_Club.GetMessageInfo(clubId, streamId, messageId), channel.kind)
-            if e then
-                Remember(Cache(clubId, streamId), { e })
+            -- Auch bei geschlossenem Fenster merken, damit der Verlauf vollständig bleibt
+            local kind = channel.kind == "CLUB" and "CLUB" or "GUILD"
+            local e = ClubEntry(clubId, C_Club.GetMessageInfo(clubId, streamId, messageId), kind)
+            if not e or not GuildPrideDB then return end
+            Remember(Cache(clubId, streamId), { e })
+            local myClub, myStream = Resolve(channel)
+            if page:IsVisible() and clubId == myClub and streamId == myStream then
                 msgs:AddMessage(EntryLine(e, channel.kind))
             end
-        else
-            Redraw()
+            return
         end
+        if not page:IsVisible() then return end
+        local myClub = Resolve(channel)
+        if clubId == myClub then RedrawSoon() end
+    end)
+
+    -- Gilden- und Offizierschat zusätzlich über die normalen Chat-Ereignisse merken:
+    -- dort ist der Name immer bekannt (auch wenn der Server-Verlauf ihn nicht liefert)
+    local gc = CreateFrame("Frame")
+    gc:RegisterEvent("CHAT_MSG_GUILD")
+    gc:RegisterEvent("CHAT_MSG_OFFICER")
+    gc:SetScript("OnEvent", function(_, event, text, author, _, _, _, _, _, _, _, _, _, guid)
+        if issecretvalue and (issecretvalue(text) or issecretvalue(author) or issecretvalue(guid)) then return end
+        if not GuildPrideDB or type(text) ~= "string" or type(author) ~= "string" or author == "" then return end
+        local clubId, streamId = Resolve({ kind = event == "CHAT_MSG_OFFICER" and "OFFICER" or "GUILD" })
+        if not clubId then return end
+        local _, class = nil, nil
+        if guid and guid ~= "" and GetPlayerInfoByGUID then _, class = GetPlayerInfoByGUID(guid) end
+        Remember(Cache(clubId, streamId), { { t = GetServerTime(), who = Ambiguate(author, "guild"), full = author,
+            hex = ClassHex(nil, class), text = text, guid = guid } })
     end)
 else
     f:RegisterEvent("CHAT_MSG_GUILD")

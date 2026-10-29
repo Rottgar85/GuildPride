@@ -8,7 +8,7 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 
 ## English
 
-**Your guild, front and center.** GuildPride replaces the default guild window with a fully styled guild hub, with milestones, events, rules, a group finder and guild chat in one place. Works for any guild: the window automatically shows your guild name, tag and tabard. English and German.
+**Your guild, front and center.** GuildPride replaces the default guild window with a fully styled guild hub, with milestones, events, guild info, a group finder and guild chat in one place. Works for any guild: the window automatically shows your guild name, tag and tabard. English and German.
 
 ### Features
 - **New guild window**: opens with **J** or the guild button in the micro menu. Your guild name at the top, your guild tag and tabard on the left
@@ -16,7 +16,7 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - **Join and leave alerts**: a clear notice when someone joins or leaves, so nobody gets overlooked
 - **Event planner**: officers create events with date, description and officer note. Members sign up as Attending, Maybe or Declined with their role. Reminder 15 minutes before the start
 - **Group finder and quest help**: sign up with a note and the roles you still need. Everyone sees class, level, role, zone and how full the group is
-- **Guild rules**: officers write them once, they are synced to everyone
+- **Guild info**: the info text from Blizzard's guild window, the same for everyone. It is edited in Blizzard's guild window (Blizzard blocks addons from changing it)
 - **Guild chat and communities**: guild chat, officer chat and your Blizzard communities inside the window, including the server-side history
 - **Guild tabard in chat** for members who use GuildPride
 - **Members list**: your guild or any of your communities, online only or everyone, with "last online"
@@ -34,7 +34,7 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - `/gp badge 30` preview a milestone pop-up, `/gp version` who uses which version
 
 ### Good to know
-- Milestones, events, rules and the group finder sync between guild members who all have GuildPride installed
+- Milestones, events and the group finder sync between guild members who all have GuildPride installed
 - Data is shared through the guild's addon channel only
 
 ### Installation
@@ -44,7 +44,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 
 ## Deutsch
 
-**Deine Gilde im Mittelpunkt.** GuildPride ersetzt das normale Gildenfenster durch einen komplett gestalteten Gilden-Treffpunkt, mit Meilensteinen, Events, Regeln, Gruppensuche und Gildenchat an einem Ort. Funktioniert für jede Gilde: Das Fenster zeigt automatisch euren Gildennamen, euer Kürzel und euren Wappenrock. Deutsch und Englisch.
+**Deine Gilde im Mittelpunkt.** GuildPride ersetzt das normale Gildenfenster durch einen komplett gestalteten Gilden-Treffpunkt, mit Meilensteinen, Events, Gildeninfo, Gruppensuche und Gildenchat an einem Ort. Funktioniert für jede Gilde: Das Fenster zeigt automatisch euren Gildennamen, euer Kürzel und euren Wappenrock. Deutsch und Englisch.
 
 ### Funktionen
 - **Neues Gildenfenster**: öffnet sich mit **J** oder über den Gildenknopf in der Mikroleiste. Oben euer Gildenname, links euer Kürzel und Wappenrock
@@ -52,7 +52,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - **Hinweis bei Beitritt und Austritt**: eine deutliche Meldung, wenn jemand kommt oder geht, damit niemand untergeht
 - **Event-Planer**: Offiziere legen Events mit Datum, Beschreibung und Offiziers-Notiz an. Mitglieder melden sich mit Zusagen, Vielleicht oder Absagen und ihrer Rolle an. Erinnerung 15 Minuten vor Beginn
 - **Gruppensuche und Quest-Hilfe**: mit Notiz und fehlenden Rollen eintragen. Alle sehen Klasse, Level, Rolle, Zone und wie voll die Gruppe ist
-- **Gildenregeln**: Offiziere schreiben sie einmal, sie werden an alle verteilt
+- **Gildeninfo**: der Info-Text aus dem Blizzard-Gildenfenster, für alle gleich. Bearbeitet wird er im Blizzard-Gildenfenster (Blizzard sperrt das Ändern für Addons)
 - **Gildenchat und Communities**: Gildenchat, Offizierschat und eure Blizzard-Communities direkt im Fenster, inklusive Verlauf vom Server
 - **Wappenrock im Chat** für alle, die GuildPride nutzen
 - **Mitgliederliste**: eure Gilde oder jede deiner Communities, nur online oder alle, mit „zuletzt online“
@@ -70,7 +70,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - `/gp badge 30` Meilenstein-Popup testen, `/gp version` wer welche Version nutzt
 
 ### Gut zu wissen
-- Meilensteine, Events, Regeln und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die alle GuildPride installiert haben
+- Meilensteine, Events und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die alle GuildPride installiert haben
 - Daten laufen nur über den Addon-Kanal der Gilde
 
 ### Installation

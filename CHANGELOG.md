@@ -1,5 +1,19 @@
 # GuildPride Changelog
 
+## 1.5.2
+
+**English**
+- The "Rules" tab is now "Guild Info": it shows the guild info text from Blizzard's guild window, so everyone sees the same text, even without GuildPride. Blizzard blocks addons from changing it, so whoever may change it gets "Edit in Blizzard's window"; the tab updates right after the change. When it changes, the tab is shown first the next time you open the window
+- Chat: names of older messages are looked up (own messages, guild roster, member list, character) instead of showing "Unknown", and duplicate copies without a name are removed. Guild and officer chat are also recorded while the window is closed, so the history keeps growing
+- Dungeons, PvP, raids and M+: the normal chat no longer loses messages. During Blizzard's chat lockdown GuildPride does not touch chat lines at all (no guild logo there) and holds back its own addon messages until the lockdown ends
+- English client: dates in the overview, milestones and event messages now use the English format (31 Oct instead of 31.10.)
+
+**Deutsch**
+- Der Reiter „Regeln“ heißt jetzt „Gildeninfo“: Er zeigt den Info-Text aus dem Blizzard-Gildenfenster, alle sehen also denselben Text, auch ohne GuildPride. Blizzard sperrt das Ändern für Addons, deshalb bekommt, wer ihn ändern darf, „Im Blizzard-Fenster bearbeiten“; der Reiter zeigt die Änderung sofort danach. Ändert er sich, wird der Reiter beim nächsten Öffnen zuerst gezeigt
+- Chat: Namen älterer Nachrichten werden nachgeschlagen (eigene Nachrichten, Gildenliste, Mitgliederliste, Charakter), statt „Unbekannt“ anzuzeigen, und doppelte Kopien ohne Namen werden entfernt. Gilden- und Offizierschat werden auch bei geschlossenem Fenster mitgeschrieben, der Verlauf wächst also weiter
+- Dungeons, PvP, Schlachtzüge und M+: Im normalen Chat gehen keine Nachrichten mehr verloren. Während Blizzards Chat-Sperre fasst GuildPride Chatzeilen gar nicht an (dort kein Gildenlogo) und hält eigene Addon-Nachrichten zurück, bis die Sperre vorbei ist
+- Englischer Client: Datumsangaben in Übersicht, Meilensteinen und Event-Meldungen im englischen Format (31 Oct statt 31.10.)
+
 ## 1.5.1
 
 **English**

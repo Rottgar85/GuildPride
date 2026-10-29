@@ -1,8 +1,8 @@
-GuildPride 1.5.1 (Retail, Midnight, WoW Forever) - Autor: Rage Quitters Anonymous
+GuildPride 1.5.2 (Retail, Midnight, WoW Forever) - Autor: Rage Quitters Anonymous
 CurseForge: Projekt 1771937
 
 DEUTSCH
-Eigenes Gildenfenster mit Meilensteinen, Events, Regeln, Gruppensuche und Gildenchat.
+Eigenes Gildenfenster mit Meilensteinen, Events, Gildeninfo, Gruppensuche und Gildenchat.
 Mitglieder von Gilde und Communities ansehen und Spieler einladen.
 Alles wird mit allen Gildenmitgliedern geteilt, die GuildPride nutzen. Deutsch und Englisch.
 
@@ -15,7 +15,7 @@ Wichtige Befehle (alle: /gp hilfe)
   /gp einladen Name-Realm               Spieler in die Gilde einladen
 
 ENGLISH
-Own guild window with milestones, events, rules, group search and guild chat.
+Own guild window with milestones, events, guild info, group search and guild chat.
 See the members of your guild and communities and invite players.
 Everything is shared with all guild members who use GuildPride. English and German.
 

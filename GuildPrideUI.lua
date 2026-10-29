@@ -302,7 +302,7 @@ function overview:Refresh()
             nextEvent = e
         end
     end
-    tiles[2].value:SetText(nextEvent and date("%d.%m. %H:%M", nextEvent.t) or "–")
+    tiles[2].value:SetText(nextEvent and ns.FormatDate(nextEvent.t, "short") or "–")
     tiles[2].label:SetText(nextEvent and (L["NÄCHSTES EVENT: "] .. nextEvent.title:upper()) or L["NÄCHSTES EVENT"])
 
     local week, cutoff = 0, time() - 7 * 86400
@@ -315,7 +315,7 @@ function overview:Refresh()
     for i = 1, math.min(6, #(GuildPrideDB.log or {})) do
         local e = GuildPrideDB.log[i]
         local icon = (e.kind == "LEVEL" and ns.BadgeFor) and ("|T%s:18|t"):format(ns.BadgeFor(e.kind, e.value)) or "|cffff8c40•|r"
-        lines[#lines + 1] = ("%s |cfff0c88c%s|r %s  |cff777777%s|r"):format(icon, e.who, ns.LogText(e), date("%d.%m.", e.t))
+        lines[#lines + 1] = ("%s |cfff0c88c%s|r %s  |cff777777%s|r"):format(icon, e.who, ns.LogText(e), ns.FormatDay(e.t))
     end
     recent:SetText(#lines > 0 and table.concat(lines, "\n") or L["|cff888888Noch keine Meilensteine.|r"])
 end
@@ -646,7 +646,7 @@ function milestones:Refresh()
         if e.kind == "LEVEL" and ns.BadgeFor then row.badge:SetTexture(ns.BadgeFor(e.kind, e.value)) end
         row.left:SetText("|cfff0c88c" .. e.who .. "|r")
         row.mid:SetText(ns.LogText(e))
-        row.right:SetText(date("%d.%m. %H:%M", e.t))
+        row.right:SetText(ns.FormatDay(e.t, true))
     end
     msList:Finish(#log)
 end
