@@ -1,5 +1,23 @@
 # GuildPride Changelog
 
+## 1.4.0
+
+**English**
+- Members: switch between your guild and any of your communities and see their members (online or everyone, with role, zone and "last online")
+- Invite players: type a name at the bottom of the Members tab to invite them to the guild or the selected community, or use `/gp invite Name`
+- Right-click a member: whisper, invite to guild, or invite to one of your communities
+- Group Finder: your own listing now shows up in the list, listings are refreshed regularly and the list is requested when you open the tab
+- Messages that the server throttled are now sent again instead of being lost (affected group finder, events and rules)
+- Removed: BattleTags in officer notes
+
+**Deutsch**
+- Mitglieder: zwischen Gilde und jeder deiner Communities wechseln und deren Mitglieder sehen (online oder alle, mit Rolle, Zone und „zuletzt online“)
+- Spieler einladen: unten im Reiter Mitglieder einen Namen eingeben und in die Gilde oder die gewählte Community einladen, oder `/gp einladen Name`
+- Rechtsklick auf ein Mitglied: anflüstern, in die Gilde einladen oder in eine deiner Communities einladen
+- Gruppensuche: der eigene Eintrag erscheint jetzt in der Liste, Einträge werden regelmäßig erneuert und beim Öffnen des Reiters neu abgefragt
+- Nachrichten, die der Server gedrosselt hat, werden jetzt erneut gesendet statt verloren zu gehen (betraf Gruppensuche, Events und Regeln)
+- Entfernt: BattleTags in der Offiziersnotiz
+
 ## 1.3.0
 
 **English**

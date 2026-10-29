@@ -5,6 +5,8 @@ local ADDON, ns = ...
 local L = ns.L
 local SEP = ns.SEP
 local EXPIRE = 30 * 60   -- Einträge verfallen nach 30 Minuten
+local RESEND = 4 * 60    -- eigenen Eintrag regelmäßig neu senden (falls Nachrichten verloren gingen)
+local STALE = 10 * 60    -- fremde Einträge ohne Lebenszeichen ausblenden
 
 local TYPES = {
     group = { label = L["Sucht Gruppe"],        color = "|cff6fa8ff", icon = "Interface\\Icons\\INV_Misc_GroupNeedMore" },
@@ -17,9 +19,10 @@ local ROLES = {
 }
 local ROLE_BY_SPEC = { TANK = "T", HEALER = "H", DAMAGER = "D" }
 
-local entries = {}   -- [Name-Realm] = { kind, note, level, zone, size, max, needs, role, class, t }
+local entries = {}   -- [Name-Realm] = { kind, note, level, zone, size, max, needs, role, class, t, seen }
 local mine           -- eigener Eintrag
 local needs = {}     -- eigene Auswahl: { T = true, H = true }
+local lastSent = 0
 
 local function Clean(s, max) return (tostring(s or ""):gsub("[%c|]", "")):sub(1, max) end
 
@@ -67,9 +70,19 @@ local function SendMine(target)
         local _, class = UnitClass("player")
         ns.Queue("LFG", target, mine.kind, mine.note, UnitLevel("player"), GetZoneText() or "",
             size, max, mine.needs or "", MyRoleKey(), class or "")
+        if not target then lastSent = GetServerTime() end
     elseif not target then
         ns.Queue("LFG", nil, "none", "", 0, "")
     end
+end
+
+-- Eigener Eintrag als Listenzeile (wird nicht über das Netz empfangen)
+local function MyEntry()
+    local size, max = GroupSize()
+    local _, class = UnitClass("player")
+    return { kind = mine.kind, note = mine.note, level = UnitLevel("player"), zone = GetZoneText() or "",
+             size = size, max = max, needs = mine.needs or "", role = MyRoleKey(), class = class or "",
+             t = mine.t, self = true }
 end
 
 ns.On("LFG", function(payload, sender)
@@ -82,7 +95,8 @@ ns.On("LFG", function(payload, sender)
         local isNew = not old or old.kind ~= kind
         local e = { kind = kind, note = Clean(note, 60), level = tonumber(level) or 0, zone = Clean(zone, 40),
                     size = tonumber(size) or 1, max = tonumber(max) or 5, needs = Clean(need, 3),
-                    role = Clean(role, 1), class = Clean(class, 20), t = old and old.t or GetServerTime() }
+                    role = Clean(role, 1), class = Clean(class, 20), t = old and old.t or GetServerTime(),
+                    seen = GetServerTime() }
         if isNew then e.t = GetServerTime() end
         entries[sender] = e
         if isNew and GuildPrideDB.helpAlerts ~= false then
@@ -96,8 +110,25 @@ ns.On("LFG", function(payload, sender)
     if ns.RefreshUI then ns.RefreshUI() end
 end)
 
-ns.On("REQ", function(_, sender)
-    if sender ~= ns.Me() then SendMine(sender) end
+-- REQ: Login-Abgleich aller Module · LFGQ: jemand hat die Gruppensuche geöffnet
+for _, k in ipairs({ "REQ", "LFGQ" }) do
+    ns.On(k, function(_, sender)
+        if sender ~= ns.Me() then SendMine(sender) end
+    end)
+end
+
+-- Eigenen Eintrag regelmäßig erneuern bzw. nach Ablauf austragen
+C_Timer.NewTicker(60, function()
+    if not mine then return end
+    local now = GetServerTime()
+    if now - mine.t > EXPIRE then
+        mine = nil
+        SendMine()
+        ns.Print(L["Dein Eintrag in der Gruppensuche ist abgelaufen."])
+        if ns.RefreshUI then ns.RefreshUI() end
+    elseif now - lastSent >= RESEND then
+        SendMine()
+    end
 end)
 
 -- Gruppengröße ändert sich -> Eintrag automatisch aktualisieren
@@ -236,8 +267,13 @@ function page:Refresh()
     end
 
     local list = {}
+    if mine then list[1] = { name = ns.Me(), e = MyEntry() } end
     for name, e in pairs(entries) do
-        if now - e.t > EXPIRE then entries[name] = nil else list[#list + 1] = { name = name, e = e } end
+        if now - e.t > EXPIRE or now - (e.seen or e.t) > STALE then
+            entries[name] = nil
+        else
+            list[#list + 1] = { name = name, e = e }
+        end
     end
     table.sort(list, function(a, b) return a.e.t > b.e.t end)
     empty:SetShown(#list == 0)
@@ -251,7 +287,8 @@ function page:Refresh()
             local hex = c and c.colorStr and c.colorStr:sub(3) or "f0c88c"
             r.icon:SetTexture(t.icon)
             if item.e.kind == "quest" then r.edge:SetColorTexture(1, 0.82, 0, 1) else r.edge:SetColorTexture(0.44, 0.66, 1, 1) end
-            r.name:SetText(("|cff%s%s|r"):format(hex, Ambiguate(item.name, "guild")))
+            r.name:SetText(("|cff%s%s|r"):format(hex, Ambiguate(item.name, "guild"))
+                .. (e.self and (" |cff999999(" .. L["du"] .. ")|r") or ""))
             r.info:SetText(("Lvl %d · %s · |cff999999%s|r"):format(e.level, RoleLabel(e.role), e.zone))
 
             local parts = { t.color .. KindLabel(e.kind, e.size) .. "|r" }
@@ -270,9 +307,19 @@ function page:Refresh()
             r.count:SetText(e.size <= 1 and L["Allein"] or (L["Gruppe %d/%d"]):format(e.size, e.max))
 
             -- Öffnet nur das Flüsterfenster – schreiben muss man selbst
+            r.tell:SetShown(not e.self)
             r.tell:SetScript("OnClick", function() ChatFrame_SendTell(Ambiguate(item.name, "none")) end)
         end
     end
 end
+
+-- Beim Öffnen die aktuellen Einträge der anderen anfragen (höchstens einmal pro Minute)
+local lastAsk = 0
+page:HookScript("OnShow", function()
+    local now = GetServerTime()
+    if now - lastAsk < 60 then return end
+    lastAsk = now
+    ns.Queue("LFGQ", nil, "1")
+end)
 
 C_Timer.NewTicker(60, function() if ns.RefreshUI then ns.RefreshUI() end end)

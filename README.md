@@ -19,8 +19,8 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - **Guild rules**: officers write them once, they are synced to everyone
 - **Guild chat and communities**: guild chat, officer chat and your Blizzard communities inside the window, including the server-side history
 - **Guild tabard in chat** for members who use GuildPride
-- **Members list**: online only or everyone, with "last online"
-- **BattleTag in officer notes (opt-in)**: new members can send their BattleTag to the officers, who confirm it with one click
+- **Members list**: your guild or any of your communities, online only or everyone, with "last online"
+- **Invite players** to the guild or a community: type a name, or right-click a member
 - **Version check**: a reminder when a newer version is in use in the guild
 
 ### Commands
@@ -28,12 +28,12 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - `/gp sound`, `/gp icon`, `/gp popup` turn sounds, chat tabard and pop-ups on or off
 - `/gp blizzard` switch between GuildPride and the Blizzard guild window
 - `/gp tag XYZ` set the guild tag (without tag: automatic)
+- `/gp invite Name-Realm` invite a player to the guild
 - `/gp badge 30` preview a milestone pop-up, `/gp version` who uses which version
-- `/gp battletag` send your BattleTag again, `/gp btags` officers: review pending BattleTags
 
 ### Good to know
 - Milestones, events, rules and the group finder sync between guild members who all have GuildPride installed
-- Data is shared through the guild's addon channel only. BattleTags only go to officers
+- Data is shared through the guild's addon channel only
 
 ### Installation
 Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, or install it with the CurseForge app.
@@ -53,8 +53,8 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - **Gildenregeln**: Offiziere schreiben sie einmal, sie werden an alle verteilt
 - **Gildenchat und Communities**: Gildenchat, Offizierschat und eure Blizzard-Communities direkt im Fenster, inklusive Verlauf vom Server
 - **Wappenrock im Chat** für alle, die GuildPride nutzen
-- **Mitgliederliste**: nur online oder alle, mit „zuletzt online“
-- **BattleTag in der Offiziersnotiz (freiwillig)**: neue Mitglieder können ihren BattleTag an die Offiziere schicken, die ihn mit einem Klick bestätigen
+- **Mitgliederliste**: eure Gilde oder jede deiner Communities, nur online oder alle, mit „zuletzt online“
+- **Spieler einladen** in die Gilde oder eine Community: Namen eingeben oder Rechtsklick auf ein Mitglied
 - **Versionscheck**: Erinnerung, wenn in der Gilde eine neuere Version genutzt wird
 
 ### Befehle
@@ -62,12 +62,12 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - `/gp sound`, `/gp icon`, `/gp popup` Sounds, Wappenrock im Chat und Popups an oder aus
 - `/gp blizzard` zwischen GuildPride und dem Blizzard-Gildenfenster wechseln
 - `/gp kuerzel XYZ` Gildenkürzel festlegen (ohne Kürzel: automatisch)
+- `/gp einladen Name-Realm` Spieler in die Gilde einladen
 - `/gp badge 30` Meilenstein-Popup testen, `/gp version` wer welche Version nutzt
-- `/gp battletag` BattleTag erneut senden, `/gp btags` Offiziere: offene BattleTags bestätigen
 
 ### Gut zu wissen
 - Meilensteine, Events, Regeln und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die alle GuildPride installiert haben
-- Daten laufen nur über den Addon-Kanal der Gilde. BattleTags gehen ausschließlich an Offiziere
+- Daten laufen nur über den Addon-Kanal der Gilde
 
 ### Installation
 Den Ordner `GuildPride` nach `World of Warcraft/_retail_/Interface/AddOns` kopieren oder über die CurseForge-App installieren.
