@@ -1,5 +1,27 @@
 # GuildPride Changelog
 
+## 1.6.0
+
+**English**
+- New "Polls" tab: officers create polls with up to 6 answers, everyone votes, results with names are synced across the guild. Optional duration (1 day, 3 days, 1 week, 2 weeks); the poll closes on its own and shows the time left. Only officers can create, close and delete polls
+- Events: lineup check (tanks, healers, DPS for a group or raid) and "Invite all attendees" for officers – converts to a raid automatically when needed
+- More milestones: personal achievements, first raid boss kills per difficulty, new M+ best (+10 and up, in time) and new mounts. Can be turned off in the settings
+- Recruiting text: save it in the settings and put it into the chat input with one click or `/gp recruit` – you send it yourself
+- Note templates (one per line, `{datum}` = today): set community notes directly from the right-click menu; for guild notes the template is shown ready to copy and Blizzard's window opens
+- GuildPride now also has its own page in the WoW options (Options → AddOns), `/gp options` opens it
+- Guild info: new "Copy text" button, the hint line below the text was removed
+- Chat: messages from former members now show "Former member" instead of "Unknown"
+
+**Deutsch**
+- Neuer Reiter „Umfragen“: Offiziere legen Umfragen mit bis zu 6 Antworten an, alle stimmen ab, Ergebnisse mit Namen werden in der Gilde abgeglichen. Wahlweise mit Laufzeit (1 Tag, 3 Tage, 1 Woche, 2 Wochen); die Umfrage endet dann von selbst und zeigt die Restzeit. Anlegen, beenden und löschen dürfen nur Offiziere
+- Events: Aufstellungs-Check (Tanks, Heiler, DD für Gruppe oder Schlachtzug) und „Alle Zugesagten einladen“ für Offiziere – wandelt bei Bedarf automatisch in einen Schlachtzug um
+- Mehr Meilensteine: persönliche Erfolge, erster Raidboss-Sieg je Schwierigkeit, neue M+-Bestleistung (ab +10, in der Zeit) und neue Reittiere. In den Einstellungen abschaltbar
+- Werbetext: in den Einstellungen speichern und per Klick oder `/gp werben` in die Chat-Eingabe legen – abschicken tust du selbst
+- Notiz-Vorlagen (eine pro Zeile, `{datum}` = heute): Community-Notizen direkt aus dem Rechtsklick-Menü setzen; bei Gildennotizen wird die Vorlage zum Kopieren gezeigt und das Blizzard-Fenster geöffnet
+- GuildPride hat jetzt auch eine eigene Seite in den WoW-Optionen (Optionen → AddOns), `/gp optionen` öffnet sie
+- Gildeninfo: neuer Knopf „Text kopieren“, der Hinweistext unter dem Text ist entfernt
+- Chat: Nachrichten ehemaliger Mitglieder zeigen jetzt „Ehemaliges Mitglied“ statt „Unbekannt“
+
 ## 1.5.4
 
 **English**

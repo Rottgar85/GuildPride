@@ -642,8 +642,9 @@ function milestones:Refresh()
             row.badge:SetPoint("LEFT", 4, 0)
             row.left:SetPoint("LEFT", 32, 0)
         end
-        row.badge:SetShown(e.kind == "LEVEL")
-        if e.kind == "LEVEL" and ns.BadgeFor then row.badge:SetTexture(ns.BadgeFor(e.kind, e.value)) end
+        local badged = e.kind == "LEVEL" or (ns.EXTRA_KINDS and ns.EXTRA_KINDS[e.kind])
+        row.badge:SetShown(badged and true or false)
+        if badged and ns.BadgeFor then row.badge:SetTexture(ns.BadgeFor(e.kind, e.value)) end
         row.left:SetText("|cfff0c88c" .. e.who .. "|r")
         row.mid:SetText(ns.LogText(e))
         row.right:SetText(ns.FormatDay(e.t, true))
@@ -670,6 +671,7 @@ local options = {
     { key = "chatIcon",      label = L["Gilden-Logo im Chat"] },
     { key = "memberAlerts",  label = L["Warnung bei Beitritt / Austritt"] },
     { key = "helpAlerts",    label = L["Hinweis, wenn jemand Gruppe / Quest-Hilfe sucht"] },
+    { key = "shareMilestones", label = L["Eigene Erfolge, Bosse, M+ und Reittiere mit der Gilde teilen"] },
 }
 local checks = {}
 for i, opt in ipairs(options) do
@@ -690,8 +692,107 @@ blizzBtn:SetPoint("TOPLEFT", 4, -(#options * 34) - 16)
 blizzBtn:SetText(L["Blizzard-Gildenfenster öffnen"])
 blizzBtn:SetScript("OnClick", function() ns.OpenBlizzardGuild() end)
 
+-- Werbetext: gespeichert und auf Knopfdruck in die Chat-Eingabe gelegt.
+-- Abschicken (und Kanal wählen, z. B. "/2 ") macht der Spieler selbst.
+local baseY = -(#options * 34) - 58
+local recruitLabel = settings:CreateFontString(nil, "OVERLAY", "GPFont_TextBold")
+recruitLabel:SetPoint("TOPLEFT", 4, baseY)
+recruitLabel:SetText(L["Werbetext (z. B. „/2 Gilde XY sucht …“)"])
+local recruitBox = CreateFrame("EditBox", nil, settings, "InputBoxTemplate")
+recruitBox:SetSize(470, 22); recruitBox:SetPoint("TOPLEFT", 10, baseY - 18)
+recruitBox:SetAutoFocus(false); recruitBox:SetMaxLetters(250)
+recruitBox:SetScript("OnTextChanged", function(self, user)
+    if user then GuildPrideDB.recruitText = self:GetText() end
+end)
+recruitBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+recruitBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
+function ns.PostRecruitText()
+    local t = GuildPrideDB.recruitText
+    if not t or strtrim(t) == "" then ns.Print(L["Noch kein Werbetext gespeichert (Einstellungen)."]); return end
+    if ChatFrame_OpenChat then ChatFrame_OpenChat(t) end
+    ns.Print(L["Werbetext steht in der Chat-Eingabe – mit Enter abschicken."])
+end
+local recruitBtn = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
+recruitBtn:SetSize(150, 24); recruitBtn:SetPoint("LEFT", recruitBox, "RIGHT", 8, 0)
+recruitBtn:SetText(L["In den Chat legen"])
+recruitBtn:SetScript("OnClick", function() ns.PostRecruitText() end)
+
+-- Notiz-Vorlagen: eine pro Zeile, nutzbar im Mitglieder-Rechtsklick
+local tplLabel = settings:CreateFontString(nil, "OVERLAY", "GPFont_TextBold")
+tplLabel:SetPoint("TOPLEFT", 4, baseY - 52)
+tplLabel:SetText(L["Notiz-Vorlagen (eine pro Zeile, {datum} = heute)"])
+local tplScroll = CreateFrame("ScrollFrame", nil, settings, "UIPanelScrollFrameTemplate")
+tplScroll:SetPoint("TOPLEFT", 10, baseY - 72)
+tplScroll:SetSize(600, 64)
+local tplBg = tplScroll:CreateTexture(nil, "BACKGROUND")
+tplBg:SetPoint("TOPLEFT", -4, 4); tplBg:SetPoint("BOTTOMRIGHT", 4, -4)
+tplBg:SetColorTexture(0, 0, 0, 0.45)
+local tplBox = CreateFrame("EditBox", nil, tplScroll)
+tplBox:SetMultiLine(true); tplBox:SetAutoFocus(false)
+tplBox:SetFontObject(GPFont_TextSmall); tplBox:SetWidth(590)
+tplScroll:SetScrollChild(tplBox)
+tplScroll:EnableMouse(true)
+tplScroll:SetScript("OnMouseDown", function() tplBox:SetFocus() end)
+tplBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+tplBox:SetScript("OnTextChanged", function(self, user)
+    if not user then return end
+    local list = {}
+    for line in (self:GetText() .. "\n"):gmatch("([^\n]*)\n") do
+        line = strtrim(line)
+        if line ~= "" then list[#list + 1] = line:sub(1, 120) end
+    end
+    GuildPrideDB.noteTemplates = list
+end)
+
+-- Vorlagen mit eingesetztem Datum (für GuildPrideManage.lua)
+function ns.NoteTemplates()
+    local out = {}
+    for _, t in ipairs(GuildPrideDB.noteTemplates or {}) do
+        out[#out + 1] = (t:gsub("{datum}", date("%d.%m.%Y")):gsub("{date}", date("%Y-%m-%d")))
+    end
+    return out
+end
+
 function settings:Refresh()
     for key, cb in pairs(checks) do cb:SetChecked(GuildPrideDB[key]) end
+    if not recruitBox:HasFocus() then recruitBox:SetText(GuildPrideDB.recruitText or "") end
+    if not tplBox:HasFocus() then tplBox:SetText(table.concat(GuildPrideDB.noteTemplates or {}, "\n")) end
+end
+
+-- Dieselben Schalter im WoW-Menü (Optionen -> AddOns -> GuildPride)
+if Settings and Settings.RegisterCanvasLayoutCategory then
+    local panel = CreateFrame("Frame")
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 16, -16)
+    title:SetText("GuildPride")
+    local panelChecks = {}
+    for i, opt in ipairs(options) do
+        local cb = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+        cb:SetPoint("TOPLEFT", 16, -44 - (i - 1) * 32)
+        local label = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        label:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+        label:SetText(opt.label)
+        cb:SetScript("OnClick", function(self)
+            GuildPrideDB[opt.key] = self:GetChecked() and true or false
+        end)
+        panelChecks[opt.key] = cb
+    end
+    local open = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    open:SetSize(220, 26)
+    open:SetPoint("TOPLEFT", 20, -44 - #options * 32 - 12)
+    open:SetText(L["Gildenfenster öffnen"])
+    open:SetScript("OnClick", function()
+        if SettingsPanel then HideUIPanel(SettingsPanel) end
+        if not frame:IsShown() then ns.ToggleUI() end
+    end)
+    panel:SetScript("OnShow", function()
+        if not GuildPrideDB then return end
+        for key, cb in pairs(panelChecks) do cb:SetChecked(GuildPrideDB[key]) end
+    end)
+    local category = Settings.RegisterCanvasLayoutCategory(panel, "GuildPride")
+    Settings.RegisterAddOnCategory(category)
+    ns.SettingsCategory = category
 end
 
 ---------------------------------------------------------------------

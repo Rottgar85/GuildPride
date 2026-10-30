@@ -39,7 +39,11 @@ local MILESTONES = { [10]=true, [20]=true, [30]=true, [40]=true, [50]=true,
 local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_Tournaments_banner_Human"
 
 local defaults = { sound = true, chatIcon = true, popup = true, useCustomLogo = false,
-                   replaceGuildFrame = true, memberAlerts = true, helpAlerts = true }
+                   replaceGuildFrame = true, memberAlerts = true, helpAlerts = true, shareMilestones = true }
+
+-- Weitere Meilensteine neben LEVEL (Wert ist Text bzw. ID)
+local EXTRA_KINDS = { ACH = true, BOSS = true, MPLUS = true, MOUNT = true }
+ns.EXTRA_KINDS = EXTRA_KINDS
 local guildMembers = {}   -- ["Name-Realm"] = true
 
 -- Modul-Nachrichten: ns.On("KIND", function(payload, sender) ... end)
@@ -97,6 +101,21 @@ end
 local function DescribeMilestone(kind, value)
     if kind == "LEVEL" then
         return (L["hat Level %s erreicht!"]):format(value)
+    elseif kind == "ACH" then
+        local id = tonumber(value)
+        local name = id and GetAchievementInfo and select(2, GetAchievementInfo(id))
+        return (L["hat den Erfolg „%s“ errungen!"]):format(name or tostring(value))
+    elseif kind == "BOSS" then
+        -- Wert: "Schwierigkeit,Bossname"
+        local diff, boss = tostring(value):match("^(%d+),(.+)$")
+        local dname = diff and GetDifficultyInfo and GetDifficultyInfo(tonumber(diff))
+        return (L["hat %s besiegt!"]):format((boss or tostring(value)) .. (dname and (" (" .. dname .. ")") or ""))
+    elseif kind == "MPLUS" then
+        return (L["hat einen +%s-Schlüssel geschafft!"]):format(value)
+    elseif kind == "MOUNT" then
+        local id = tonumber(value)
+        local name = id and C_MountJournal and C_MountJournal.GetMountInfoByID and C_MountJournal.GetMountInfoByID(id)
+        return (L["hat ein neues Reittier: %s!"]):format(name or tostring(value))
     end
     return (L["hat einen Meilenstein erreicht (%s %s)"]):format(kind, value)
 end
@@ -111,7 +130,7 @@ local LOG_MAX = 100
 local DAY = 86400
 
 function ns.LogText(e)
-    if e.kind == "LEVEL" then return DescribeMilestone("LEVEL", e.value) end
+    if e.kind == "LEVEL" or EXTRA_KINDS[e.kind] then return DescribeMilestone(e.kind, e.value) end
     if e.kind == "JOIN" then return L["ist der Gilde beigetreten"] end
     if e.kind == "LEAVE" then return L["hat die Gilde verlassen"] end
     if e.kind == "KICK" then return L["wurde aus der Gilde entfernt."] end
@@ -120,7 +139,7 @@ end
 
 local function LogKey(e)
     -- Beitritt/Austritt: ein Eintrag pro Tag und Person
-    local v = (e.kind == "LEVEL") and e.value or math.floor((e.t or 0) / DAY)
+    local v = (e.kind == "LEVEL" or EXTRA_KINDS[e.kind]) and e.value or math.floor((e.t or 0) / DAY)
     return (e.kind or "?") .. ":" .. tostring(e.who) .. ":" .. tostring(v)
 end
 
@@ -234,7 +253,7 @@ ns.On("MSL", function(payload, sender)
     local requester, t, who, kind, value = strsplit(ns.SEP, payload)
     if requester then answered[requester] = true end
     if sender == ns.Me() then return end
-    if kind ~= "LEVEL" and kind ~= "JOIN" and kind ~= "LEAVE" and kind ~= "KICK" then return end
+    if kind ~= "LEVEL" and kind ~= "JOIN" and kind ~= "LEAVE" and kind ~= "KICK" and not EXTRA_KINDS[kind] then return end
     t = tonumber(t)
     if not t or not who or who == "" then return end
     ns.AddLog(kind, who, tonumber(value) or (value ~= "" and value or nil), t)
@@ -438,7 +457,7 @@ local function Dispatch(message, sender)
     end
     if ns.Handlers[kind] then
         for _, fn in ipairs(ns.Handlers[kind]) do fn(value, sender) end
-    elseif kind == "LEVEL" then
+    elseif kind == "LEVEL" or EXTRA_KINDS[kind] then
         ShowMilestone(sender, kind, value)
     elseif kind == "LVTEST" then
         -- /gp testall: immer anzeigen, nie in den Verlauf (sonst greift die Dublettenprüfung)
@@ -459,6 +478,45 @@ f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("GUILD_ROSTER_UPDATE")
 f:RegisterEvent("PLAYER_LEVEL_UP")
 f:RegisterEvent("CHAT_MSG_ADDON")
+f:RegisterEvent("ACHIEVEMENT_EARNED")
+f:RegisterEvent("ENCOUNTER_END")
+f:RegisterEvent("CHALLENGE_MODE_COMPLETED")
+f:RegisterEvent("NEW_MOUNT_ADDED")
+
+-- Eigene weitere Meilensteine melden (abschaltbar in den Einstellungen)
+local function Share(kind, value)
+    if GuildPrideDB.shareMilestones == false then return end
+    Broadcast(kind, value)
+end
+
+local function OnExtraMilestone(event, ...)
+    for i = 1, select("#", ...) do if IsSecret((select(i, ...))) then return end end
+    if event == "ACHIEVEMENT_EARNED" then
+        local id, already = ...
+        -- Nur persönliche Erfolge, keine Gildenerfolge
+        local isGuild = id and select(12, GetAchievementInfo(id))
+        if id and not already and not isGuild then Share("ACH", id) end
+    elseif event == "ENCOUNTER_END" then
+        local _, name, diff, size, success = ...
+        if success ~= 1 or not IsInRaid() or (size or 0) < 10 or not name then return end
+        GuildPrideDB.bossKills = GuildPrideDB.bossKills or {}
+        local key = diff .. "," .. name
+        if GuildPrideDB.bossKills[key] then return end   -- nur der erste Sieg je Schwierigkeit
+        GuildPrideDB.bossKills[key] = true
+        Share("BOSS", key)
+    elseif event == "CHALLENGE_MODE_COMPLETED" then
+        local info = C_ChallengeMode.GetChallengeCompletionInfo and C_ChallengeMode.GetChallengeCompletionInfo()
+        local level = info and info.level
+        if not level then level = select(2, C_ChallengeMode.GetCompletionInfo()) end
+        if not level or level < 10 or (info and info.onTime == false) then return end
+        if level <= (GuildPrideDB.mplusBest or 0) then return end   -- nur neue Bestwerte
+        GuildPrideDB.mplusBest = level
+        Share("MPLUS", level)
+    elseif event == "NEW_MOUNT_ADDED" then
+        local id = ...
+        if id then Share("MOUNT", id) end
+    end
+end
 
 f:SetScript("OnEvent", function(_, event, ...)
     if event == "ADDON_LOADED" and ... == ADDON then
@@ -500,6 +558,10 @@ f:SetScript("OnEvent", function(_, event, ...)
     elseif event == "PLAYER_LEVEL_UP" then
         local level = ...
         if MILESTONES[level] then Broadcast("LEVEL", level) end
+
+    elseif event == "ACHIEVEMENT_EARNED" or event == "ENCOUNTER_END"
+        or event == "CHALLENGE_MODE_COMPLETED" or event == "NEW_MOUNT_ADDED" then
+        OnExtraMilestone(event, ...)
 
     elseif event == "CHAT_MSG_ADDON" then
         local prefix, message, channel, sender = ...
@@ -560,7 +622,13 @@ SlashCmdList.GUILDPRIDE = function(arg)
         if ns.ShowMilestonePopup then ns.ShowMilestonePopup(UnitName("player"), DescribeMilestone("LEVEL", 20), "LEVEL", 20) end
     elseif arg == "testall" then
         Broadcast("LVTEST", 20)   -- alle Gildenmitglieder mit Addon sehen es (auch du selbst)
+    elseif arg == "werben" or arg == "recruit" then
+        if ns.PostRecruitText then ns.PostRecruitText() end
+    elseif arg == "optionen" or arg == "options" then
+        if ns.SettingsCategory and Settings and Settings.OpenToCategory then
+            Settings.OpenToCategory(ns.SettingsCategory:GetID())
+        end
     else
-        Print(L["Befehle: /gp (Fenster) · sound · icon · popup · blizzard · kuerzel <XYZ> · einladen <Name> · badge <Level> · version · status · ping · test · testall"])
+        Print(L["Befehle: /gp (Fenster) · sound · icon · popup · blizzard · kuerzel <XYZ> · einladen <Name> · werben · optionen · badge <Level> · version · status · ping · test · testall"])
     end
 end
