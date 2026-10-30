@@ -1,5 +1,13 @@
 # GuildPride Changelog
 
+## 1.6.1
+
+**English**
+- Removed the guild logo in chat (`/gp icon`). Its chat filter could hide messages from players without GuildPride in channels, say, yell, guild chat and battlegrounds. GuildPride no longer touches the normal chat at all
+
+**Deutsch**
+- Gilden-Logo im Chat (`/gp icon`) entfernt. Sein Chat-Filter konnte Nachrichten von Spielern ohne GuildPride in Channels, Sagen, Schreien, Gildenchat und Schlachtfeldern verschwinden lassen. GuildPride fasst den normalen Chat jetzt gar nicht mehr an
+
 ## 1.6.0
 
 **English**

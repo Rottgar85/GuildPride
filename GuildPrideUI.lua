@@ -668,7 +668,6 @@ local options = {
     { key = "replaceGuildFrame", label = L["Dieses Fenster statt Blizzard-Gildenfenster (J)"] },
     { key = "popup",         label = L["Meilenstein-Popups anzeigen"] },
     { key = "sound",         label = L["Sounds abspielen"] },
-    { key = "chatIcon",      label = L["Gilden-Logo im Chat"] },
     { key = "memberAlerts",  label = L["Warnung bei Beitritt / Austritt"] },
     { key = "helpAlerts",    label = L["Hinweis, wenn jemand Gruppe / Quest-Hilfe sucht"] },
     { key = "shareMilestones", label = L["Eigene Erfolge, Bosse, M+ und Reittiere mit der Gilde teilen"] },

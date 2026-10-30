@@ -18,7 +18,6 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - **Group finder and quest help**: sign up with a note and the roles you still need. Everyone sees class, level, role, zone and how full the group is. **Join** sends a join request, **Invite** invites a solo player, right-click whispers. Open to every rank
 - **Guild info**: the info text from Blizzard's guild window, the same for everyone, with a notice when it changes. It is edited in Blizzard's guild window (Blizzard blocks addons from changing it)
 - **Guild chat and communities**: guild chat, officer chat and your Blizzard communities inside the window, with the server-side history plus a local copy so old messages keep their author names
-- **Guild tabard in chat** for members who use GuildPride (off in dungeons, raids and PvP)
 - **Members list**: your guild or any of your communities, online only or everyone, with rank, notes and "last online"
 - **Invite players** to the guild or a community: type a name, or right-click a member
 - **Guild management**: click a member to see notes and to promote, demote, set a rank, remove or transfer leadership (depending on your rights)
@@ -31,7 +30,7 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 
 ### Commands
 - `/gp` or `/guildpride` open the window, `/gp help` all commands
-- `/gp sound`, `/gp icon`, `/gp popup` turn sounds, chat tabard and pop-ups on or off
+- `/gp sound`, `/gp popup` turn sounds and pop-ups on or off
 - `/gp blizzard` switch between GuildPride and the Blizzard guild window
 - `/gp tag XYZ` set the guild tag (without tag: automatic)
 - `/gp invite Name-Realm` invite a player to the guild
@@ -60,7 +59,6 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - **Gruppensuche und Quest-Hilfe**: mit Notiz und fehlenden Rollen eintragen. Alle sehen Klasse, Level, Rolle, Zone und wie voll die Gruppe ist. **Beitreten** schickt eine Beitrittsanfrage, **Einladen** lädt einen Einzelspieler ein, Rechtsklick flüstert an. Für alle Ränge
 - **Gildeninfo**: der Info-Text aus dem Blizzard-Gildenfenster, für alle gleich, mit Hinweis bei Änderungen. Bearbeitet wird er im Blizzard-Gildenfenster (Blizzard sperrt das Ändern für Addons)
 - **Gildenchat und Communities**: Gildenchat, Offizierschat und eure Blizzard-Communities direkt im Fenster, mit Verlauf vom Server und lokaler Kopie, damit alte Nachrichten ihren Namen behalten
-- **Wappenrock im Chat** für alle, die GuildPride nutzen (in Dungeons, Schlachtzügen und PvP aus)
 - **Mitgliederliste**: eure Gilde oder jede eurer Communities, nur online oder alle, mit Rang, Notizen und „zuletzt online“
 - **Spieler einladen** in die Gilde oder eine Community: Namen eingeben oder Rechtsklick auf ein Mitglied
 - **Gildenverwaltung**: Klick auf ein Mitglied zeigt die Notizen, dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten)
@@ -73,7 +71,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 
 ### Befehle
 - `/gp` oder `/guildpride` Fenster öffnen, `/gp hilfe` alle Befehle
-- `/gp sound`, `/gp icon`, `/gp popup` Sounds, Wappenrock im Chat und Popups an oder aus
+- `/gp sound`, `/gp popup` Sounds und Popups an oder aus
 - `/gp blizzard` zwischen GuildPride und dem Blizzard-Gildenfenster wechseln
 - `/gp kuerzel XYZ` Gildenkürzel festlegen (ohne Kürzel: automatisch)
 - `/gp einladen Name-Realm` Spieler in die Gilde einladen

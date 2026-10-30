@@ -565,11 +565,3 @@ SlashCmdList.GUILDPRIDE = function(arg)
         :format(rawName, withGuid, withId, rosterCount, #members, known))
 end
 
--- Logo auch im normalen Gildenchat anzeigen
-local ev = CreateFrame("Frame")
-ev:RegisterEvent("PLAYER_LOGIN")
-ev:SetScript("OnEvent", function()
-    if ns.ChatFilter then
-        ChatFrame_AddMessageEventFilter("CHAT_MSG_GUILD", ns.ChatFilter)
-    end
-end)
