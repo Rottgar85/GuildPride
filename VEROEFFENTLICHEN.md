@@ -12,6 +12,13 @@ Diese Datei und der Ordner `.github` landen nicht in der ZIP.
 Für Wago zusätzlich: `## X-Wago-ID: abcdef12` in die `.toc` und das Secret `WAGO_API_TOKEN`
 (addons.wago.io → Account → API Keys). Das GitHub-Token ist automatisch vorhanden.
 
+## Lua-Code lokal prüfen (luacheck)
+
+- `luacheck.exe` (v1.2.0, github.com/lunarmodules/luacheck/releases) liegt in `.tools/` – nicht im Git, nicht in der ZIP
+- Von Hand: `.\.tools\luacheck.exe . --no-color`
+- Automatisch vor jedem `git push` über `.githooks/pre-push`; bei Fehlern wird der Push abgebrochen.
+  Einmal pro Klon einschalten: `git config core.hooksPath .githooks`
+
 ## Neue Version veröffentlichen
 
 1. In `GuildPride.toc` die `## Version:` erhöhen und in `CHANGELOG.md` eintragen, was neu ist.
