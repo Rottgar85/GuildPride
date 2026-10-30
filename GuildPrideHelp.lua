@@ -83,6 +83,8 @@ local function SendMine(target)
     elseif not target then
         ns.Queue("LFG", nil, "none", "", 0, "", 0, 0, "", "", "", stateVer)
     end
+    -- Rundsendung zusätzlich an die Gildenleitung flüstern (Rangrechte)
+    if not target and ns.TellLeaders then ns.TellLeaders(SendMine) end
 end
 
 -- Eigener Eintrag als Listenzeile (wird nicht über das Netz empfangen)

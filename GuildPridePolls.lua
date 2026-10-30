@@ -79,6 +79,17 @@ local function SendAll(target)
     end
 end
 
+-- Ersteller kommt online: eigene Stimmen zu seinen Umfragen direkt nachliefern
+if ns.OnMemberOnline then
+    ns.OnMemberOnline(function(who)
+        local me = Me()
+        for _, p in pairs(DB()) do
+            local v = p.votes[me]
+            if v and p.creator == who and not p.deleted then SendVote(p.id, me, v, who) end
+        end
+    end)
+end
+
 ns.On("POL", function(payload, sender)
     if sender == Me() then return end
     local a = { strsplit(ns.SEP, payload) }

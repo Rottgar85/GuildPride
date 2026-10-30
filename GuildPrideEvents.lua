@@ -136,6 +136,49 @@ local function SendToGuild(msg)
     return res
 end
 
+---------------------------------------------------------------------
+-- Hintergrund-Kanal der Gilde
+-- Alle Rundsendungen gehen zusätzlich über einen eigenen Chat-Kanal, damit sie
+-- nicht von Rangrechten im Gildenkanal abhängen. Name und Passwort leiten sich
+-- vom Gildennamen ab; Nachrichten zählen nur von Gildenmitgliedern (GuildPride.lua).
+-- Der Kanal wird nicht in Chatfenster eingetragen (Addon-Nachrichten sind dort
+-- ohnehin unsichtbar) – Blizzards Chatcode wird nicht angefasst.
+---------------------------------------------------------------------
+local function Hash(s)
+    local h = 5381
+    for i = 1, #s do h = (h * 33 + s:byte(i)) % 2147483647 end
+    return h
+end
+
+local function DataChannel()
+    local guild = GetGuildInfo("player")
+    if not guild then return end
+    local realm = select(4, GetGuildInfo("player")) or GetNormalizedRealmName() or ""
+    local h = Hash(guild .. "@" .. realm)
+    return ("GPd%x"):format(h), ("p%x"):format(Hash(realm .. guild .. h))
+end
+
+function ns.DataChannelId()
+    local name = DataChannel()
+    if not name then return end
+    local id = GetChannelName(name)
+    return id and id > 0 and id or nil, name
+end
+
+local function JoinDataChannel()
+    local name, pw = DataChannel()
+    if not name or ns.DataChannelId() then return end
+    if JoinTemporaryChannel then JoinTemporaryChannel(name, pw) end
+end
+
+local chanFrame = CreateFrame("Frame")
+chanFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+chanFrame:RegisterEvent("PLAYER_GUILD_UPDATE")
+chanFrame:SetScript("OnEvent", function()
+    -- spät beitreten, damit Allgemein/Handel ihre gewohnten Nummern behalten
+    C_Timer.After(15, JoinDataChannel)
+end)
+
 C_Timer.NewTicker(0.3, function()
     if GetTime() < pauseUntil then return end
     -- Während der Chat-Sperre (Bosskampf, M+, PvP) nichts senden; die Warteschlange bleibt erhalten
@@ -149,6 +192,8 @@ C_Timer.NewTicker(0.3, function()
         res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.target)
     elseif IsInGuild() then
         res = SendToGuild(item.msg)
+        local chan = ns.DataChannelId()
+        if chan and not Throttled(res) then C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan) end
     end
     if Throttled(res) then
         item.tries = (item.tries or 0) + 1
@@ -201,6 +246,47 @@ end
 -- kommt nicht immer bei allen an (Rangrechte), ein Flüstern schon.
 function ns.TellCreator(creator, send)
     if creator and creator ~= "" and creator ~= Me() and IsOnline(creator) then send(creator) end
+end
+
+-- Kommt jemand online, ruft fn(name) auf (z. B. eigene Anmeldungen nachliefern,
+-- die der Ersteller verpasst hat, weil er offline war)
+local onlineBefore, onlineHooks = nil, {}
+function ns.OnMemberOnline(fn) onlineHooks[#onlineHooks + 1] = fn end
+local rosterWatch = CreateFrame("Frame")
+rosterWatch:RegisterEvent("GUILD_ROSTER_UPDATE")
+rosterWatch:SetScript("OnEvent", function()
+    local now, me = {}, Me()
+    for i = 1, GetNumGuildMembers() do
+        local name, _, _, _, _, _, _, _, online = GetGuildRosterInfo(i)
+        if name and online then now[ns.FullName and ns.FullName(name) or name] = true end
+    end
+    if onlineBefore then
+        for full in pairs(now) do
+            if not onlineBefore[full] and full ~= me then
+                -- kurz warten, bis der andere sein Addon geladen hat
+                C_Timer.After(20 + math.random() * 10, function()
+                    for _, fn in ipairs(onlineHooks) do fn(full) end
+                end)
+            end
+        end
+    end
+    onlineBefore = now
+end)
+
+-- Dasselbe für Nachrichten ohne Ersteller (z. B. Gruppensuche): an die Gildenleitung
+-- (Rang 0 und 1) flüstern, die online ist. Wer selbst Rang 0/1 hat, braucht das nicht.
+function ns.TellLeaders(send)
+    local _, _, myRank = GetGuildInfo("player")
+    if not myRank or myRank <= 1 then return end
+    local me, n = Me(), 0
+    for i = 1, GetNumGuildMembers() do
+        local name, _, rankIndex, _, _, _, _, _, online = GetGuildRosterInfo(i)
+        local full = name and (ns.FullName and ns.FullName(name) or name)
+        if full and online and rankIndex and rankIndex <= 1 and full ~= me and n < 3 then
+            n = n + 1
+            send(full)
+        end
+    end
 end
 
 ---------------------------------------------------------------------
@@ -256,6 +342,17 @@ local function SendAllEvents(target)
         end
     end
 end
+
+-- Ersteller kommt online: eigene Anmeldungen zu seinen Events direkt nachliefern
+ns.OnMemberOnline(function(who)
+    local me, cutoff = Me(), Now() - 86400
+    for _, e in pairs(DB()) do
+        local s = e.signups[me]
+        if s and e.creator == who and not e.deleted and e.title and e.t > cutoff then
+            SendSign(e.id, me, s, who)
+        end
+    end
+end)
 
 local function OnEventMessage(kind, payload, sender)
     if sender == Me() then return end

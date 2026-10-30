@@ -1,0 +1,10 @@
+#!/bin/sh
+# Prueft den Lua-Code vor jedem Push (wie der luacheck im PR).
+# luacheck.exe liegt in .tools/ (nicht im Git), siehe VEROEFFENTLICHEN.md
+LC=./.tools/luacheck.exe
+command -v luacheck >/dev/null 2>&1 && LC=luacheck
+if [ ! -x "$LC" ] && [ "$LC" != luacheck ]; then
+  echo "luacheck nicht gefunden - Pruefung uebersprungen"
+  exit 0
+fi
+"$LC" . --no-color -q || { echo "luacheck hat Fehler gefunden - Push abgebrochen"; exit 1; }

@@ -84,8 +84,9 @@ local function RefreshRoster()
     wipe(guildMembers)
     if not IsInGuild() then return end
     for i = 1, GetNumGuildMembers() do
-        local name = GetGuildRosterInfo(i)
-        if name then guildMembers[Normalize(name)] = true end
+        local name, _, rankIndex = GetGuildRosterInfo(i)
+        -- Wert = Rang + 1 (immer wahr), für die Empfangsstatistik je Rang
+        if name then guildMembers[Normalize(name)] = (rankIndex or 0) + 1 end
     end
 end
 
@@ -268,7 +269,7 @@ local function MyRank()
 end
 
 local function YesNo(v) return v and ("|cff40ff40" .. L["ja"] .. "|r") or ("|cffff4040" .. L["nein"] .. "|r") end
-ns.RecvStats = { raw = 0, total = 0, others = 0, secret = 0, badChannel = 0 }
+ns.RecvStats = { raw = 0, total = 0, others = 0, secret = 0, badChannel = 0, byRank = {} }
 
 ns.On("PING", function(_, sender)
     if sender == ns.Me() or not ns.Queue then return end
@@ -312,6 +313,18 @@ local function Status()
     Print((L["Gesendet: %d direkt, %d weitergeleitet, %d fehlgeschlagen · letztes Ergebnis: %s · Warteschlange: %d"]):format(
         s.direct or 0, s.relayed or 0, s.failed or 0, tostring(s.lastResult), ns.QueueLength and ns.QueueLength() or 0))
     Print((L["Online: %d Mitglieder, davon %d mit GuildPride bekannt"]):format(online, known))
+    -- Empfang je Rang: Gilde 0 bei vielen Flüstern = dieser Rang kommt im Gildenkanal nicht an
+    local ranks = {}
+    for rank in pairs(r.byRank) do ranks[#ranks + 1] = rank end
+    table.sort(ranks)
+    for _, rank in ipairs(ranks) do
+        local b = r.byRank[rank]
+        local warn = (b.GUILD == 0 and (b.WHISPER > 0 or (b.CHANNEL or 0) > 0)) and (" |cffff4040" .. L["nur per Flüstern!"] .. "|r") or ""
+        Print((L["Von Rang %d: %d über Gilde, %d über Kanal, %d geflüstert, %d Offiziere%s"]):format(
+            rank, b.GUILD, b.CHANNEL or 0, b.WHISPER, b.OFFICER, warn))
+    end
+    local chan, chanName = ns.DataChannelId and ns.DataChannelId()
+    Print((L["Hintergrund-Kanal: %s"]):format(chan and ("%d (%s)"):format(chan, chanName) or YesNo(false)))
 end
 ns.Status = Status
 
@@ -334,6 +347,7 @@ local function IsSecret(v) return issecretvalue and issecretvalue(v) or false en
 -- Addon-Nachrichten verteilen; mehrteilige ("MP") erst zusammensetzen
 ---------------------------------------------------------------------
 local multipart = {}   -- ["Sender:id"] = { n, got, parts, t }
+local recent, recentSweep = {}, 0   -- zuletzt empfangene Nachrichten (gegen Doppelte)
 local forwarded = {}   -- ["Name:id"] = Zeit, gegen doppelte Weiterleitungen
 
 local function Dispatch(message, sender)
@@ -485,7 +499,7 @@ f:SetScript("OnEvent", function(_, event, ...)
         if prefix ~= PREFIX then return end
         r.raw = r.raw + 1
         if IsSecret(message) or IsSecret(sender) or IsSecret(channel) then r.secret = r.secret + 1; return end
-        if channel ~= "GUILD" and channel ~= "WHISPER" and channel ~= "OFFICER" then
+        if channel ~= "GUILD" and channel ~= "WHISPER" and channel ~= "OFFICER" and channel ~= "CHANNEL" then
             r.badChannel, r.lastBadChannel = r.badChannel + 1, tostring(channel)
             return
         end
@@ -493,8 +507,27 @@ f:SetScript("OnEvent", function(_, event, ...)
         -- Absender immer als "Name-Realm": manchmal kommt er ohne Realm an, dann
         -- wurden eigene Nachrichten für fremde gehalten (z. B. doppelte Hinweise)
         sender = Normalize(sender)
+        -- Hintergrund-Kanal: nur Gildenmitglieder (der Kanal ist nicht abgeschlossen)
+        if channel == "CHANNEL" and not guildMembers[sender] then return end
+        -- Rundsendungen kommen über Gilde UND Kanal: zweites Exemplar verwerfen
+        local now, key = GetTime(), sender .. "\030" .. message
+        if recent[key] and now - recent[key] < 30 then return end
+        recent[key] = now
+        if now - recentSweep > 60 then
+            recentSweep = now
+            for k, t in pairs(recent) do if now - t >= 30 then recent[k] = nil end end
+        end
         r.total = r.total + 1
-        if sender ~= ns.Me() then r.others = r.others + 1; r.lastFrom, r.lastKind, r.lastAt = sender, message:match("^(%u+)"), GetTime() end
+        if sender ~= ns.Me() then
+            r.others = r.others + 1; r.lastFrom, r.lastKind, r.lastAt = sender, message:match("^(%u+)"), GetTime()
+            -- Je Rang und Kanal zählen: zeigt, ob ein Rang nur per Flüstern ankommt
+            local rank = guildMembers[sender]
+            if rank then
+                local b = r.byRank[rank - 1] or { GUILD = 0, WHISPER = 0, OFFICER = 0 }
+                r.byRank[rank - 1] = b
+                b[channel] = (b[channel] or 0) + 1
+            end
+        end
         ns.AddonUsers[sender] = true
         Dispatch(message, sender)
     end
