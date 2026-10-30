@@ -151,6 +151,7 @@ local function Vote(p, choice)
     local cur = p.votes[Me()]
     ApplyVote(p.id, Me(), choice, math.max(Now(), cur and cur.v + 1 or 0))
     SendVote(p.id, Me(), p.votes[Me()])
+    if ns.TellCreator then ns.TellCreator(p.creator, function(who) SendVote(p.id, Me(), p.votes[Me()], who) end) end
     ns.RefreshUI()
 end
 

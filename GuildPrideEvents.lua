@@ -189,6 +189,20 @@ end
 local function SendDelete(e, target) Queue("DEL", target, e.id, e.ver) end
 local function SendSign(id, name, s, target) Queue("SGN", target, id, name, s.s, s.v, s.r or "") end
 
+-- Ist der Spieler gerade online? (Gildenliste)
+local function IsOnline(full)
+    for i = 1, GetNumGuildMembers() do
+        local name, _, _, _, _, _, _, _, online = GetGuildRosterInfo(i)
+        if name and online and (ns.FullName and ns.FullName(name) or name) == full then return true end
+    end
+end
+
+-- Zusätzlich direkt an den Ersteller flüstern: Was ein Rang an die Gilde schickt,
+-- kommt nicht immer bei allen an (Rangrechte), ein Flüstern schon.
+function ns.TellCreator(creator, send)
+    if creator and creator ~= "" and creator ~= Me() and IsOnline(creator) then send(creator) end
+end
+
 ---------------------------------------------------------------------
 -- Daten anwenden (neuere Version gewinnt)
 ---------------------------------------------------------------------
@@ -297,6 +311,7 @@ end
 local function SignUp(e, status)
     ApplySign(e.id, Me(), status, Now(), status ~= "no" and MyRole() or nil)
     SendSign(e.id, Me(), e.signups[Me()])
+    ns.TellCreator(e.creator, function(who) SendSign(e.id, Me(), e.signups[Me()], who) end)
     ns.RefreshUI()
 end
 

@@ -167,12 +167,15 @@ local function AuthorName(clubId, a)
 end
 
 -- Server-Nachricht -> gespeicherter Eintrag { t, who, full, hex, text, memberId, guid }
-local function ClubEntry(clubId, m, kind)
+-- allowSecret: geschützter Text (Midnight, z. B. im Schlachtfeld) nur zum
+-- Anzeigen – nicht vergleichen, nicht speichern
+local function ClubEntry(clubId, m, kind, allowSecret)
     if not m or m.destroyed or not m.content then return end
-    if issecretvalue and issecretvalue(m.content) then return end
+    if Secret(m.content) and not allowSecret then return end
     local a = m.author or {}
     local full = AuthorName(clubId, a)
-    local t = (m.messageId and m.messageId.epoch or 0) / 1000000
+    local epoch = m.messageId and m.messageId.epoch
+    local t = (not Secret(epoch) and epoch or GetServerTime() * 1000000) / 1000000
     -- Battle.net-Communities: kein Charaktername -> kein Player-Link
     local link = full and (kind ~= "CLUB" or a.clubType ~= Enum.ClubType.BattleNet) and full or nil
     return { t = t, who = full and Ambiguate(full, "guild") or nil, full = link, hex = ClassHex(not Secret(a.classID) and a.classID or nil),
@@ -274,6 +277,7 @@ end
 ---------------------------------------------------------------------
 local requested = {}
 local focused
+local secretLive = {}   -- "clubId:streamId" -> Einträge mit geschütztem Text
 
 local function Redraw()
     msgs:Clear()
@@ -312,6 +316,10 @@ local function Redraw()
         end
         for i = math.max(1, #cache - HISTORY + 1), #cache do
             msgs:AddMessage(EntryLine(cache[i], channel.kind))
+        end
+        -- Geschützte Nachrichten dieser Sitzung (nur im Speicher, nicht gespeichert)
+        for _, e in ipairs(secretLive[clubId .. ":" .. streamId] or {}) do
+            msgs:AddMessage(EntryLine(e, channel.kind))
         end
         -- Mehr Verlauf vom Server holen (höchstens alle 30 Sekunden je Kanal)
         local key = clubId .. ":" .. streamId
@@ -463,9 +471,18 @@ if HAS_CLUB then
         if event == "CLUB_MESSAGE_ADDED" then
             -- Auch bei geschlossenem Fenster merken, damit der Verlauf vollständig bleibt
             local kind = channel.kind == "CLUB" and "CLUB" or "GUILD"
-            local ok, e = pcall(ClubEntry, clubId, C_Club.GetMessageInfo(clubId, streamId, messageId), kind)
+            local ok, e = pcall(ClubEntry, clubId, C_Club.GetMessageInfo(clubId, streamId, messageId), kind, true)
             if not ok or not e or not GuildPrideDB then return end
-            Remember(Cache(clubId, streamId), { e })
+            if Secret(e.text) then
+                -- Im Schlachtfeld/Instanz geschützt: nur für diese Sitzung merken
+                local key = clubId .. ":" .. streamId
+                local list = secretLive[key] or {}
+                secretLive[key] = list
+                list[#list + 1] = e
+                while #list > HISTORY do table.remove(list, 1) end
+            else
+                Remember(Cache(clubId, streamId), { e })
+            end
             local myClub, myStream = Resolve(channel)
             if page:IsVisible() and clubId == myClub and streamId == myStream then
                 msgs:AddMessage(EntryLine(e, channel.kind))
