@@ -22,16 +22,56 @@ local text = view:CreateFontString(nil, "OVERLAY", "GPFont_Text")
 text:SetPoint("TOPLEFT", 4, -4)
 text:SetWidth(620); text:SetJustifyH("LEFT"); text:SetSpacing(4)
 
-local info = page:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
-info:SetPoint("BOTTOMLEFT", 2, 8)
-info:SetWidth(400); info:SetJustifyH("LEFT")
-
 local bEdit = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 bEdit:SetSize(220, 24); bEdit:SetPoint("BOTTOMRIGHT", 0, 0); bEdit:SetText(L["Im Blizzard-Fenster bearbeiten"])
 bEdit:SetScript("OnClick", function()
     ns.OpenBlizzardGuild()
     ns.Print(L["Gildeninfo bearbeiten: im Blizzard-Gildenfenster den Reiter „Info“ öffnen und dort auf „Bearbeiten“ klicken."])
 end)
+
+---------------------------------------------------------------------
+-- Kopieren: WoW hat keinen Zugriff auf die Zwischenablage. Darum zeigen wir
+-- den Text in einem markierten Eingabefeld, Strg+C kopiert ihn.
+---------------------------------------------------------------------
+local copyScroll = CreateFrame("ScrollFrame", nil, page, "UIPanelScrollFrameTemplate")
+copyScroll:SetPoint("TOPLEFT", 0, -4)
+copyScroll:SetPoint("BOTTOMRIGHT", -26, 34)
+copyScroll:Hide()
+local copyBox = CreateFrame("EditBox", nil, copyScroll)
+copyBox:SetMultiLine(true)
+copyBox:SetAutoFocus(false)
+copyBox:SetFontObject(GPFont_Text)
+copyBox:SetWidth(620)
+copyScroll:SetScrollChild(copyBox)
+local copyBg = copyScroll:CreateTexture(nil, "BACKGROUND")
+copyBg:SetAllPoints(); copyBg:SetColorTexture(0, 0, 0, 0.45)
+
+local bCopy = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bCopy:SetSize(140, 24)
+
+local copyText = ""
+local function CopyMode(on)
+    copyScroll:SetShown(on)
+    scroll:SetShown(not on)
+    bCopy:SetText(on and L["Fertig"] or L["Text kopieren"])
+    if on then
+        copyBox:SetText(copyText)
+        copyBox:SetFocus()
+        copyBox:HighlightText()
+        ns.Print(L["Text ist markiert – mit Strg+C kopieren."])
+    else
+        copyBox:ClearFocus()
+    end
+end
+CopyMode(false)
+-- Nur lesen: Eingaben sofort zurücksetzen, Markierung behalten
+copyBox:SetScript("OnTextChanged", function(self, userInput)
+    if userInput then self:SetText(copyText); self:HighlightText() end
+end)
+copyBox:SetScript("OnEscapePressed", function() CopyMode(false) end)
+copyBox:SetScript("OnMouseUp", function(self) self:HighlightText() end)
+bCopy:SetScript("OnClick", function() CopyMode(not copyScroll:IsShown()) end)
+page:HookScript("OnHide", function() CopyMode(false) end)
 
 local function InfoText()
     local t
@@ -61,11 +101,15 @@ function page:Refresh()
         text:SetText(t ~= "" and t or L["|cff888888Es wurde noch keine Gildeninfo festgelegt.|r"])
         GuildPrideDB.infoSeen = Hash(t)   -- gelesen
     end
+    copyText = t or ""
+    bCopy:SetShown(copyText ~= "")
+    if copyText == "" and copyScroll:IsShown() then CopyMode(false) end
     view:SetHeight(text:GetStringHeight() + 10)
     local can = CanEdit()
-    info:SetText(can and L["Ändern geht nur im Blizzard-Gildenfenster (für Addons gesperrt)."]
-        or L["Die Gildeninfo wird von der Gildenleitung gepflegt."])
     bEdit:SetShown(can)
+    -- Kopieren für alle; bei Offizieren links neben "Bearbeiten"
+    bCopy:ClearAllPoints()
+    if can then bCopy:SetPoint("RIGHT", bEdit, "LEFT", -6, 0) else bCopy:SetPoint("BOTTOMRIGHT", 0, 0) end
 end
 
 -- Nach dem Bearbeiten im Blizzard-Fenster sofort den neuen Text zeigen

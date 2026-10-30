@@ -22,6 +22,10 @@
 - **Invite players** – type a name to invite someone to the guild or the selected community, or right-click a member to whisper, invite to your group, add as friend or invite to the guild / a community.
 - **Guild management** – click a member to see their notes and to promote, demote, set a rank, remove them or transfer leadership (depending on your rights). Uses Blizzard's own guild commands.
 - **Community management** – right-click a community member to change their role, edit their note or remove them.
+- **Polls** – officers create polls with up to 6 answers and an optional duration (1 day to 2 weeks), everyone votes.
+- **More milestones** – achievements, first raid boss kills, new M+ bests and new mounts.
+- **Event lineup** – role check for group or raid and "Invite all attendees" for officers.
+- **Recruiting text and note templates**, plus a settings page in the WoW options (`/gp options`).
 - **Version check** – a reminder when a newer GuildPride version is in use in your guild.
 - **English & German** – switches automatically to your game client's language.
 
@@ -65,6 +69,10 @@
 - **Spieler einladen** – Namen eingeben und in die Gilde oder die gewählte Community einladen, oder per Rechtsklick auf ein Mitglied anflüstern, in die Gruppe einladen, als Freund hinzufügen oder in Gilde / Community einladen.
 - **Gildenverwaltung** – Klick auf ein Mitglied zeigt die Notizen; dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten). Läuft über Blizzards eigene Gildenbefehle.
 - **Community-Verwaltung** – Rechtsklick auf ein Community-Mitglied, um die Rolle zu ändern, die Notiz zu bearbeiten oder es zu entfernen.
+- **Umfragen** – Offiziere legen Umfragen mit bis zu 6 Antworten und wahlweiser Laufzeit (1 Tag bis 2 Wochen) an, alle stimmen ab.
+- **Mehr Meilensteine** – Erfolge, erste Raidboss-Siege, neue M+-Bestleistungen und neue Reittiere.
+- **Event-Aufstellung** – Rollen-Check für Gruppe oder Schlachtzug und „Alle Zugesagten einladen“ für Offiziere.
+- **Werbetext und Notiz-Vorlagen**, dazu eine Einstellungsseite in den WoW-Optionen (`/gp optionen`).
 - **Versionscheck** – Erinnerung, wenn in der Gilde eine neuere GuildPride-Version genutzt wird.
 - **Deutsch & Englisch** – stellt sich automatisch auf die Sprache deines Clients ein.
 

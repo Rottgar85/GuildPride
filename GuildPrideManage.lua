@@ -148,7 +148,8 @@ blocked:SetScript("OnEvent", function(_, _, addon, func)
     ns.Print((L["|cffff4040WoW hat die Aktion blockiert (%s). Bitte im Blizzard-Gildenfenster ausführen.|r"]):format(tostring(func)))
 end)
 
-local bNotes   = Button(268, L["Notizen bearbeiten (Blizzard-Fenster)"], 16, -186)
+local bNotes   = Button(180, L["Notizen bearbeiten"], 16, -186)
+local bTpl     = Button(84, L["Vorlage"], 200, -186)
 local bPromote = Button(132, L["Befördern"], 16, -242, true)
 local bDemote  = Button(132, L["Degradieren"], 152, -242, true)
 local bRank    = Button(170, L["Rang wählen  ▾"], 16, -272)
@@ -221,6 +222,40 @@ bNotes:SetScript("OnClick", function()
     ns.OpenBlizzardGuild()
     ns.Print(L["Gildennotizen können Addons nicht ändern. Bearbeite sie im Blizzard-Gildenfenster (Rechtsklick auf das Mitglied)."])
 end)
+-- Gildennotizen kann kein Addon setzen: Vorlage markiert zum Kopieren anzeigen
+-- und das Blizzard-Fenster öffnen, dort mit Strg+V einfügen
+StaticPopupDialogs["GUILDPRIDE_NOTE_TEMPLATE"] = {
+    text = L["Vorlage mit Strg+C kopieren und im Blizzard-Fenster als Notiz einfügen:"],
+    button1 = OKAY,
+    hasEditBox = true, editBoxWidth = 320,
+    OnShow = function(self, t)
+        local eb = self.editBox or self.EditBox
+        eb:SetText(t or ""); eb:SetFocus(); eb:HighlightText()
+    end,
+    EditBoxOnEnterPressed = function(self) self:GetParent():Hide() end,
+    EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
+    timeout = 0, whileDead = true, hideOnEscape = true,
+}
+
+local function NoTemplates()
+    ns.Print(L["Noch keine Notiz-Vorlagen. Lege sie unter Einstellungen an."])
+end
+
+bTpl:SetScript("OnClick", function(self)
+    local list = ns.NoteTemplates and ns.NoteTemplates() or {}
+    if #list == 0 then NoTemplates(); return end
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then return end
+    MenuUtil.CreateContextMenu(self, function(_, root)
+        root:CreateTitle(L["Notiz-Vorlage"])
+        for _, t in ipairs(list) do
+            root:CreateButton(t, function()
+                ns.OpenBlizzardGuild()
+                StaticPopup_Show("GUILDPRIDE_NOTE_TEMPLATE", nil, nil, t)
+            end)
+        end
+    end)
+end)
+
 bTell:SetScript("OnClick", function() if current then ChatFrame_SendTell(current.full) end end)
 bGroup:SetScript("OnClick", function() if current and InviteToGroup then InviteToGroup(current.full) end end)
 
@@ -236,6 +271,7 @@ local function Fill(m)
     offLabel:SetShown(canOff); offText:SetShown(canOff)
     offText:SetText((m.officerNote and m.officerNote ~= "") and m.officerNote or L["|cff888888Keine Notiz.|r"])
     bNotes:SetShown(CanEditNotes() and true or false)
+    bTpl:SetShown(CanEditNotes() and true or false)
     bTell:SetEnabled(m.online and not m.isSelf)
     bGroup:SetEnabled(m.online and not m.isSelf)
 
@@ -326,6 +362,17 @@ local function AddClubManagement(root, m)
         root:CreateButton(L["Notiz bearbeiten"], function()
             StaticPopup_Show("GUILDPRIDE_CLUB_NOTE", m.name, nil, m)
         end)
+        -- Community-Notizen lassen sich direkt setzen
+        local list = ns.NoteTemplates and ns.NoteTemplates() or {}
+        if #list > 0 then
+            local sub = root:CreateButton(L["Notiz-Vorlage"])
+            for _, t in ipairs(list) do
+                sub:CreateButton(t, function()
+                    local ok = pcall(C_Club.SetClubMemberNote, m.clubId, m.memberId, t)
+                    if not ok then ns.Print(L["|cffff4040Notiz konnte nicht gespeichert werden.|r"]) end
+                end)
+            end
+        end
     end
     if canKick and C_Club.KickMember then
         root:CreateButton(L["|cffff4040Aus der Community entfernen|r"], function()

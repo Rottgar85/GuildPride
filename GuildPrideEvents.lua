@@ -455,6 +455,58 @@ bNote:SetScript("OnClick", function()
     if Sel() then StaticPopup_Show("GUILDPRIDE_EVENT_NOTE", nil, nil, Sel()) end
 end)
 
+-- Alle Zugesagten einladen: erst bis zu 4 in die Gruppe, dann zum Schlachtzug
+-- umwandeln und den Rest einladen (Umwandeln geht erst mit bestehender Gruppe)
+local InviteToGroup = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
+local ConvertToRaidFn = (C_PartyInfo and C_PartyInfo.ConvertToRaid) or ConvertToRaid
+
+local function InviteAttendees(e)
+    local names = {}
+    for name, s in pairs(e.signups) do
+        if s.s == "yes" and name ~= Me() and not UnitInParty(Ambiguate(name, "none")) then
+            names[#names + 1] = name
+        end
+    end
+    if #names == 0 then ns.Print(L["Keine weiteren Zusagen zum Einladen."]); return end
+    table.sort(names)
+    local first = IsInRaid() and #names or math.min(#names, 4)
+    for i = 1, first do InviteToGroup(names[i]) end
+    ns.Print((L["%d Spieler eingeladen."]):format(first))
+    if first < #names then
+        C_Timer.After(2, function()
+            if not IsInRaid() and ConvertToRaidFn then ConvertToRaidFn() end
+            C_Timer.After(1.5, function()
+                for i = first + 1, #names do InviteToGroup(names[i]) end
+                ns.Print((L["%d Spieler eingeladen."]):format(#names - first))
+            end)
+        end)
+    end
+end
+
+local bInvite = CreateFrame("Button", nil, detail, "UIPanelButtonTemplate")
+bInvite:SetSize(170, 22)
+bInvite:SetPoint("RIGHT", bNote, "LEFT", -6, 0)
+bInvite:SetText(L["Alle Zugesagten einladen"])
+bInvite:SetScript("OnClick", function() if Sel() then InviteAttendees(Sel()) end end)
+
+-- Aufstellung: bis 5 Spieler 1/1/3, sonst Schlachtzug mit 2 Tanks und
+-- einem Heiler je 5 Spieler
+local function Lineup(roleCount, total)
+    local need
+    if total <= 5 then need = { TANK = 1, HEALER = 1, DAMAGER = 3 }
+    else
+        local heal = math.ceil(total / 5)
+        need = { TANK = 2, HEALER = heal, DAMAGER = math.max(total - 2 - heal, 0) }
+    end
+    local parts = {}
+    for _, key in ipairs({ "TANK", "HEALER", "DAMAGER" }) do
+        local have, want = roleCount[key], need[key]
+        local col = have >= want and "|cff40ff40" or "|cffff6060"
+        parts[#parts + 1] = ("%s%s %s%d/%d|r"):format(ROLES[key].color, ROLES[key].label, col, have, want)
+    end
+    return (L["Aufstellung (%s): %s"]):format(total <= 5 and L["Gruppe"] or L["Schlachtzug"], table.concat(parts, " · "))
+end
+
 StaticPopupDialogs["GUILDPRIDE_EVENT_NOTE"] = {
     text = L["Offiziers-Notiz (z. B. Treffpunkt, benötigte Rollen):"],
     button1 = SAVE or L["Speichern"], button2 = CANCEL,
@@ -515,6 +567,7 @@ function page:Refresh()
     end
     dDesc:SetText(descText)
     bNote:SetShown(CanManage())
+    bInvite:SetShown(CanManage())
 
     local myRole = MyRole()
     for key, b in pairs(roleBtns) do
@@ -536,6 +589,7 @@ function page:Refresh()
             ROLES.TANK.color, roleCount.TANK, ROLES.HEALER.color, roleCount.HEALER,
             ROLES.DAMAGER.color, roleCount.DAMAGER),
     }
+    if #groups.yes > 0 then lines[#lines + 1] = Lineup(roleCount, #groups.yes) end
     for _, key in ipairs({ "yes", "maybe", "no" }) do
         table.sort(groups[key])
         lines[#lines + 1] = ("%s%s (%d):|r %s"):format(STATUS[key].color, STATUS[key].label, #groups[key],

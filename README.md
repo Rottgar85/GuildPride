@@ -23,6 +23,10 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - **Invite players** to the guild or a community: type a name, or right-click a member
 - **Guild management**: click a member to see notes and to promote, demote, set a rank, remove or transfer leadership (depending on your rights)
 - **Community management**: right-click a member to change their role, edit their note or remove them
+- **Polls**: officers create polls with up to 6 answers and an optional duration, everyone votes
+- **More milestones**: achievements, first raid boss kills, new M+ bests and new mounts
+- **Event lineup**: role check for group or raid and "Invite all attendees" for officers
+- **Recruiting text and note templates**, plus a settings page in the WoW options (`/gp options`)
 - **Version check**: a reminder when a newer version is in use in the guild
 
 ### Commands
@@ -61,6 +65,10 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - **Spieler einladen** in die Gilde oder eine Community: Namen eingeben oder Rechtsklick auf ein Mitglied
 - **Gildenverwaltung**: Klick auf ein Mitglied zeigt die Notizen, dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten)
 - **Community-Verwaltung**: Rechtsklick auf ein Mitglied, um die Rolle zu ändern, die Notiz zu bearbeiten oder es zu entfernen
+- **Umfragen**: Offiziere legen Umfragen mit bis zu 6 Antworten und wahlweiser Laufzeit an, alle stimmen ab
+- **Mehr Meilensteine**: Erfolge, erste Raidboss-Siege, neue M+-Bestleistungen und neue Reittiere
+- **Event-Aufstellung**: Rollen-Check für Gruppe oder Schlachtzug und „Alle Zugesagten einladen“ für Offiziere
+- **Werbetext und Notiz-Vorlagen**, dazu eine Einstellungsseite in den WoW-Optionen (`/gp optionen`)
 - **Versionscheck**: Erinnerung, wenn in der Gilde eine neuere Version genutzt wird
 
 ### Befehle

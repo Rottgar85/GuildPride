@@ -117,7 +117,7 @@ end
 
 local function SkinAll()
     Walk(GuildPrideFrame)
-    for _, name in ipairs({ "GuildPrideCreateEvent", "GuildPrideMemberToast" }) do
+    for _, name in ipairs({ "GuildPrideCreateEvent", "GuildPrideMemberToast", "GuildPridePollDialog" }) do
         local f = _G[name]
         if f then SkinDialog(f); Walk(f) end
     end
@@ -131,4 +131,5 @@ ev:SetScript("OnEvent", function()
     -- Nachträglich erzeugte Elemente (z. B. Listenzeilen) beim Öffnen mitnehmen
     GuildPrideFrame:HookScript("OnShow", function() C_Timer.After(0, SkinAll) end)
     if GuildPrideCreateEvent then GuildPrideCreateEvent:HookScript("OnShow", function() Walk(GuildPrideCreateEvent) end) end
+    if GuildPridePollDialog then GuildPridePollDialog:HookScript("OnShow", function() Walk(GuildPridePollDialog) end) end
 end)

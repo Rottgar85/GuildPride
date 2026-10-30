@@ -90,45 +90,80 @@ end
 
 -- Name noch nicht geladen? (Der Server liefert ältere Nachrichten oft ohne
 -- Autorennamen; Blizzard zeigt dann "Unbekannt".)
+-- Geschützte Werte (Midnight) zuerst prüfen: schon ein Vergleich wirft einen Fehler
+local function Secret(v) return issecretvalue and issecretvalue(v) or false end
+
 local function IsUnknown(name)
-    return name == nil or name == "" or name == "?" or name == UNKNOWNOBJECT or name == UNKNOWN
+    if Secret(name) or type(name) ~= "string" then return true end
+    return name == "" or name == "?" or name == UNKNOWNOBJECT or name == UNKNOWN
 end
 
--- GUID -> Name aus der Gildenliste (für Gilden- und Offizierschat)
-local rosterByGuid, rosterAt = {}, 0
+-- GUID -> Name aus der Gildenliste (für Gilden- und Offizierschat).
+-- Neu einlesen, wenn die Liste leer ist oder eine GUID fehlt (höchstens alle 5 s),
+-- sonst bleiben Namen direkt nach dem Login lange "Unbekannt".
+local rosterByGuid, rosterAt, rosterCount = {}, -999, 0
 local function RosterName(guid)
-    if not guid or not IsInGuild() then return end
-    if GetTime() - rosterAt > 30 then
+    if Secret(guid) or type(guid) ~= "string" or not IsInGuild() then return end
+    if not rosterByGuid[guid] and (rosterCount == 0 or GetTime() - rosterAt > 5) then
         rosterAt = GetTime()
         wipe(rosterByGuid)
+        rosterCount = 0
         for i = 1, GetNumGuildMembers() do
             local n, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, g = GetGuildRosterInfo(i)
-            if n and g then rosterByGuid[g] = n end
+            if not IsUnknown(n) and type(g) == "string" and not Secret(g) then
+                rosterByGuid[g] = n
+                rosterCount = rosterCount + 1
+            end
         end
     end
     return rosterByGuid[guid]
 end
 
--- Autorennamen nachschlagen: eigene Nachricht, Mitgliederliste des Clubs,
--- Gildenliste, sonst über die GUID
-local function AuthorName(clubId, a)
-    local name = a.name
-    if issecretvalue and issecretvalue(name) then name = nil end
-    if IsUnknown(name) and a.isSelf then
-        name = UnitName("player") .. "-" .. (GetNormalizedRealmName() or "")
-    end
-    if IsUnknown(name) and a.guid then name = RosterName(a.guid) or name end
-    if IsUnknown(name) and clubId and a.memberId and C_Club.GetMemberInfo then
-        local info = C_Club.GetMemberInfo(clubId, a.memberId)
-        if info and not IsUnknown(info.name) and not (issecretvalue and issecretvalue(info.name)) then
-            name, a.classID = info.name, a.classID or info.classID
+-- Mitglieds-ID -> Name über die komplette Mitgliederliste des Clubs
+-- (einzelnes GetMemberInfo liefert für ältere Nachrichten oft nichts)
+local memberNames, memberAt = {}, {}
+function ns.ClubMemberName(clubId, memberId)
+    local map = memberNames[clubId]
+    if (not map or not map[memberId]) and GetTime() - (memberAt[clubId] or -999) > 5
+       and C_Club.GetClubMembers and C_Club.GetMemberInfo then
+        memberAt[clubId] = GetTime()
+        map = {}
+        memberNames[clubId] = map
+        for _, id in ipairs(C_Club.GetClubMembers(clubId) or {}) do
+            local ok, info = pcall(C_Club.GetMemberInfo, clubId, id)
+            if ok and info and not IsUnknown(info.name) then map[id] = info.name end
         end
     end
-    if IsUnknown(name) and a.guid and GetPlayerInfoByGUID then
-        local _, _, _, _, _, n, realm = GetPlayerInfoByGUID(a.guid)
-        if n and n ~= "" then name = (realm and realm ~= "") and (n .. "-" .. realm) or n end
+    return map and map[memberId]
+end
+
+-- Autorennamen nachschlagen: eigene Nachricht, Gildenliste, Mitgliederliste
+-- des Clubs, sonst über die GUID
+local function AuthorName(clubId, a)
+    local name = a.name
+    if IsUnknown(name) then name = nil end
+    if not name and a.isSelf == true then
+        name = UnitName("player") .. "-" .. (GetNormalizedRealmName() or "")
     end
-    return (not IsUnknown(name)) and name or nil
+    local guid = (not Secret(a.guid) and type(a.guid) == "string" and a.guid ~= "") and a.guid or nil
+    if not name and guid then name = RosterName(guid) end
+    if not name and clubId and a.memberId and not Secret(a.memberId) and C_Club.GetMemberInfo then
+        local ok, info = pcall(C_Club.GetMemberInfo, clubId, a.memberId)
+        if ok and info and not IsUnknown(info.name) then
+            name = info.name
+            if not Secret(info.classID) then a.classID = a.classID or info.classID end
+        end
+    end
+    if not name and clubId and a.memberId and not Secret(a.memberId) then
+        name = ns.ClubMemberName and ns.ClubMemberName(clubId, a.memberId)
+    end
+    if not name and guid and GetPlayerInfoByGUID then
+        local ok, _, _, _, _, _, n, realm = pcall(GetPlayerInfoByGUID, guid)
+        if ok and not IsUnknown(n) then
+            name = (type(realm) == "string" and not Secret(realm) and realm ~= "") and (n .. "-" .. realm) or n
+        end
+    end
+    return name
 end
 
 -- Server-Nachricht -> gespeicherter Eintrag { t, who, full, hex, text, memberId, guid }
@@ -140,12 +175,14 @@ local function ClubEntry(clubId, m, kind)
     local t = (m.messageId and m.messageId.epoch or 0) / 1000000
     -- Battle.net-Communities: kein Charaktername -> kein Player-Link
     local link = full and (kind ~= "CLUB" or a.clubType ~= Enum.ClubType.BattleNet) and full or nil
-    return { t = t, who = full and Ambiguate(full, "guild") or nil, full = link, hex = ClassHex(a.classID),
+    return { t = t, who = full and Ambiguate(full, "guild") or nil, full = link, hex = ClassHex(not Secret(a.classID) and a.classID or nil),
              text = m.content, memberId = a.memberId, guid = a.guid, isSelf = a.isSelf }
 end
 
 local function EntryLine(e, kind)
-    return Line(e.t, e.who or UNKNOWNOBJECT or "?", e.full, e.hex, e.text, kind)
+    -- Ohne Namen: Blizzard liefert keine Namen für Leute, die nicht mehr im Club sind
+    if not e.who then return Line(e.t, L["Ehemaliges Mitglied"], nil, "888888", e.text, kind) end
+    return Line(e.t, e.who, e.full, e.hex, e.text, kind)
 end
 
 -- Verlauf je Kanal lokal merken: der Server liefert nach dem Login oft nur
@@ -262,8 +299,9 @@ local function Redraw()
             local o = rg.oldestMessageId
             if o and (not oldest or (o.epoch or 0) < (oldest.epoch or 0)) then oldest = o end
             for _, m in ipairs(C_Club.GetMessagesInRange(clubId, streamId, rg.oldestMessageId, rg.newestMessageId) or {}) do
-                local e = ClubEntry(clubId, m, channel.kind)
-                if e then server[#server + 1] = e end
+                -- Eine kaputte Nachricht darf nicht den ganzen Verlauf verhindern
+                local ok, e = pcall(ClubEntry, clubId, m, channel.kind)
+                if ok and e then server[#server + 1] = e end
             end
         end
         local cache = Cache(clubId, streamId)
@@ -425,8 +463,8 @@ if HAS_CLUB then
         if event == "CLUB_MESSAGE_ADDED" then
             -- Auch bei geschlossenem Fenster merken, damit der Verlauf vollständig bleibt
             local kind = channel.kind == "CLUB" and "CLUB" or "GUILD"
-            local e = ClubEntry(clubId, C_Club.GetMessageInfo(clubId, streamId, messageId), kind)
-            if not e or not GuildPrideDB then return end
+            local ok, e = pcall(ClubEntry, clubId, C_Club.GetMessageInfo(clubId, streamId, messageId), kind)
+            if not ok or not e or not GuildPrideDB then return end
             Remember(Cache(clubId, streamId), { e })
             local myClub, myStream = Resolve(channel)
             if page:IsVisible() and clubId == myClub and streamId == myStream then
@@ -470,6 +508,61 @@ else
             msgs:AddMessage(Line(e.t, e.who, e.full, ClassHex(nil, e.class), e.text, ch))
         end
     end)
+end
+
+-- Diagnose: /gp chatcheck zeigt, was der Server für den Gildenchat liefert
+local orig = SlashCmdList.GUILDPRIDE
+SlashCmdList.GUILDPRIDE = function(arg)
+    if (arg or ""):lower() ~= "chatcheck" then return orig(arg) end
+    local clubId, streamId = Resolve({ kind = "GUILD" })
+    if not clubId then ns.Print("Chatcheck: kein Gilden-Stream gefunden"); return end
+    local total, secretText, secretName, noName, named, withGuid, withId, rawName = 0, 0, 0, 0, 0, 0, 0, 0
+    RosterName("x")   -- Gildenliste einmal einlesen, damit die Zahl stimmt
+    for _, rg in ipairs(C_Club.GetMessageRanges(clubId, streamId) or {}) do
+        for _, m in ipairs(C_Club.GetMessagesInRange(clubId, streamId, rg.oldestMessageId, rg.newestMessageId) or {}) do
+            total = total + 1
+            local a = m.author or {}
+            if Secret(m.content) then secretText = secretText + 1 end
+            if Secret(a.name) then secretName = secretName + 1 end
+            if not IsUnknown(a.name) then rawName = rawName + 1 end
+            if type(a.guid) == "string" and not Secret(a.guid) and a.guid ~= "" then withGuid = withGuid + 1 end
+            if a.memberId and not Secret(a.memberId) then withId = withId + 1 end
+            local ok, n = pcall(AuthorName, clubId, a)
+            if ok and n then named = named + 1 else noName = noName + 1 end
+        end
+    end
+    local members, known = C_Club.GetClubMembers and C_Club.GetClubMembers(clubId) or {}, 0
+    for _ in pairs(memberNames[clubId] or {}) do known = known + 1 end
+    -- Gehören namenlose Nachrichten zu aktuellen Mitgliedern? (dann wäre es ein Zuordnungsfehler)
+    local current, unknownIds, inList, sample = {}, {}, 0, nil
+    local namedTotal, namedInList, namedSample = 0, 0, nil
+    for _, id in ipairs(members) do current[id] = true end
+    for _, rg in ipairs(C_Club.GetMessageRanges(clubId, streamId) or {}) do
+        for _, m in ipairs(C_Club.GetMessagesInRange(clubId, streamId, rg.oldestMessageId, rg.newestMessageId) or {}) do
+            local a = m.author or {}
+            local ok, n = pcall(AuthorName, clubId, a)
+            if not (ok and n) and a.memberId and not Secret(a.memberId) then
+                unknownIds[a.memberId] = true
+                if current[a.memberId] then inList = inList + 1 end
+                sample = sample or a.memberId
+            elseif ok and n and a.memberId and not Secret(a.memberId) then
+                -- Gegentest: passen die IDs von Nachrichten MIT Namen zur Mitgliederliste?
+                namedTotal = namedTotal + 1
+                if current[a.memberId] then namedInList = namedInList + 1
+                elseif not namedSample then namedSample = n .. "=" .. tostring(a.memberId) end
+            end
+        end
+    end
+    local distinct = 0
+    for _ in pairs(unknownIds) do distinct = distinct + 1 end
+    ns.Print(("Chatcheck: ohne Namen von %d verschiedenen IDs · davon in aktueller Liste: %d Nachrichten · Beispiel-ID %s · Beispiel aktuelle ID %s")
+        :format(distinct, inList, tostring(sample), tostring(members[1])))
+    ns.Print(("Chatcheck: Gegentest – %d Nachrichten mit Namen, davon %d mit ID aus der Mitgliederliste · Beispiel ohne Treffer: %s")
+        :format(namedTotal, namedInList, tostring(namedSample)))
+    ns.Print(("Chatcheck: %d Nachrichten vom Server · %d Text geschützt · %d Name geschützt · %d mit Namen · %d ohne Namen · gespeichert %d")
+        :format(total, secretText, secretName, named, noName, #Cache(clubId, streamId)))
+    ns.Print(("Chatcheck: Name direkt %d · mit GUID %d · mit Mitglieds-ID %d · Gildenliste %d · Club-Mitglieder %d, davon %d mit Namen")
+        :format(rawName, withGuid, withId, rosterCount, #members, known))
 end
 
 -- Logo auch im normalen Gildenchat anzeigen
