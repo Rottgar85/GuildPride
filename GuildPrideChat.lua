@@ -93,6 +93,14 @@ end
 -- Geschützte Werte (Midnight) zuerst prüfen: schon ein Vergleich wirft einen Fehler
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 
+-- Geschützter Text: Midnight-Geheimwert oder Blizzards |K…|k-Platzhalter. Der
+-- Platzhalter gilt nur in der laufenden Sitzung; gespeichert wird daraus später
+-- "Unbekannt" (und jedes Mal ein neuer Eintrag, weil die Nummer wechselt).
+local function IsProtected(text)
+    if Secret(text) then return true end
+    return type(text) == "string" and text:find("|K", 1, true) ~= nil
+end
+
 local function IsUnknown(name)
     if Secret(name) or type(name) ~= "string" then return true end
     return name == "" or name == "?" or name == UNKNOWNOBJECT or name == UNKNOWN
@@ -192,11 +200,24 @@ end
 -- einen Teil, so bleibt das bisher Gesagte trotzdem sichtbar.
 local CACHE_MAX = 200
 
+local cleaned = {}
 local function Cache(clubId, streamId)
     GuildPrideDB.clubCache = GuildPrideDB.clubCache or {}
     local key = tostring(clubId) .. ":" .. tostring(streamId)
-    GuildPrideDB.clubCache[key] = GuildPrideDB.clubCache[key] or {}
-    return GuildPrideDB.clubCache[key]
+    local cache = GuildPrideDB.clubCache[key]
+    if not cache then
+        cache = {}
+        GuildPrideDB.clubCache[key] = cache
+        cleaned[key] = true
+    end
+    -- Alte gespeicherte Platzhalter (siehe IsProtected) einmal pro Sitzung entfernen
+    if not cleaned[key] then
+        cleaned[key] = true
+        for i = #cache, 1, -1 do
+            if IsProtected(cache[i].text) then table.remove(cache, i) end
+        end
+    end
+    return cache
 end
 
 -- Dieselbe Nachricht? Gleicher Text und zeitlich nah beieinander (Chat-Ereignis
@@ -277,7 +298,6 @@ end
 ---------------------------------------------------------------------
 local requested = {}
 local focused
-local secretLive = {}   -- "clubId:streamId" -> Einträge mit geschütztem Text
 
 local function Redraw()
     msgs:Clear()
@@ -304,22 +324,32 @@ local function Redraw()
             if o and (not oldest or (o.epoch or 0) < (oldest.epoch or 0)) then oldest = o end
             for _, m in ipairs(C_Club.GetMessagesInRange(clubId, streamId, rg.oldestMessageId, rg.newestMessageId) or {}) do
                 -- Eine kaputte Nachricht darf nicht den ganzen Verlauf verhindern
-                local ok, e = pcall(ClubEntry, clubId, m, channel.kind)
+                local ok, e = pcall(ClubEntry, clubId, m, channel.kind, true)
                 if ok and e then server[#server + 1] = e end
             end
         end
+        -- Geschützter Text (|K…|k bzw. Midnight-Geheimwert) gilt nur in dieser
+        -- Sitzung: nie speichern, sondern jedes Mal frisch vom Server anzeigen
+        local plain, protected = {}, {}
+        for _, e in ipairs(server) do
+            if IsProtected(e.text) then protected[#protected + 1] = e else plain[#plain + 1] = e end
+        end
         local cache = Cache(clubId, streamId)
-        Remember(cache, server)
+        Remember(cache, plain)
         FixNames(clubId, cache)
-        if #cache == 0 then
+        local show = {}
+        for _, e in ipairs(cache) do show[#show + 1] = e end
+        for _, e in ipairs(protected) do show[#show + 1] = e end
+        for i, e in ipairs(show) do e.order = i end
+        table.sort(show, function(a, b)
+            if a.t ~= b.t then return a.t < b.t end
+            return a.order < b.order
+        end)
+        if #show == 0 then
             msgs:AddMessage(L["|cff888888Noch keine Nachrichten.|r"])
         end
-        for i = math.max(1, #cache - HISTORY + 1), #cache do
-            msgs:AddMessage(EntryLine(cache[i], channel.kind))
-        end
-        -- Geschützte Nachrichten dieser Sitzung (nur im Speicher, nicht gespeichert)
-        for _, e in ipairs(secretLive[clubId .. ":" .. streamId] or {}) do
-            msgs:AddMessage(EntryLine(e, channel.kind))
+        for i = math.max(1, #show - HISTORY + 1), #show do
+            msgs:AddMessage(EntryLine(show[i], channel.kind))
         end
         -- Mehr Verlauf vom Server holen (höchstens alle 30 Sekunden je Kanal)
         local key = clubId .. ":" .. streamId
@@ -473,14 +503,8 @@ if HAS_CLUB then
             local kind = channel.kind == "CLUB" and "CLUB" or "GUILD"
             local ok, e = pcall(ClubEntry, clubId, C_Club.GetMessageInfo(clubId, streamId, messageId), kind, true)
             if not ok or not e or not GuildPrideDB then return end
-            if Secret(e.text) then
-                -- Im Schlachtfeld/Instanz geschützt: nur für diese Sitzung merken
-                local key = clubId .. ":" .. streamId
-                local list = secretLive[key] or {}
-                secretLive[key] = list
-                list[#list + 1] = e
-                while #list > HISTORY do table.remove(list, 1) end
-            else
+            -- Geschützt: nicht speichern (der Server liefert sie beim nächsten Anzeigen neu)
+            if not IsProtected(e.text) then
                 Remember(Cache(clubId, streamId), { e })
             end
             local myClub, myStream = Resolve(channel)
