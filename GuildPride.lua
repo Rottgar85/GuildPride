@@ -323,7 +323,8 @@ local function Status()
         Print((L["Von Rang %d: %d über Gilde, %d über Kanal, %d geflüstert, %d Offiziere%s"]):format(
             rank, b.GUILD, b.CHANNEL or 0, b.WHISPER, b.OFFICER, warn))
     end
-    local chan, chanName = ns.DataChannelId and ns.DataChannelId()
+    local chan, chanName
+    if ns.DataChannelId then chan, chanName = ns.DataChannelId() end   -- "a and f()" liefert nur einen Wert
     Print((L["Hintergrund-Kanal: %s"]):format(chan and ("%d (%s)"):format(chan, chanName) or YesNo(false)))
 end
 ns.Status = Status

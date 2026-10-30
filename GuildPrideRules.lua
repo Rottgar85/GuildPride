@@ -11,7 +11,7 @@ local page = ns.AddTab(L["Gildeninfo"])
 ---------------------------------------------------------------------
 -- Anzeige
 ---------------------------------------------------------------------
-local scroll = CreateFrame("ScrollFrame", nil, page, "UIPanelScrollFrameTemplate")
+local scroll = ns.NewScroll(page)
 scroll:SetPoint("TOPLEFT", 0, -4)
 scroll:SetPoint("BOTTOMRIGHT", -26, 34)
 
@@ -33,7 +33,7 @@ end)
 -- Kopieren: WoW hat keinen Zugriff auf die Zwischenablage. Darum zeigen wir
 -- den Text in einem markierten Eingabefeld, Strg+C kopiert ihn.
 ---------------------------------------------------------------------
-local copyScroll = CreateFrame("ScrollFrame", nil, page, "UIPanelScrollFrameTemplate")
+local copyScroll = ns.NewScroll(page)
 copyScroll:SetPoint("TOPLEFT", 0, -4)
 copyScroll:SetPoint("BOTTOMRIGHT", -26, 34)
 copyScroll:Hide()
