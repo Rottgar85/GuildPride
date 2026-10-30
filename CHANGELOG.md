@@ -1,5 +1,13 @@
 # GuildPride Changelog
 
+## 1.7.1
+
+**English**
+- Community chat: Blizzard now sends community text as protected placeholders that only work in the current session. GuildPride no longer saves them, so your messages no longer turn into a growing list of "Unknown" entries. Old entries are cleaned up and the history is shown fresh from the server
+
+**Deutsch**
+- Community-Chat: Blizzard schickt Community-Text jetzt als geschützte Platzhalter, die nur in der laufenden Sitzung gelten. GuildPride speichert sie nicht mehr, deine Nachrichten werden also nicht mehr zu immer mehr „Unbekannt“-Einträgen. Alte Einträge werden entfernt, der Verlauf kommt frisch vom Server
+
 ## 1.7.0
 
 **English**
