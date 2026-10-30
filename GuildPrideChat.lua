@@ -40,7 +40,7 @@ boxEdge:SetColorTexture(1, 0.45, 0.15, 1)
 
 local msgs = CreateFrame("ScrollingMessageFrame", nil, box)
 msgs:SetPoint("TOPLEFT", 12, -8)
-msgs:SetPoint("BOTTOMRIGHT", -8, 8)
+msgs:SetPoint("BOTTOMRIGHT", -24, 8)
 msgs:SetFontObject(GPFont_Text)
 msgs:SetJustifyH("LEFT")
 msgs:SetFading(false)
@@ -52,6 +52,14 @@ msgs:EnableMouseWheel(true)
 msgs:SetScript("OnMouseWheel", function(self, delta)
     if delta > 0 then self:ScrollUp() else self:ScrollDown() end
 end)
+
+-- Scrollbalken (Blizzards schmale Leiste, bewegt sich mit Mausrad und Verlauf)
+if ScrollUtil and ScrollUtil.InitScrollingMessageFrameWithScrollBar then
+    local bar = CreateFrame("EventFrame", nil, box, "MinimalScrollBar")
+    bar:SetPoint("TOPRIGHT", -6, -8)
+    bar:SetPoint("BOTTOMRIGHT", -6, 8)
+    ScrollUtil.InitScrollingMessageFrameWithScrollBar(msgs, bar)
+end
 
 ---------------------------------------------------------------------
 -- Eingabe
@@ -283,7 +291,7 @@ local function Resolve(ch)
     if not clubId then return end
     local want = ch.kind == "OFFICER" and Enum.ClubStreamType.Officer or Enum.ClubStreamType.Guild
     for _, st in ipairs(C_Club.GetStreams(clubId) or {}) do
-        if st.streamType == want then return clubId, st.streamId end
+        if not Secret(st.streamType) and st.streamType == want then return clubId, st.streamId end
     end
 end
 
@@ -321,7 +329,7 @@ local function Redraw()
         local server, oldest = {}, nil
         for _, rg in ipairs(ranges) do
             local o = rg.oldestMessageId
-            if o and (not oldest or (o.epoch or 0) < (oldest.epoch or 0)) then oldest = o end
+            if o and not Secret(o.epoch) and (not oldest or (o.epoch or 0) < (oldest.epoch or 0)) then oldest = o end
             for _, m in ipairs(C_Club.GetMessagesInRange(clubId, streamId, rg.oldestMessageId, rg.newestMessageId) or {}) do
                 -- Eine kaputte Nachricht darf nicht den ganzen Verlauf verhindern
                 local ok, e = pcall(ClubEntry, clubId, m, channel.kind, true)
@@ -375,10 +383,21 @@ local function Highlight()
     set(bClub, channel.kind == "CLUB")
 end
 
+-- Im Schlachtfeld liefert der Server teils geschützte Werte; ein Fehler beim
+-- Anzeigen darf den Kanalwechsel nicht blockieren
+local function SafeRedraw()
+    local ok = pcall(Redraw)
+    if not ok then
+        msgs:Clear()
+        current:SetText(L["Kanal: |cfff0c88c"] .. (Secret(channel.label) and "" or (channel.label or "")) .. "|r")
+        msgs:AddMessage(L["|cff888888Verlauf hier gerade nicht verfügbar (Blizzard-Schutz in Instanzen).|r"])
+    end
+end
+
 local function SetChannel(ch)
     channel = ch
     Highlight()
-    Redraw()
+    SafeRedraw()
 end
 
 bGuild:SetScript("OnClick", function() SetChannel({ kind = "GUILD", label = L["Gilde"] }) end)
@@ -391,12 +410,17 @@ local function Communities()
     local out = {}
     if not (HAS_CLUB and C_Club.GetSubscribedClubs) then return out end
     for _, club in ipairs(C_Club.GetSubscribedClubs() or {}) do
-        if club.clubType ~= Enum.ClubType.Guild then
+        -- Geschützte Werte (Schlachtfeld) nicht vergleichen
+        if not Secret(club.clubType) and not Secret(club.clubId) and club.clubType ~= Enum.ClubType.Guild then
             local streams = {}
             for _, st in ipairs(C_Club.GetStreams(club.clubId) or {}) do
-                streams[#streams + 1] = { id = st.streamId, name = st.name ~= "" and st.name or L["Allgemein"] }
+                local n = st.name
+                if Secret(n) or type(n) ~= "string" or n == "" then n = L["Allgemein"] end
+                if not Secret(st.streamId) then streams[#streams + 1] = { id = st.streamId, name = n } end
             end
-            out[#out + 1] = { id = club.clubId, name = club.name, bnet = club.clubType == Enum.ClubType.BattleNet, streams = streams }
+            local name = club.name
+            if Secret(name) or type(name) ~= "string" then name = "Community " .. tostring(club.clubId) end
+            out[#out + 1] = { id = club.clubId, name = name, bnet = club.clubType == Enum.ClubType.BattleNet, streams = streams }
         end
     end
     table.sort(out, function(a, b) return a.name < b.name end)
@@ -448,10 +472,23 @@ end)
 local function Send()
     local text = strtrim(input:GetText() or "")
     if text == "" then input:ClearFocus(); return end
+    -- Befehle nicht in den Chat schicken: /gp selbst ausführen, alles andere
+    -- an die normale Chat-Eingabe weiterreichen (dort mit Enter bestätigen)
+    if text:sub(1, 1) == "/" then
+        input:SetText("")
+        local cmd, rest = text:match("^/(%S+)%s*(.*)$")
+        cmd = (cmd or ""):lower()
+        if (cmd == "gp" or cmd == "guildpride") and SlashCmdList.GUILDPRIDE then
+            SlashCmdList.GUILDPRIDE(rest or "")
+        elseif ChatFrame_OpenChat then
+            ChatFrame_OpenChat(text)
+        end
+        return
+    end
     if channel.kind == "CLUB" then
         local ok, err = pcall(C_Club.SendMessage, channel.clubId, channel.streamId, text)
         if not ok then
-            ns.Print(L["|cffff4040Nachricht konnte nicht gesendet werden:|r "] .. tostring(err))
+            ns.Print(L["|cffff4040Nachricht konnte nicht gesendet werden:|r "] .. (Secret(err) and "?" or tostring(err)))
             return
         end
     else
@@ -489,7 +526,7 @@ if HAS_CLUB then
     local pendingRedraw
     local function RedrawSoon()
         if pendingRedraw then return end
-        pendingRedraw = C_Timer.NewTimer(0.5, function() pendingRedraw = nil; if page:IsVisible() then Redraw() end end)
+        pendingRedraw = C_Timer.NewTimer(0.5, function() pendingRedraw = nil; if page:IsVisible() then SafeRedraw() end end)
     end
     f:RegisterEvent("CLUB_MESSAGE_ADDED")
     f:RegisterEvent("CLUB_MESSAGE_HISTORY_RECEIVED")

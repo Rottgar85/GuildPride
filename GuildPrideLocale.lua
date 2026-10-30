@@ -55,6 +55,7 @@ local enUS = {
     ["Kanal: |cfff0c88c"] = "Channel: |cfff0c88c",
     ["|cff888888Chat wird geladen …|r"] = "|cff888888Loading chat …|r",
     ["|cff888888Noch keine Nachrichten.|r"] = "|cff888888No messages yet.|r",
+    ["|cff888888Verlauf hier gerade nicht verfügbar (Blizzard-Schutz in Instanzen).|r"] = "|cff888888History not available here right now (Blizzard protection in instances).|r",
     ["Allgemein"] = "General",
     ["Du bist in keiner Blizzard-Community."] = "You're not in any Blizzard community.",
     ["|cffff4040Nachricht konnte nicht gesendet werden:|r "] = "|cffff4040Message could not be sent:|r ",
