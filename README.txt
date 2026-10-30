@@ -14,7 +14,7 @@ Wichtige Befehle (alle: /gp hilfe)
   /gp sound | popup                     Sounds, Popups an/aus
   /gp kuerzel XYZ      Gildenkuerzel    /gp version       Versionen in der Gilde
   /gp einladen Name-Realm               Spieler in die Gilde einladen
-  /gp badge 30         Popup testen     /gp status | ping Abgleich pruefen
+  /gp badge 30         Popup testen
 
 ENGLISH
 Own guild window with milestones, events, guild info, group finder and guild chat.
@@ -29,7 +29,7 @@ Important commands (all of them: /gp help)
   /gp sound | popup                     sounds, pop-ups on/off
   /gp tag XYZ          guild tag        /gp version       versions in the guild
   /gp invite Name-Realm                 invite a player to the guild
-  /gp badge 30         preview pop-up   /gp status | ping check syncing
+  /gp badge 30         preview pop-up
 
 GuildPride tauscht Daten nur mit GuildPride-Spielern der eigenen Gilde per Addon-Nachricht.
 GuildPride only exchanges data with GuildPride players in your guild via addon messages.

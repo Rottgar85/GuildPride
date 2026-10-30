@@ -1,5 +1,21 @@
 # GuildPride Changelog
 
+## 1.8.0
+
+**English**
+- Chat: switching between guild, officer and community chat works in battlegrounds again (Blizzard's protected values no longer stop it)
+- Chat: commands typed into the GuildPride chat input (e.g. `/gp version`) are run instead of sent as a message; other commands go to the normal chat input
+- All lists, the guild info and the chat now use Blizzard's slim scrollbar
+- `/gp` commands can no longer leave the chat input stuck when an error occurs
+- Removed the diagnostic commands `/gp status`, `/gp ping`, `/gp test`, `/gp testall` and `/gp chatcheck`
+
+**Deutsch**
+- Chat: Wechsel zwischen Gilden-, Offiziers- und Community-Chat geht auch im Schlachtfeld wieder (geschützte Werte von Blizzard blockieren ihn nicht mehr)
+- Chat: Befehle in der GuildPride-Chat-Eingabe (z. B. `/gp version`) werden ausgeführt statt als Nachricht verschickt; andere Befehle landen in der normalen Chat-Eingabe
+- Alle Listen, die Gildeninfo und der Chat haben jetzt Blizzards schmalen Scrollbalken
+- `/gp`-Befehle lassen bei einem Fehler die Chat-Eingabe nicht mehr offen stehen
+- Diagnose-Befehle `/gp status`, `/gp ping`, `/gp test`, `/gp testall` und `/gp chatcheck` entfernt
+
 ## 1.7.1
 
 **English**

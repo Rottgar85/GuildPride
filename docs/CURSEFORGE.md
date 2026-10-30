@@ -41,13 +41,12 @@
 | `/gp recruit` | put your saved recruiting text into the chat input |
 | `/gp options` | open the GuildPride page in the WoW options |
 | `/gp badge 30` | preview a milestone pop-up |
-| `/gp status` · `/gp ping` | check whether syncing with other members works |
 
 ### Good to know
 
 - Milestones, events and the group finder sync between guild members who **have GuildPride installed**.
 - Data is shared only with your guild, through addon messages. Members whose rank can't write in guild chat send through an online guildmate.
-- Guild data also travels over a hidden, password-protected background channel of your guild, so syncing does not depend on guild chat rank rights. `/gp status` shows per rank how messages arrive
+- Guild data also travels over a hidden, password-protected background channel of your guild, so syncing does not depend on guild chat rank rights.
 - Blizzard blocks addon messages in instances during *chat lockdown* (e.g. Mythic+, rated PvP). GuildPride waits and sends afterwards.
 - Feedback and bug reports are very welcome – please include the Lua error and your game version.
 
@@ -90,13 +89,12 @@
 | `/gp werben` | gespeicherten Werbetext in die Chat-Eingabe legen |
 | `/gp optionen` | GuildPride-Seite in den WoW-Optionen öffnen |
 | `/gp badge 30` | Meilenstein-Popup testen |
-| `/gp status` · `/gp ping` | prüfen, ob der Abgleich mit anderen Mitgliedern klappt |
 
 ### Gut zu wissen
 
 - Meilensteine, Events und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die **GuildPride installiert haben**.
 - Daten gehen nur an eure Gilde, per Addon-Nachricht. Wer mit seinem Rang nicht im Gildenchat schreiben darf, sendet über ein Gildenmitglied, das gerade online ist.
-- Gildendaten laufen zusätzlich über einen versteckten, passwortgeschützten Hintergrund-Kanal eurer Gilde, damit der Abgleich nicht von Rangrechten im Gildenchat abhängt. `/gp status` zeigt je Rang, wie Nachrichten ankommen
+- Gildendaten laufen zusätzlich über einen versteckten, passwortgeschützten Hintergrund-Kanal eurer Gilde, damit der Abgleich nicht von Rangrechten im Gildenchat abhängt.
 - Während der *Chat-Sperre* in Instanzen (z. B. Mythisch+, gewertetes PvP) blockiert Blizzard Addon-Nachrichten. GuildPride wartet und sendet danach.
 - Feedback und Fehlermeldungen sind sehr willkommen – am besten mit Lua-Fehlermeldung und Spielversion.
 
