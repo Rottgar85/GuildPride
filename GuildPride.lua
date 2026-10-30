@@ -440,6 +440,13 @@ local function Dispatch(message, sender)
         for _, fn in ipairs(ns.Handlers[kind]) do fn(value, sender) end
     elseif kind == "LEVEL" then
         ShowMilestone(sender, kind, value)
+    elseif kind == "LVTEST" then
+        -- /gp testall: immer anzeigen, nie in den Verlauf (sonst greift die Dublettenprüfung)
+        local who = Ambiguate(sender, "guild")
+        if GuildPrideDB.popup and ns.ShowMilestonePopup then
+            ns.ShowMilestonePopup(who, DescribeMilestone("LEVEL", value), "LEVEL", value)
+        end
+        Print(("%s |cff00ff00%s|r %s (Test)"):format(IconString(20), who, DescribeMilestone("LEVEL", value)))
     end
 end
 
@@ -552,7 +559,7 @@ SlashCmdList.GUILDPRIDE = function(arg)
         -- Nur anzeigen, nicht in den Verlauf schreiben
         if ns.ShowMilestonePopup then ns.ShowMilestonePopup(UnitName("player"), DescribeMilestone("LEVEL", 20), "LEVEL", 20) end
     elseif arg == "testall" then
-        Broadcast("LEVEL", 20)   -- alle Gildenmitglieder mit Addon sehen es
+        Broadcast("LVTEST", 20)   -- alle Gildenmitglieder mit Addon sehen es (auch du selbst)
     else
         Print(L["Befehle: /gp (Fenster) · sound · icon · popup · blizzard · kuerzel <XYZ> · einladen <Name> · badge <Level> · version · status · ping · test · testall"])
     end
