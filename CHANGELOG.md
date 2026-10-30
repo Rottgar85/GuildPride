@@ -1,5 +1,15 @@
 # GuildPride Changelog
 
+## 1.5.4
+
+**English**
+- `/gp testall` now always shows the test pop-up for everyone with GuildPride (including yourself) and no longer ends up in the milestone history
+- Updated descriptions and README
+
+**Deutsch**
+- `/gp testall` zeigt das Test-Popup jetzt immer bei allen mit GuildPride an (auch bei dir selbst) und landet nicht mehr im Meilenstein-Verlauf
+- Beschreibungen und README aktualisiert
+
 ## 1.5.3
 
 **English**
