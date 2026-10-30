@@ -41,6 +41,7 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - Milestones, events and the group finder sync between guild members who have GuildPride installed
 - Data is shared only with your guild through addon messages; members who can't write in guild chat send through an online guildmate
 - During Blizzard's chat lockdown in instances, addon messages wait and are sent afterwards
+- Guild data also travels over a hidden, password-protected background channel of your guild, so syncing does not depend on guild chat rank rights. `/gp status` shows per rank how messages arrive
 
 ### Installation
 Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, or install it with the CurseForge app.
@@ -82,6 +83,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - Meilensteine, Events und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die GuildPride installiert haben
 - Daten gehen nur an eure Gilde per Addon-Nachricht; wer nicht im Gildenchat schreiben darf, sendet über ein Mitglied, das online ist
 - Während der Blizzard-Chat-Sperre in Instanzen warten Addon-Nachrichten und werden danach gesendet
+- Gildendaten laufen zusätzlich über einen versteckten, passwortgeschützten Hintergrund-Kanal eurer Gilde, damit der Abgleich nicht von Rangrechten im Gildenchat abhängt. `/gp status` zeigt je Rang, wie Nachrichten ankommen
 
 ### Installation
 Den Ordner `GuildPride` nach `World of Warcraft/_retail_/Interface/AddOns` kopieren oder über die CurseForge-App installieren.
