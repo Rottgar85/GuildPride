@@ -1,5 +1,21 @@
 # GuildPride Changelog
 
+## 1.7.0
+
+**English**
+- New background channel for the guild: all guild-wide data (milestones, events, sign-ups, polls, group finder, versions) is also sent over a hidden, password-protected channel, so it no longer depends on guild chat rank rights. Duplicates are dropped automatically
+- Group finder entries are also whispered to the guild leadership (rank 0 and 1) that is online
+- When an event or poll creator comes online, members send them their own sign-ups and votes they missed
+- `/gp version` now asks the whole guild fresh (replies by whisper) instead of only showing what arrived since login
+- `/gp status` shows per rank how many messages arrived via guild, channel and whisper, plus the background channel
+
+**Deutsch**
+- Neuer Hintergrund-Kanal der Gilde: alle Gildendaten (Meilensteine, Events, Anmeldungen, Umfragen, Gruppensuche, Versionen) gehen zusätzlich über einen versteckten, passwortgeschützten Kanal und hängen nicht mehr von Rangrechten im Gildenchat ab. Doppelte werden automatisch verworfen
+- Gruppensuche-Einträge gehen zusätzlich per Flüstern an die Gildenleitung (Rang 0 und 1), die online ist
+- Kommt der Ersteller eines Events oder einer Umfrage online, schicken ihm die Mitglieder ihre verpassten Anmeldungen und Stimmen
+- `/gp version` fragt jetzt die ganze Gilde frisch ab (Antwort per Flüstern) statt nur zu zeigen, was seit dem Login ankam
+- `/gp status` zeigt je Rang, wie viele Nachrichten über Gilde, Kanal und Flüstern ankamen, und den Hintergrund-Kanal
+
 ## 1.6.2
 
 **English**
