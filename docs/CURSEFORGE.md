@@ -17,7 +17,6 @@
 - **Group finder & quest help** – sign up as *Looking for group* (shown as *Looking for members* once you're in a group) or *Needs quest help*, with a note and the roles you still need. Everyone sees class, level, role, zone and how full the group is (e.g. *Group 3/5*); the group size updates automatically. One click on **Join** sends a join request to the group, or **Invite** invites a solo player. Right-click to whisper. Open to every guild rank.
 - **Guild info** – shows the info text from Blizzard's guild window, the same for everyone. You get a notice when it changes. Officers edit it in Blizzard's guild window, one click away (Blizzard does not allow addons to change it).
 - **Guild chat & communities** – guild chat, officer chat and all your Blizzard communities inside the window, with the server-side history. Messages are also kept locally, so old messages stay visible with the right author names.
-- **Guild tabard in chat** – members who use GuildPride get your guild emblem in front of their name in chat. Turned off automatically in dungeons, raids and PvP, so chat there stays untouched.
 - **Members list** – your guild or any of your communities, online only or everyone including offline, with rank, notes and "last online".
 - **Invite players** – type a name to invite someone to the guild or the selected community, or right-click a member to whisper, invite to your group, add as friend or invite to the guild / a community.
 - **Guild management** – click a member to see their notes and to promote, demote, set a rank, remove them or transfer leadership (depending on your rights). Uses Blizzard's own guild commands.
@@ -34,11 +33,13 @@
 | Command | What it does |
 |---|---|
 | `/gp` | open the window (`/gp help` lists all commands) |
-| `/gp sound` · `/gp icon` · `/gp popup` | turn sounds, the tabard in chat or pop-ups on/off |
+| `/gp sound` · `/gp popup` | turn sounds or pop-ups on/off |
 | `/gp blizzard` | switch between GuildPride and Blizzard's guild window |
 | `/gp tag XYZ` | set your guild tag (without a tag: automatic) |
 | `/gp invite Name-Realm` | invite a player to the guild |
 | `/gp version` | who in the guild uses which version |
+| `/gp recruit` | put your saved recruiting text into the chat input |
+| `/gp options` | open the GuildPride page in the WoW options |
 | `/gp badge 30` | preview a milestone pop-up |
 | `/gp status` · `/gp ping` | check whether syncing with other members works |
 
@@ -64,7 +65,6 @@
 - **Gruppensuche & Quest-Hilfe** – als *Sucht Gruppe* (in einer Gruppe als *Sucht Mitspieler* angezeigt) oder *Braucht Quest-Hilfe* eintragen, mit Notiz und den Rollen, die noch fehlen. Alle sehen Klasse, Level, Rolle, Zone und wie voll die Gruppe ist (z. B. *Gruppe 3/5*); die Gruppengröße wird automatisch aktualisiert. Ein Klick auf **Beitreten** schickt eine Beitrittsanfrage an die Gruppe, **Einladen** lädt einen Einzelspieler ein. Rechtsklick zum Anflüstern. Für alle Gildenränge.
 - **Gildeninfo** – zeigt den Info-Text aus dem Blizzard-Gildenfenster, für alle gleich. Ändert er sich, bekommt ihr einen Hinweis. Offiziere bearbeiten ihn im Blizzard-Gildenfenster, einen Klick entfernt (Blizzard erlaubt Addons nicht, ihn zu ändern).
 - **Gildenchat & Communities** – Gildenchat, Offizierschat und alle Blizzard-Communities direkt im Fenster, mit dem Verlauf vom Server. Nachrichten werden zusätzlich lokal gespeichert, damit alte Nachrichten mit dem richtigen Namen sichtbar bleiben.
-- **Wappenrock im Chat** – wer GuildPride nutzt, bekommt euer Gildenemblem vor seinen Namen im Chat. In Dungeons, Schlachtzügen und PvP automatisch aus, damit der Chat dort unangetastet bleibt.
 - **Mitgliederliste** – eure Gilde oder jede eurer Communities, nur online oder alle inkl. offline, mit Rang, Notizen und „zuletzt online“.
 - **Spieler einladen** – Namen eingeben und in die Gilde oder die gewählte Community einladen, oder per Rechtsklick auf ein Mitglied anflüstern, in die Gruppe einladen, als Freund hinzufügen oder in Gilde / Community einladen.
 - **Gildenverwaltung** – Klick auf ein Mitglied zeigt die Notizen; dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten). Läuft über Blizzards eigene Gildenbefehle.
@@ -81,11 +81,13 @@
 | Befehl | Funktion |
 |---|---|
 | `/gp` | Fenster öffnen (`/gp hilfe` zeigt alle Befehle) |
-| `/gp sound` · `/gp icon` · `/gp popup` | Sounds, Wappenrock im Chat oder Popups an/aus |
+| `/gp sound` · `/gp popup` | Sounds oder Popups an/aus |
 | `/gp blizzard` | zwischen GuildPride und dem Blizzard-Gildenfenster wechseln |
 | `/gp kuerzel XYZ` | Gildenkürzel festlegen (ohne Kürzel: automatisch) |
 | `/gp einladen Name-Realm` | Spieler in die Gilde einladen |
 | `/gp version` | wer in der Gilde welche Version nutzt |
+| `/gp werben` | gespeicherten Werbetext in die Chat-Eingabe legen |
+| `/gp optionen` | GuildPride-Seite in den WoW-Optionen öffnen |
 | `/gp badge 30` | Meilenstein-Popup testen |
 | `/gp status` · `/gp ping` | prüfen, ob der Abgleich mit anderen Mitgliedern klappt |
 

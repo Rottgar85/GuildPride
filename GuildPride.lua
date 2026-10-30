@@ -38,7 +38,7 @@ local MILESTONES = { [10]=true, [20]=true, [30]=true, [40]=true, [50]=true,
 -- Fallback, solange du noch kein Logo hast:
 local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_Tournaments_banner_Human"
 
-local defaults = { sound = true, chatIcon = true, popup = true, useCustomLogo = false,
+local defaults = { sound = true, popup = true, useCustomLogo = false,
                    replaceGuildFrame = true, memberAlerts = true, helpAlerts = true, shareMilestones = true }
 
 -- Weitere Meilensteine neben LEVEL (Wert ist Text bzw. ID)
@@ -328,88 +328,7 @@ ns.RequestHistory = RequestHistory
 -- Wer hat GuildPride? (jeder, von dem wir eine Addon-Nachricht bekommen haben)
 ns.AddonUsers = {}
 
--- Logo VOR dem Namen: Wir nutzen das "Flag"-Feld der Chatnachricht
--- (dort stehen sonst z. B. <AFK>/<DND>/GM-Symbol). Der Chat zeigt
--- _G["CHAT_FLAG_GUILDPRIDE"] direkt vor dem Spielernamen an.
-local FLAG = "GUILDPRIDE"
-
----------------------------------------------------------------------
--- Gildenwappen als Chat-Logo
--- Der Chat kann nur EIN Bild pro Symbol zeigen. Der Wappenrock besteht aus
--- Hintergrund + Rahmen + Emblem; wir zeigen daher das Emblem in Wappenfarbe.
----------------------------------------------------------------------
-local function ColorRGB(c)
-    if type(c) == "table" then
-        if c.GetRGB then return c:GetRGB() end
-        return c.r or 1, c.g or 1, c.b or 1
-    end
-    return 1, 1, 1
-end
-
-local function GuildEmblemString(size)
-    if not IsInGuild() then return end
-    local emblemFile, r, g, b
-    if C_GuildInfo and C_GuildInfo.GetGuildTabardInfo then
-        local ok, info = pcall(C_GuildInfo.GetGuildTabardInfo, "player")
-        if ok and info and info.emblemFileID then
-            emblemFile = info.emblemFileID
-            r, g, b = ColorRGB(info.emblemColor)
-        end
-    end
-    if not emblemFile and GetGuildLogoInfo then
-        local ok, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 = pcall(GetGuildLogoInfo, "player")
-        if ok and type(a1) == "table" then
-            -- Neuere Clients: backgroundColor, borderColor, emblemColor, emblemFileID
-            emblemFile = a4
-            r, g, b = ColorRGB(a3)
-        elseif ok and a10 then
-            -- Classic: bkgR,G,B, borderR,G,B, emblemR,G,B (0-1), emblemFile
-            emblemFile = a10
-            r, g, b = a7 or 1, a8 or 1, a9 or 1
-            if r > 1 or g > 1 or b > 1 then r, g, b = r / 255, g / 255, b / 255 end
-        end
-    end
-    if not emblemFile then return end
-    -- Sehr dunkle Wappenfarben im dunklen Chat aufhellen
-    local light = 0.299 * r + 0.587 * g + 0.114 * b
-    if light < 0.35 then
-        local f = 0.35 / math.max(light, 0.05)
-        r, g, b = math.min(1, r * f + 0.15), math.min(1, g * f + 0.15), math.min(1, b * f + 0.15)
-    end
-    return ("|T%s:%d:%d:0:0:64:64:0:64:0:64:%d:%d:%d|t"):format(tostring(emblemFile), size, size,
-        math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
-end
-
-function ns.UpdateChatEmblem()
-    _G["CHAT_FLAG_GUILDPRIDE"] = (GuildEmblemString(14) or IconString(14)) .. " "
-end
-
--- Midnight: In Dungeons, PvP, Schlachtzügen und M+ ist der Chat gesperrt
--- ("Chat Messaging Lockdown"): Texte und Namen sind dann geschützt, schon ein
--- Vergleich löst einen Fehler aus – und ein Fehler im Filter lässt WoW die ganze
--- Zeile verwerfen. Deshalb fassen wir den Chat dort überhaupt nicht an.
-local function ChatLocked()
-    if C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return true end
-    return IsInInstance and IsInInstance() and true or false
-end
-ns.ChatLocked = ChatLocked
-
 local function IsSecret(v) return issecretvalue and issecretvalue(v) or false end
-
-local function ChatFilter(self, event, msg, author, a3, a4, a5, flag, ...)
-    if not GuildPrideDB or not GuildPrideDB.chatIcon or ChatLocked() then return false end
-    -- Geschützte Werte zuerst prüfen, erst danach Typ und Inhalt
-    if IsSecret(msg) or IsSecret(author) or IsSecret(flag) then return false end
-    if type(author) ~= "string" or author == "" then return false end
-    -- AFK/DND/GM-Markierungen nicht überschreiben
-    if flag ~= nil and flag ~= "" then return false end
-    local ok, known = pcall(function() return ns.AddonUsers[Normalize(author)] end)
-    if ok and known then
-        return false, msg, author, a3, a4, a5, FLAG, ...
-    end
-    return false
-end
-ns.ChatFilter = ChatFilter
 
 ---------------------------------------------------------------------
 -- Addon-Nachrichten verteilen; mehrteilige ("MP") erst zusammensetzen
@@ -538,11 +457,7 @@ f:SetScript("OnEvent", function(_, event, ...)
         GuildPrideDB.btagQueue, GuildPrideDB.btagAuto = nil, nil
         GuildPrideDB.btagAsked, GuildPrideDB.btagSent, GuildPrideDB.btagDone = nil, nil, nil
         C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
-        ns.UpdateChatEmblem()
         ns.AddonUsers[Normalize(UnitName("player"))] = true
-        ChatFrame_AddMessageEventFilter("CHAT_MSG_CHANNEL", ChatFilter) -- Allgemein, Handel ...
-        ChatFrame_AddMessageEventFilter("CHAT_MSG_SAY", ChatFilter)
-        ChatFrame_AddMessageEventFilter("CHAT_MSG_YELL", ChatFilter)
 
     elseif event == "PLAYER_LOGIN" then
         if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
@@ -552,7 +467,6 @@ f:SetScript("OnEvent", function(_, event, ...)
     elseif event == "GUILD_ROSTER_UPDATE" then
         RefreshRoster()
         CheckRosterLevels()
-        ns.UpdateChatEmblem()   -- Wappen kann sich geändert haben
         if ns.RefreshUI then ns.RefreshUI() end
 
     elseif event == "PLAYER_LEVEL_UP" then
@@ -594,7 +508,7 @@ SLASH_GUILDPRIDE2 = "/guildpride"
 SlashCmdList.GUILDPRIDE = function(arg)
     local raw = strtrim(arg or "")
     arg = raw:lower()
-    local toggles = { sound = "sound", icon = "chatIcon", popup = "popup", logo = "useCustomLogo" }
+    local toggles = { sound = "sound", popup = "popup", logo = "useCustomLogo" }
     if toggles[arg] then
         local key = toggles[arg]
         GuildPrideDB[key] = not GuildPrideDB[key]
@@ -629,6 +543,6 @@ SlashCmdList.GUILDPRIDE = function(arg)
             Settings.OpenToCategory(ns.SettingsCategory:GetID())
         end
     else
-        Print(L["Befehle: /gp (Fenster) · sound · icon · popup · blizzard · kuerzel <XYZ> · einladen <Name> · werben · optionen · badge <Level> · version · status · ping · test · testall"])
+        Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · kuerzel <XYZ> · einladen <Name> · werben · optionen · badge <Level> · version · status · ping · test · testall"])
     end
 end

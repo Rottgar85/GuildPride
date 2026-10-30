@@ -11,7 +11,7 @@ Installation: Ordner "GuildPride" nach World of Warcraft/_retail_/Interface/AddO
 
 Wichtige Befehle (alle: /gp hilfe)
   /gp                  Fenster          /gp blizzard      Blizzard-Gildenfenster an/aus
-  /gp sound | icon | popup              Sounds, Wappenrock im Chat, Popups an/aus
+  /gp sound | popup                     Sounds, Popups an/aus
   /gp kuerzel XYZ      Gildenkuerzel    /gp version       Versionen in der Gilde
   /gp einladen Name-Realm               Spieler in die Gilde einladen
   /gp badge 30         Popup testen     /gp status | ping Abgleich pruefen
@@ -26,7 +26,7 @@ Installation: copy the "GuildPride" folder to World of Warcraft/_retail_/Interfa
 
 Important commands (all of them: /gp help)
   /gp                  window           /gp blizzard      Blizzard guild window on/off
-  /gp sound | icon | popup              sounds, tabard in chat, pop-ups on/off
+  /gp sound | popup                     sounds, pop-ups on/off
   /gp tag XYZ          guild tag        /gp version       versions in the guild
   /gp invite Name-Realm                 invite a player to the guild
   /gp badge 30         preview pop-up   /gp status | ping check syncing
