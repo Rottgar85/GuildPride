@@ -261,72 +261,9 @@ ns.On("MSL", function(payload, sender)
 end)
 
 ---------------------------------------------------------------------
--- Diagnose: /gp ping (wer empfängt mich?) und /gp status (eigener Sendestand)
+-- Empfangs- und Sendezähler (intern)
 ---------------------------------------------------------------------
-local function MyRank()
-    local _, rankName, rankIndex = GetGuildInfo("player")
-    return rankName or "?", rankIndex or -1
-end
-
-local function YesNo(v) return v and ("|cff40ff40" .. L["ja"] .. "|r") or ("|cffff4040" .. L["nein"] .. "|r") end
 ns.RecvStats = { raw = 0, total = 0, others = 0, secret = 0, badChannel = 0, byRank = {} }
-
-ns.On("PING", function(_, sender)
-    if sender == ns.Me() or not ns.Queue then return end
-    local rankName = MyRank()
-    local speak = (not ns.CanSpeakGuild or ns.CanSpeakGuild()) and 1 or 0
-    C_Timer.After(math.random() * 2, function() ns.Queue("PONG", sender, ns.VERSION or "?", rankName, speak) end)
-end)
-
-ns.On("PONG", function(payload, sender)
-    local version, rankName, speak = strsplit(ns.SEP, payload)
-    Print((L["Antwort von |cffffd100%s|r: Version %s, Rang %s, darf schreiben: %s"]):format(
-        Ambiguate(sender, "guild"), version or "?", rankName or "?", YesNo(speak == "1")))
-end)
-
-local function Status()
-    local rankName, rankIndex = MyRank()
-    local s = ns.SendStats or {}
-    local online, known = 0, 0
-    for i = 1, GetNumGuildMembers() do
-        local name, _, _, _, _, _, _, _, isOnline = GetGuildRosterInfo(i)
-        if name and isOnline then
-            online = online + 1
-            if ns.AddonUsers[Normalize(name)] then known = known + 1 end
-        end
-    end
-    Print(("GuildPride %s · %s %s (%d)"):format(ns.VERSION or "?", L["Rang"], rankName, rankIndex))
-    local inInstance, instanceType = IsInInstance()
-    local lockdown = C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() or false
-    Print((L["Gildenchat schreiben: %s · lesen: %s"]):format(
-        YesNo(not ns.CanSpeakGuild or ns.CanSpeakGuild()), YesNo(not ns.CanListenGuild or ns.CanListenGuild())))
-    Print((L["Instanz: %s (%s) · Blizzard-Chat-Sperre: %s"]):format(YesNo(inInstance), tostring(instanceType), YesNo(lockdown)))
-    local r = ns.RecvStats
-    Print((L["Empfangen: %d roh, %d gelesen, davon %d von anderen · %d geschützt · %d falscher Kanal %s"]):format(
-        r.raw, r.total, r.others, r.secret, r.badChannel, r.lastBadChannel and ("(" .. r.lastBadChannel .. ")") or ""))
-    Print((L["Ich bin: %s · Prefix registriert: %s"]):format(ns.Me(),
-        YesNo(C_ChatInfo.IsAddonMessagePrefixRegistered and C_ChatInfo.IsAddonMessagePrefixRegistered(PREFIX))))
-    if r.lastFrom then
-        Print((L["Zuletzt von anderen: %s (%s) vor %d s"]):format(Ambiguate(r.lastFrom, "guild"), tostring(r.lastKind),
-            math.floor(GetTime() - r.lastAt)))
-    end
-    Print((L["Gesendet: %d direkt, %d weitergeleitet, %d fehlgeschlagen · letztes Ergebnis: %s · Warteschlange: %d"]):format(
-        s.direct or 0, s.relayed or 0, s.failed or 0, tostring(s.lastResult), ns.QueueLength and ns.QueueLength() or 0))
-    Print((L["Online: %d Mitglieder, davon %d mit GuildPride bekannt"]):format(online, known))
-    -- Empfang je Rang: Gilde 0 bei vielen Flüstern = dieser Rang kommt im Gildenkanal nicht an
-    local ranks = {}
-    for rank in pairs(r.byRank) do ranks[#ranks + 1] = rank end
-    table.sort(ranks)
-    for _, rank in ipairs(ranks) do
-        local b = r.byRank[rank]
-        local warn = (b.GUILD == 0 and (b.WHISPER > 0 or (b.CHANNEL or 0) > 0)) and (" |cffff4040" .. L["nur per Flüstern!"] .. "|r") or ""
-        Print((L["Von Rang %d: %d über Gilde, %d über Kanal, %d geflüstert, %d Offiziere%s"]):format(
-            rank, b.GUILD, b.CHANNEL or 0, b.WHISPER, b.OFFICER, warn))
-    end
-    local chan, chanName = ns.DataChannelId and ns.DataChannelId()
-    Print((L["Hintergrund-Kanal: %s"]):format(chan and ("%d (%s)"):format(chan, chanName) or YesNo(false)))
-end
-ns.Status = Status
 
 local function RequestHistory()
     local newest = Log()[1]
@@ -392,13 +329,6 @@ local function Dispatch(message, sender)
         for _, fn in ipairs(ns.Handlers[kind]) do fn(value, sender) end
     elseif kind == "LEVEL" or EXTRA_KINDS[kind] then
         ShowMilestone(sender, kind, value)
-    elseif kind == "LVTEST" then
-        -- /gp testall: immer anzeigen, nie in den Verlauf (sonst greift die Dublettenprüfung)
-        local who = Ambiguate(sender, "guild")
-        if GuildPrideDB.popup and ns.ShowMilestonePopup then
-            ns.ShowMilestonePopup(who, DescribeMilestone("LEVEL", value), "LEVEL", value)
-        end
-        Print(("%s |cff00ff00%s|r %s (Test)"):format(IconString(20), who, DescribeMilestone("LEVEL", value)))
     end
 end
 
@@ -476,6 +406,13 @@ f:SetScript("OnEvent", function(_, event, ...)
     elseif event == "PLAYER_LOGIN" then
         if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
         Print(L["geladen. /gp für Befehle"])
+        -- Alle /gp-Befehle (aus allen Dateien) gegen Fehler absichern: ein Fehler
+        -- würde sonst Blizzards Chat-Eingabe offen lassen und den Befehl drin stehen
+        local slash = SlashCmdList.GUILDPRIDE
+        SlashCmdList.GUILDPRIDE = function(arg)
+            local ok, err = pcall(slash, arg)
+            if not ok then Print("|cffff4040" .. (IsSecret(err) and "?" or tostring(err)) .. "|r") end
+        end
         C_Timer.After(15, RequestHistory)   -- verpasste Meilensteine von anderen holen
 
     elseif event == "GUILD_ROSTER_UPDATE" then
@@ -559,16 +496,6 @@ SlashCmdList.GUILDPRIDE = function(arg)
     elseif arg:match("^einladen%f[%A]") or arg:match("^invite%f[%A]") then
         local name = raw:match("^%S+%s+(%S+)")
         if name and ns.InviteToGuild then ns.InviteToGuild(name) else Print(L["Bitte einen Charakternamen eingeben."]) end
-    elseif arg == "status" then
-        Status()
-    elseif arg == "ping" then
-        Print(L["Ping an die Gilde gesendet – jeder mit GuildPride antwortet gleich."])
-        if ns.Queue then ns.Queue("PING", nil, "1") end
-    elseif arg == "test" then
-        -- Nur anzeigen, nicht in den Verlauf schreiben
-        if ns.ShowMilestonePopup then ns.ShowMilestonePopup(UnitName("player"), DescribeMilestone("LEVEL", 20), "LEVEL", 20) end
-    elseif arg == "testall" then
-        Broadcast("LVTEST", 20)   -- alle Gildenmitglieder mit Addon sehen es (auch du selbst)
     elseif arg == "werben" or arg == "recruit" then
         if ns.PostRecruitText then ns.PostRecruitText() end
     elseif arg == "optionen" or arg == "options" then
@@ -576,6 +503,6 @@ SlashCmdList.GUILDPRIDE = function(arg)
             Settings.OpenToCategory(ns.SettingsCategory:GetID())
         end
     else
-        Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · kuerzel <XYZ> · einladen <Name> · werben · optionen · badge <Level> · version · status · ping · test · testall"])
+        Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · kuerzel <XYZ> · einladen <Name> · werben · optionen · badge <Level> · version"])
     end
 end

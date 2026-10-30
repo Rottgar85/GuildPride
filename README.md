@@ -35,13 +35,12 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - `/gp tag XYZ` set the guild tag (without tag: automatic)
 - `/gp invite Name-Realm` invite a player to the guild
 - `/gp badge 30` preview a milestone pop-up, `/gp version` who uses which version
-- `/gp status` and `/gp ping` check whether syncing with other members works
 
 ### Good to know
 - Milestones, events and the group finder sync between guild members who have GuildPride installed
 - Data is shared only with your guild through addon messages; members who can't write in guild chat send through an online guildmate
 - During Blizzard's chat lockdown in instances, addon messages wait and are sent afterwards
-- Guild data also travels over a hidden, password-protected background channel of your guild, so syncing does not depend on guild chat rank rights. `/gp status` shows per rank how messages arrive
+- Guild data also travels over a hidden, password-protected background channel of your guild, so syncing does not depend on guild chat rank rights.
 
 ### Installation
 Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, or install it with the CurseForge app.
@@ -77,13 +76,12 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - `/gp kuerzel XYZ` Gildenkürzel festlegen (ohne Kürzel: automatisch)
 - `/gp einladen Name-Realm` Spieler in die Gilde einladen
 - `/gp badge 30` Meilenstein-Popup testen, `/gp version` wer welche Version nutzt
-- `/gp status` und `/gp ping` prüfen, ob der Abgleich mit anderen Mitgliedern klappt
 
 ### Gut zu wissen
 - Meilensteine, Events und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die GuildPride installiert haben
 - Daten gehen nur an eure Gilde per Addon-Nachricht; wer nicht im Gildenchat schreiben darf, sendet über ein Mitglied, das online ist
 - Während der Blizzard-Chat-Sperre in Instanzen warten Addon-Nachrichten und werden danach gesendet
-- Gildendaten laufen zusätzlich über einen versteckten, passwortgeschützten Hintergrund-Kanal eurer Gilde, damit der Abgleich nicht von Rangrechten im Gildenchat abhängt. `/gp status` zeigt je Rang, wie Nachrichten ankommen
+- Gildendaten laufen zusätzlich über einen versteckten, passwortgeschützten Hintergrund-Kanal eurer Gilde, damit der Abgleich nicht von Rangrechten im Gildenchat abhängt.
 
 ### Installation
 Den Ordner `GuildPride` nach `World of Warcraft/_retail_/Interface/AddOns` kopieren oder über die CurseForge-App installieren.

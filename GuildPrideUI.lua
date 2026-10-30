@@ -218,9 +218,17 @@ local function Section(parent, text, anchor, y)
 end
 ns.Section = Section
 
+-- Scrollbereich mit schmalem Blizzard-Scrollbalken wie im Chat
+-- (ältere Clients ohne die Vorlage: klassischer Balken)
+function ns.NewScroll(parent)
+    local ok, scroll = pcall(CreateFrame, "ScrollFrame", nil, parent, "ScrollFrameTemplate")
+    if not ok or not scroll then scroll = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate") end
+    return scroll
+end
+
 -- Scrollbare Liste
 local function CreateList(parent, rowHeight)
-    local scroll = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
+    local scroll = ns.NewScroll(parent)
     scroll:SetPoint("TOPLEFT", 0, -4)
     scroll:SetPoint("BOTTOMRIGHT", -26, 0)
     local child = CreateFrame("Frame", nil, scroll)
@@ -721,7 +729,7 @@ recruitBtn:SetScript("OnClick", function() ns.PostRecruitText() end)
 local tplLabel = settings:CreateFontString(nil, "OVERLAY", "GPFont_TextBold")
 tplLabel:SetPoint("TOPLEFT", 4, baseY - 52)
 tplLabel:SetText(L["Notiz-Vorlagen (eine pro Zeile, {datum} = heute)"])
-local tplScroll = CreateFrame("ScrollFrame", nil, settings, "UIPanelScrollFrameTemplate")
+local tplScroll = ns.NewScroll(settings)
 tplScroll:SetPoint("TOPLEFT", 10, baseY - 72)
 tplScroll:SetSize(600, 64)
 local tplBg = tplScroll:CreateTexture(nil, "BACKGROUND")
