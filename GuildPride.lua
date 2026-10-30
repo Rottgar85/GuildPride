@@ -476,6 +476,13 @@ f:SetScript("OnEvent", function(_, event, ...)
     elseif event == "PLAYER_LOGIN" then
         if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
         Print(L["geladen. /gp für Befehle"])
+        -- Alle /gp-Befehle (aus allen Dateien) gegen Fehler absichern: ein Fehler
+        -- würde sonst Blizzards Chat-Eingabe offen lassen und den Befehl drin stehen
+        local slash = SlashCmdList.GUILDPRIDE
+        SlashCmdList.GUILDPRIDE = function(arg)
+            local ok, err = pcall(slash, arg)
+            if not ok then Print("|cffff4040" .. (IsSecret(err) and "?" or tostring(err)) .. "|r") end
+        end
         C_Timer.After(15, RequestHistory)   -- verpasste Meilensteine von anderen holen
 
     elseif event == "GUILD_ROSTER_UPDATE" then

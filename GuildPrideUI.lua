@@ -220,7 +220,9 @@ ns.Section = Section
 
 -- Scrollbare Liste
 local function CreateList(parent, rowHeight)
-    local scroll = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
+    -- Schmaler Blizzard-Scrollbalken wie im Chat (ältere Clients: klassischer Balken)
+    local ok, scroll = pcall(CreateFrame, "ScrollFrame", nil, parent, "ScrollFrameTemplate")
+    if not ok or not scroll then scroll = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate") end
     scroll:SetPoint("TOPLEFT", 0, -4)
     scroll:SetPoint("BOTTOMRIGHT", -26, 0)
     local child = CreateFrame("Frame", nil, scroll)
