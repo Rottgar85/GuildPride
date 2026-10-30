@@ -8,6 +8,8 @@ ignore:
   - VEROEFFENTLICHEN.md
   - README.md
   - .luacheckrc
+  - .githooks
+  - .tools
   - docs
   - "*.zip"
 
