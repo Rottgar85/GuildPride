@@ -136,6 +136,49 @@ local function SendToGuild(msg)
     return res
 end
 
+---------------------------------------------------------------------
+-- Hintergrund-Kanal der Gilde
+-- Alle Rundsendungen gehen zusätzlich über einen eigenen Chat-Kanal, damit sie
+-- nicht von Rangrechten im Gildenkanal abhängen. Name und Passwort leiten sich
+-- vom Gildennamen ab; Nachrichten zählen nur von Gildenmitgliedern (GuildPride.lua).
+-- Der Kanal wird nicht in Chatfenster eingetragen (Addon-Nachrichten sind dort
+-- ohnehin unsichtbar) – Blizzards Chatcode wird nicht angefasst.
+---------------------------------------------------------------------
+local function Hash(s)
+    local h = 5381
+    for i = 1, #s do h = (h * 33 + s:byte(i)) % 2147483647 end
+    return h
+end
+
+local function DataChannel()
+    local guild = GetGuildInfo("player")
+    if not guild then return end
+    local realm = select(4, GetGuildInfo("player")) or GetNormalizedRealmName() or ""
+    local h = Hash(guild .. "@" .. realm)
+    return ("GPd%x"):format(h), ("p%x"):format(Hash(realm .. guild .. h))
+end
+
+function ns.DataChannelId()
+    local name = DataChannel()
+    if not name then return end
+    local id = GetChannelName(name)
+    return id and id > 0 and id or nil, name
+end
+
+local function JoinDataChannel()
+    local name, pw = DataChannel()
+    if not name or ns.DataChannelId() then return end
+    if JoinTemporaryChannel then JoinTemporaryChannel(name, pw) end
+end
+
+local chanFrame = CreateFrame("Frame")
+chanFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+chanFrame:RegisterEvent("PLAYER_GUILD_UPDATE")
+chanFrame:SetScript("OnEvent", function()
+    -- spät beitreten, damit Allgemein/Handel ihre gewohnten Nummern behalten
+    C_Timer.After(15, JoinDataChannel)
+end)
+
 C_Timer.NewTicker(0.3, function()
     if GetTime() < pauseUntil then return end
     -- Während der Chat-Sperre (Bosskampf, M+, PvP) nichts senden; die Warteschlange bleibt erhalten
@@ -149,6 +192,8 @@ C_Timer.NewTicker(0.3, function()
         res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.target)
     elseif IsInGuild() then
         res = SendToGuild(item.msg)
+        local chan = ns.DataChannelId()
+        if chan and not Throttled(res) then C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan) end
     end
     if Throttled(res) then
         item.tries = (item.tries or 0) + 1

@@ -319,9 +319,12 @@ local function Status()
     table.sort(ranks)
     for _, rank in ipairs(ranks) do
         local b = r.byRank[rank]
-        local warn = (b.GUILD == 0 and b.WHISPER > 0) and (" |cffff4040" .. L["nur per Flüstern!"] .. "|r") or ""
-        Print((L["Von Rang %d: %d über Gilde, %d geflüstert, %d Offiziere%s"]):format(rank, b.GUILD, b.WHISPER, b.OFFICER, warn))
+        local warn = (b.GUILD == 0 and (b.WHISPER > 0 or (b.CHANNEL or 0) > 0)) and (" |cffff4040" .. L["nur per Flüstern!"] .. "|r") or ""
+        Print((L["Von Rang %d: %d über Gilde, %d über Kanal, %d geflüstert, %d Offiziere%s"]):format(
+            rank, b.GUILD, b.CHANNEL or 0, b.WHISPER, b.OFFICER, warn))
     end
+    local chan, chanName = ns.DataChannelId and ns.DataChannelId()
+    Print((L["Hintergrund-Kanal: %s"]):format(chan and ("%d (%s)"):format(chan, chanName) or YesNo(false)))
 end
 ns.Status = Status
 
@@ -344,6 +347,7 @@ local function IsSecret(v) return issecretvalue and issecretvalue(v) or false en
 -- Addon-Nachrichten verteilen; mehrteilige ("MP") erst zusammensetzen
 ---------------------------------------------------------------------
 local multipart = {}   -- ["Sender:id"] = { n, got, parts, t }
+local recent, recentSweep = {}, 0   -- zuletzt empfangene Nachrichten (gegen Doppelte)
 local forwarded = {}   -- ["Name:id"] = Zeit, gegen doppelte Weiterleitungen
 
 local function Dispatch(message, sender)
@@ -495,7 +499,7 @@ f:SetScript("OnEvent", function(_, event, ...)
         if prefix ~= PREFIX then return end
         r.raw = r.raw + 1
         if IsSecret(message) or IsSecret(sender) or IsSecret(channel) then r.secret = r.secret + 1; return end
-        if channel ~= "GUILD" and channel ~= "WHISPER" and channel ~= "OFFICER" then
+        if channel ~= "GUILD" and channel ~= "WHISPER" and channel ~= "OFFICER" and channel ~= "CHANNEL" then
             r.badChannel, r.lastBadChannel = r.badChannel + 1, tostring(channel)
             return
         end
@@ -503,6 +507,16 @@ f:SetScript("OnEvent", function(_, event, ...)
         -- Absender immer als "Name-Realm": manchmal kommt er ohne Realm an, dann
         -- wurden eigene Nachrichten für fremde gehalten (z. B. doppelte Hinweise)
         sender = Normalize(sender)
+        -- Hintergrund-Kanal: nur Gildenmitglieder (der Kanal ist nicht abgeschlossen)
+        if channel == "CHANNEL" and not guildMembers[sender] then return end
+        -- Rundsendungen kommen über Gilde UND Kanal: zweites Exemplar verwerfen
+        local now, key = GetTime(), sender .. "\030" .. message
+        if recent[key] and now - recent[key] < 30 then return end
+        recent[key] = now
+        if now - recentSweep > 60 then
+            recentSweep = now
+            for k, t in pairs(recent) do if now - t >= 30 then recent[k] = nil end end
+        end
         r.total = r.total + 1
         if sender ~= ns.Me() then
             r.others = r.others + 1; r.lastFrom, r.lastKind, r.lastAt = sender, message:match("^(%u+)"), GetTime()
