@@ -203,6 +203,47 @@ function ns.TellCreator(creator, send)
     if creator and creator ~= "" and creator ~= Me() and IsOnline(creator) then send(creator) end
 end
 
+-- Kommt jemand online, ruft fn(name) auf (z. B. eigene Anmeldungen nachliefern,
+-- die der Ersteller verpasst hat, weil er offline war)
+local onlineBefore, onlineHooks = nil, {}
+function ns.OnMemberOnline(fn) onlineHooks[#onlineHooks + 1] = fn end
+local rosterWatch = CreateFrame("Frame")
+rosterWatch:RegisterEvent("GUILD_ROSTER_UPDATE")
+rosterWatch:SetScript("OnEvent", function()
+    local now, me = {}, Me()
+    for i = 1, GetNumGuildMembers() do
+        local name, _, _, _, _, _, _, _, online = GetGuildRosterInfo(i)
+        if name and online then now[ns.FullName and ns.FullName(name) or name] = true end
+    end
+    if onlineBefore then
+        for full in pairs(now) do
+            if not onlineBefore[full] and full ~= me then
+                -- kurz warten, bis der andere sein Addon geladen hat
+                C_Timer.After(20 + math.random() * 10, function()
+                    for _, fn in ipairs(onlineHooks) do fn(full) end
+                end)
+            end
+        end
+    end
+    onlineBefore = now
+end)
+
+-- Dasselbe für Nachrichten ohne Ersteller (z. B. Gruppensuche): an die Gildenleitung
+-- (Rang 0 und 1) flüstern, die online ist. Wer selbst Rang 0/1 hat, braucht das nicht.
+function ns.TellLeaders(send)
+    local _, _, myRank = GetGuildInfo("player")
+    if not myRank or myRank <= 1 then return end
+    local me, n = Me(), 0
+    for i = 1, GetNumGuildMembers() do
+        local name, _, rankIndex, _, _, _, _, _, online = GetGuildRosterInfo(i)
+        local full = name and (ns.FullName and ns.FullName(name) or name)
+        if full and online and rankIndex and rankIndex <= 1 and full ~= me and n < 3 then
+            n = n + 1
+            send(full)
+        end
+    end
+end
+
 ---------------------------------------------------------------------
 -- Daten anwenden (neuere Version gewinnt)
 ---------------------------------------------------------------------
@@ -256,6 +297,17 @@ local function SendAllEvents(target)
         end
     end
 end
+
+-- Ersteller kommt online: eigene Anmeldungen zu seinen Events direkt nachliefern
+ns.OnMemberOnline(function(who)
+    local me, cutoff = Me(), Now() - 86400
+    for _, e in pairs(DB()) do
+        local s = e.signups[me]
+        if s and e.creator == who and not e.deleted and e.title and e.t > cutoff then
+            SendSign(e.id, me, s, who)
+        end
+    end
+end)
 
 local function OnEventMessage(kind, payload, sender)
     if sender == Me() then return end
