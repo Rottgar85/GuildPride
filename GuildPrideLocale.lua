@@ -45,6 +45,7 @@ local enUS = {
     ["Online: %d Mitglieder, davon %d mit GuildPride bekannt"] = "Online: %d members, %d known to use GuildPride",
     ["Von Rang %d: %d über Gilde, %d geflüstert, %d Offiziere%s"] = "From rank %d: %d via guild, %d whispered, %d officer%s",
     ["nur per Flüstern!"] = "whispers only!",
+    ["Frage Versionen ab …"] = "Asking for versions …",
     ["Ping an die Gilde gesendet – jeder mit GuildPride antwortet gleich."] = "Ping sent to the guild – everyone with GuildPride will reply shortly.",
     ["Gildenchat"] = "Guild Chat",
     ["Gilde"] = "Guild",

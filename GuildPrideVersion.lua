@@ -48,6 +48,12 @@ end)
 local orig = SlashCmdList.GUILDPRIDE
 SlashCmdList.GUILDPRIDE = function(arg)
     if (arg or ""):lower() == "version" then
+        -- Frisch nachfragen: alle antworten per Flüstern. Sonst fehlen alle, die sich
+        -- nach uns eingeloggt haben und deren Login-Meldung an die Gilde nicht ankam.
+        ns.Queue("VER", nil, MY_VERSION, "")
+        ns.Print(L["Frage Versionen ab …"])
+        C_Timer.After(6, function() SlashCmdList.GUILDPRIDE("versionlist") end)
+    elseif (arg or ""):lower() == "versionlist" then
         ns.Print(L["Deine Version: "] .. MY_VERSION)
         local n = 0
         for name, v in pairs(ns.Versions) do
