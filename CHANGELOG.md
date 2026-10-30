@@ -1,5 +1,15 @@
 # GuildPride Changelog
 
+## 1.6.2
+
+**English**
+- Community chat in the GuildPride window now also shows new messages in battlegrounds and instances (protected messages are shown for the current session)
+- Event sign-ups and poll votes are also whispered directly to the creator, so the guild master sees sign-ups from every rank
+
+**Deutsch**
+- Der Community-Chat im GuildPride-Fenster zeigt neue Nachrichten jetzt auch in Schlachtfeldern und Instanzen (geschützte Nachrichten werden für die laufende Sitzung angezeigt)
+- Event-Anmeldungen und Umfrage-Stimmen gehen zusätzlich per Flüstern direkt an den Ersteller, damit der Gildenmeister Anmeldungen aller Ränge sieht
+
 ## 1.6.1
 
 **English**
