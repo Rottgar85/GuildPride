@@ -269,6 +269,10 @@ local enUS = {
     ["M+-Wertung: %d"] = "M+ rating: %d",
     ["kein Schlüssel"] = "no keystone",
     ["Noch keine Schlüssel bekannt (nur Mitglieder mit GuildPride)."] = "No keystones known yet (only members with GuildPride).",
+    ["Bietet Schlüssel an"] = "Offers keystone",
+    ["Schlüssel anbieten"] = "Offer keystone",
+    ["Anmelden"] = "Sign up",
+    ["Du hast gerade keinen Schlüsselstein."] = "You don't have a keystone right now.",
     -- Begrüßung
     ["Willkommen in der Gilde, {name}!"] = "Welcome to the guild, {name}!",
     ["Neue Mitglieder automatisch im Gildenchat begrüßen"] = "Automatically welcome new members in guild chat",

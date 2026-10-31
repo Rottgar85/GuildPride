@@ -12,6 +12,17 @@ local TYPES = {
     group = { label = L["Sucht Gruppe"],        color = "|cff6fa8ff", icon = "Interface\\Icons\\INV_Misc_GroupNeedMore" },
     quest = { label = L["Braucht Quest-Hilfe"], color = "|cffffd100", icon = "Interface\\Icons\\INV_Misc_Note_01" },
 }
+-- Schlüsselstein anbieten (nur Retail, siehe GuildPrideKeys.lua)
+if ns.MyKey then
+    TYPES.key = { label = L["Bietet Schlüssel an"], color = "|cffa335ee", icon = "Interface\\Icons\\INV_Relics_Hourglass" }
+end
+
+-- "+12 Nebel von Tirna Scithe"
+local function KeyLabel(map, level)
+    if not level or level == 0 then return "" end
+    local name = ns.KeyMapName and ns.KeyMapName(map) or nil
+    return ("|cffa335ee+%d %s|r"):format(level, name or "")
+end
 local ROLES = {
     { key = "T", label = "Tank",        color = "|cff6fa8ff", spec = "TANK" },
     { key = "H", label = L["Heiler"],   color = "|cff40ff40", spec = "HEALER" },
@@ -73,12 +84,22 @@ end
 ---------------------------------------------------------------------
 -- Senden / Empfangen
 ---------------------------------------------------------------------
+-- Angebotener Schlüssel aktuell halten (Stufe ändert sich nach einem Lauf)
+local function UpdateMyKey()
+    if mine and mine.kind == "key" and ns.MyKey then
+        local map, level = ns.MyKey()
+        if map then mine.map, mine.keyLevel = map, level end
+    end
+end
+
 local function SendMine(target)
     if mine then
+        UpdateMyKey()
         local size, max = GroupSize()
         local _, class = UnitClass("player")
+        -- Felder 11/12: Schlüssel (ältere Versionen ignorieren sie und kennen "key" nicht)
         ns.Queue("LFG", target, mine.kind, mine.note, UnitLevel("player"), GetZoneText() or "",
-            size, max, mine.needs or "", MyRoleKey(), class or "", stateVer)
+            size, max, mine.needs or "", MyRoleKey(), class or "", stateVer, mine.map or 0, mine.keyLevel or 0)
         if not target then lastSent = GetServerTime() end
     elseif not target then
         ns.Queue("LFG", nil, "none", "", 0, "", 0, 0, "", "", "", stateVer)
@@ -93,12 +114,12 @@ local function MyEntry()
     local _, class = UnitClass("player")
     return { kind = mine.kind, note = mine.note, level = UnitLevel("player"), zone = GetZoneText() or "",
              size = size, max = max, needs = mine.needs or "", role = MyRoleKey(), class = class or "",
-             t = mine.t, self = true }
+             map = mine.map, keyLevel = mine.keyLevel, t = mine.t, self = true }
 end
 
 ns.On("LFG", function(payload, sender)
     if sender == ns.Me() then return end
-    local kind, note, level, zone, size, max, need, role, class, ver = strsplit(SEP, payload)
+    local kind, note, level, zone, size, max, need, role, class, ver, map, keyLevel = strsplit(SEP, payload)
     -- Älteren Stand als den schon bekannten ignorieren (ältere Versionen senden keine Nummer)
     ver = tonumber(ver) or 0
     if ver > 0 then
@@ -117,11 +138,12 @@ ns.On("LFG", function(payload, sender)
         local e = { kind = kind, note = Clean(note, 60), level = tonumber(level) or 0, zone = Clean(zone, 40),
                     size = tonumber(size) or 1, max = tonumber(max) or 5, needs = Clean(need, 3),
                     role = Clean(role, 1), class = Clean(class, 20), t = old and old.t or GetServerTime(),
-                    seen = GetServerTime() }
+                    map = tonumber(map) or 0, keyLevel = tonumber(keyLevel) or 0, seen = GetServerTime() }
         if isNew then e.t = GetServerTime() end
         entries[sender] = e
         if alert and GuildPrideDB.helpAlerts ~= false then
             local extra = (" · " .. L["Gruppe %d/%d"]):format(e.size, e.max)
+            if kind == "key" then extra = " · " .. KeyLabel(e.map, e.keyLevel) .. extra end
             if e.needs ~= "" then extra = extra .. " · " .. (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
             ns.Print(("%s%s|r: |cffffd100%s|r (Lvl %d, %s)%s%s"):format(TYPES[kind].color, KindLabel(kind, e.size),
                 Ambiguate(sender, "guild"), e.level, e.zone, extra, e.note ~= "" and (" – " .. e.note) or ""))
@@ -214,8 +236,13 @@ local function NeedsCode()
 end
 
 local function Set(kind)
+    if kind == "key" and not (ns.MyKey and ns.MyKey()) then
+        ns.Print(L["Du hast gerade keinen Schlüsselstein."])
+        return
+    end
     if kind then
         mine = { kind = kind, note = Clean(noteBox:GetText(), 60), needs = NeedsCode(), t = GetServerTime() }
+        UpdateMyKey()
         ns.Print(L["Du bist eingetragen: "] .. KindLabel(kind, (GroupSize())))
     else
         mine = nil
@@ -227,25 +254,30 @@ local function Set(kind)
     ns.RefreshUI()
 end
 
+-- Knopfleiste: links eintragen / austragen, rechts die Schlüssel-Ansicht (Retail)
 local bGroup = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bGroup:SetSize(118, 24); bGroup:SetPoint("TOPLEFT", 4, -52); bGroup:SetText(L["Sucht Gruppe"])
+bGroup:SetSize(108, 24); bGroup:SetPoint("TOPLEFT", 4, -52); bGroup:SetText(L["Sucht Gruppe"])
 bGroup:SetScript("OnClick", function() Set("group") end)
 local bQuest = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bQuest:SetSize(118, 24); bQuest:SetPoint("LEFT", bGroup, "RIGHT", 4, 0); bQuest:SetText(L["Quest-Hilfe"])
+bQuest:SetSize(108, 24); bQuest:SetPoint("LEFT", bGroup, "RIGHT", 4, 0); bQuest:SetText(L["Quest-Hilfe"])
 bQuest:SetScript("OnClick", function() Set("quest") end)
+local bOffer = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bOffer:SetSize(132, 24); bOffer:SetPoint("LEFT", bQuest, "RIGHT", 4, 0); bOffer:SetText(L["Schlüssel anbieten"])
+bOffer:SetScript("OnClick", function() Set("key") end)
+bOffer:SetShown(TYPES.key ~= nil)
 local bClear = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bClear:SetSize(100, 24); bClear:SetPoint("LEFT", bQuest, "RIGHT", 4, 0); bClear:SetText(L["Austragen"])
+bClear:SetSize(92, 24); bClear:SetPoint("LEFT", TYPES.key and bOffer or bQuest, "RIGHT", 4, 0); bClear:SetText(L["Austragen"])
 bClear:SetScript("OnClick", function() Set(nil) end)
 
 -- Ansicht "Schlüssel der Gilde" (nur Retail, siehe GuildPrideKeys.lua)
 local keysView = false
 local keysHolder, keysList, keysEmpty
 local bKeys = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bKeys:SetSize(150, 24); bKeys:SetPoint("LEFT", bClear, "RIGHT", 12, 0)
+bKeys:SetSize(140, 24); bKeys:SetPoint("TOPRIGHT", -2, -52)
 bKeys:SetShown(ns.GuildKeys ~= nil)
 if ns.GuildKeys then
     keysHolder = CreateFrame("Frame", nil, page)
-    keysHolder:SetPoint("TOPLEFT", 0, -84)
+    keysHolder:SetPoint("TOPLEFT", 0, -96)
     keysHolder:SetPoint("BOTTOMRIGHT", 0, 0)
     keysHolder:Hide()
     keysList = ns.CreateList(keysHolder, 24)
@@ -259,16 +291,17 @@ if ns.GuildKeys then
     end)
 end
 
+-- Eigener Status in einer eigenen Zeile unter den Knöpfen
 local status = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
-status:SetPoint("RIGHT", page, "TOPRIGHT", -4, -64)
-status:SetJustifyH("RIGHT")
+status:SetPoint("TOPLEFT", 6, -82)
+status:SetJustifyH("LEFT")
 
 -- Liste: zwei Zeilen pro Eintrag
-local ROWS, ROW_H, rows = 7, 46, {}
+local ROWS, ROW_H, rows = 7, 44, {}
 for i = 1, ROWS do
     local r = CreateFrame("Frame", nil, page)
     r:SetSize(650, ROW_H - 2)
-    r:SetPoint("TOPLEFT", 0, -88 - (i - 1) * ROW_H)
+    r:SetPoint("TOPLEFT", 0, -98 - (i - 1) * ROW_H)
     r.bg = r:CreateTexture(nil, "BACKGROUND"); r.bg:SetAllPoints()
     ns.Paint(r.bg, "glow", i % 2 == 0 and 0.05 or 0.02)
     r.edge = r:CreateTexture(nil, "BORDER"); r.edge:SetPoint("TOPLEFT"); r.edge:SetPoint("BOTTOMLEFT"); r.edge:SetWidth(3)
@@ -335,7 +368,9 @@ function page:Refresh()
     UpdateNeedButtons()
     if mine then
         local size, max = GroupSize()
+        UpdateMyKey()
         status:SetText((L["Dein Status: %s%s|r"]):format(TYPES[mine.kind].color, KindLabel(mine.kind, size))
+            .. (mine.kind == "key" and ("  " .. KeyLabel(mine.map, mine.keyLevel)) or "")
             .. "  |cff999999" .. (L["Gruppe %d/%d"]):format(size, max) .. "|r")
     else
         status:SetText(L["|cff888888Du bist nicht eingetragen.|r"])
@@ -379,12 +414,15 @@ function page:Refresh()
             local c = RAID_CLASS_COLORS[e.class]
             local hex = c and c.colorStr and c.colorStr:sub(3) or "f0c88c"
             r.icon:SetTexture(t.icon)
-            if item.e.kind == "quest" then r.edge:SetColorTexture(1, 0.82, 0, 1) else r.edge:SetColorTexture(0.44, 0.66, 1, 1) end
+            if item.e.kind == "quest" then r.edge:SetColorTexture(1, 0.82, 0, 1)
+            elseif item.e.kind == "key" then r.edge:SetColorTexture(0.64, 0.21, 0.93, 1)
+            else r.edge:SetColorTexture(0.44, 0.66, 1, 1) end
             r.name:SetText(("|cff%s%s|r"):format(hex, Ambiguate(item.name, "guild"))
                 .. (e.self and (" |cff999999(" .. L["du"] .. ")|r") or ""))
             r.info:SetText(("Lvl %d · %s · |cff999999%s|r"):format(e.level, RoleLabel(e.role), e.zone))
 
             local parts = { t.color .. KindLabel(e.kind, e.size) .. "|r" }
+            if e.kind == "key" then parts[#parts + 1] = KeyLabel(e.map, e.keyLevel) end
             if e.needs ~= "" then parts[#parts + 1] = (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
             if e.note ~= "" then parts[#parts + 1] = "|cffe6e0da" .. e.note .. "|r" end
             parts[#parts + 1] = "|cff777777" .. Ago(now, e.t) .. "|r"
@@ -404,12 +442,15 @@ function page:Refresh()
             -- sonst eine Beitrittsanfrage an seine Gruppe schicken
             local target = Ambiguate(item.name, "none")
             local inMyGroup = UnitInParty(target) or UnitInRaid(target)
+            -- Schlüssel-Angebot: immer anmelden (Beitrittsanfrage an den Schlüsselhalter)
             local mode = (e.kind == "group" and e.size <= 1) and "invite" or "join"
             r.tell:SetShown(not e.self)
             if inMyGroup then
                 r.tell:SetText(L["In Gruppe"]); r.tell:Disable()
             elseif mode == "join" and e.size >= e.max then
                 r.tell:SetText(L["Voll"]); r.tell:Disable()
+            elseif e.kind == "key" then
+                r.tell:SetText(L["Anmelden"]); r.tell:Enable()
             else
                 r.tell:SetText(mode == "invite" and L["Einladen"] or L["Beitreten"]); r.tell:Enable()
             end

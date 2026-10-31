@@ -74,6 +74,14 @@ function ns.KeyTooltip(tt, full)
     if (e.rating or 0) > 0 then tt:AddLine((L["M+-Wertung: %d"]):format(e.rating), 1, 0.82, 0) end
 end
 
+-- Eigener Schlüssel für die Gruppensuche: map, level, Name (nil ohne Schlüssel)
+function ns.MyKey()
+    local map, level = Mine()
+    if map == 0 or level == 0 then return nil end
+    return map, level, MapName(map)
+end
+ns.KeyMapName = MapName
+
 -- Alle bekannten Schlüssel dieser Woche, höchste Stufe zuerst
 function ns.GuildKeys()
     local list = {}

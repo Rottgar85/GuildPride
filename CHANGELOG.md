@@ -7,6 +7,7 @@
 - Officers who can remove members get an **Inactive** filter in the guild list: 30+, 60+ or 90+ days offline
 - Chat: unread counts on the guild, officer and community buttons, in the community menu and on the Guild & Chat tab. Messages that mention you get a » and gold text
 - **Guild keystones** (Retail only): GuildPride shares your keystone and M+ rating with the guild. New "Guild keystones" view in the group finder; the key also shows in the member list and tooltip. Old keys disappear at the weekly reset. Not shown in WoW Forever
+- Group finder: **Offer keystone** puts your key (e.g. +12 dungeon) in the list with the roles you still need; others click **Sign up** to send a join request (Retail only). The buttons now sit in one row, your status on its own line below them
 - Overview: new **This week** section with level-ups, raid kills, M+ bests (Retail only), achievements, mounts, joins, departures and the busiest member
 - Optional automatic welcome for new members (own text with `{name}`). Only one GuildPride user greets, never during chat lockdown
 - Events: **Repeat every week**. Three hours after the start the event moves to the next week; old sign-ups expire
@@ -19,6 +20,7 @@
 - Wer Mitglieder entfernen darf, bekommt in der Gildenliste den Filter **Inaktive**: 30+, 60+ oder 90+ Tage offline
 - Chat: Zähler für ungelesene Nachrichten an Gilde, Offiziere und Communities, im Community-Menü und am Reiter Gilde & Chat. Nachrichten mit deinem Namen bekommen ein » und goldene Schrift
 - **Schlüssel der Gilde** (nur Retail): GuildPride teilt Schlüsselstein und M+-Wertung mit der Gilde. Neue Ansicht „Schlüssel der Gilde“ in der Gruppensuche, der Schlüssel steht auch in Mitgliederliste und Tooltip. Alte Schlüssel fallen beim Wochenreset weg. In WoW Forever ausgeblendet
+- Gruppensuche: **Schlüssel anbieten** stellt deinen Schlüssel (z. B. +12 Dungeon) mit den fehlenden Rollen in die Liste; andere klicken **Anmelden** und schicken eine Beitrittsanfrage (nur Retail). Die Knöpfe stehen jetzt in einer Reihe, dein Status in einer eigenen Zeile darunter
 - Übersicht: neuer Abschnitt **Diese Woche** mit Level-Aufstiegen, Raid-Siegen, M+-Bestwerten (nur Retail), Erfolgen, Reittieren, Beitritten, Abgängen und dem fleißigsten Mitglied
 - Wahlweise automatische Begrüßung neuer Mitglieder (eigener Text mit `{name}`). Es begrüßt nur ein GuildPride-Nutzer, nie während der Chat-Sperre
 - Events: **Jede Woche wiederholen**. 3 Stunden nach Beginn rückt das Event auf die nächste Woche, alte Anmeldungen verfallen
