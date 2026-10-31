@@ -17,8 +17,9 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - **Event planner**: officers create events with title, date and time (separate fields), description and officer note. Members of every rank sign up as Attending, Maybe or Declined with their role. Reminder 15 minutes before the start
 - **Group finder and quest help**: sign up with a note and the roles you still need. Everyone sees class, level, role, zone and how full the group is. **Join** sends a join request, **Invite** invites a solo player, right-click whispers. Open to every rank
 - **Guild info**: the info text from Blizzard's guild window, the same for everyone, with a notice when it changes. It is edited in Blizzard's guild window (Blizzard blocks addons from changing it)
-- **Guild chat and communities**: guild chat, officer chat and your Blizzard communities inside the window, with the server-side history plus a local copy so old messages keep their author names
-- **Members list**: your guild or any of your communities, online only or everyone, with rank, notes and "last online"
+- **Guild & Chat**: guild chat, officer chat and your Blizzard communities with the members right next to the chat, like Blizzard's community window. Server-side history plus a local copy so old messages keep their author names
+- **Members list**: one click from the chat to the full list of your guild or community, online only or everyone, with rank, notes and "last online"
+- **Styles**: Forge, Frost, Emerald, Arcane and Night, switchable any time in the settings
 - **Invite players** to the guild or a community: type a name, or right-click a member
 - **Guild management**: click a member to see notes and to promote, demote, set a rank, remove or transfer leadership (depending on your rights)
 - **Community management**: right-click a member to change their role, edit their note or remove them
@@ -58,8 +59,9 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - **Event-Planer**: Offiziere legen Events mit Titel, Datum und Uhrzeit (getrennte Felder), Beschreibung und Offiziers-Notiz an. Mitglieder aller Ränge melden sich mit Zusagen, Vielleicht oder Absagen und ihrer Rolle an. Erinnerung 15 Minuten vor Beginn
 - **Gruppensuche und Quest-Hilfe**: mit Notiz und fehlenden Rollen eintragen. Alle sehen Klasse, Level, Rolle, Zone und wie voll die Gruppe ist. **Beitreten** schickt eine Beitrittsanfrage, **Einladen** lädt einen Einzelspieler ein, Rechtsklick flüstert an. Für alle Ränge
 - **Gildeninfo**: der Info-Text aus dem Blizzard-Gildenfenster, für alle gleich, mit Hinweis bei Änderungen. Bearbeitet wird er im Blizzard-Gildenfenster (Blizzard sperrt das Ändern für Addons)
-- **Gildenchat und Communities**: Gildenchat, Offizierschat und eure Blizzard-Communities direkt im Fenster, mit Verlauf vom Server und lokaler Kopie, damit alte Nachrichten ihren Namen behalten
-- **Mitgliederliste**: eure Gilde oder jede eurer Communities, nur online oder alle, mit Rang, Notizen und „zuletzt online“
+- **Gilde & Chat**: Gildenchat, Offizierschat und eure Blizzard-Communities, die Mitglieder direkt neben dem Chat wie im Blizzard-Community-Fenster. Verlauf vom Server und lokale Kopie, damit alte Nachrichten ihren Namen behalten
+- **Mitgliederliste**: ein Klick vom Chat zur großen Liste eurer Gilde oder Community, nur online oder alle, mit Rang, Notizen und „zuletzt online“
+- **Styles**: Schmiede, Frost, Smaragd, Arkan und Nacht, jederzeit in den Einstellungen umschaltbar
 - **Spieler einladen** in die Gilde oder eine Community: Namen eingeben oder Rechtsklick auf ein Mitglied
 - **Gildenverwaltung**: Klick auf ein Mitglied zeigt die Notizen, dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten)
 - **Community-Verwaltung**: Rechtsklick auf ein Mitglied, um die Rolle zu ändern, die Notiz zu bearbeiten oder es zu entfernen

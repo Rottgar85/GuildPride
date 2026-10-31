@@ -6,7 +6,7 @@
 local ADDON, ns = ...
 local L = ns.L
 
-local page = ns.AddTab(L["Gildeninfo"])
+local page = ns.AddTab(L["Gildeninfo"], 70)
 
 ---------------------------------------------------------------------
 -- Anzeige

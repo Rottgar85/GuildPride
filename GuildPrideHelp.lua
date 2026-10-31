@@ -169,7 +169,7 @@ end)
 ---------------------------------------------------------------------
 -- UI-Reiter
 ---------------------------------------------------------------------
-local page = ns.AddTab(L["Gruppensuche"])
+local page = ns.AddTab(L["Gruppensuche"], 40)
 
 local hint = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
 hint:SetPoint("TOPLEFT", 2, -2)
@@ -248,7 +248,7 @@ for i = 1, ROWS do
     r:SetSize(650, ROW_H - 2)
     r:SetPoint("TOPLEFT", 0, -88 - (i - 1) * ROW_H)
     r.bg = r:CreateTexture(nil, "BACKGROUND"); r.bg:SetAllPoints()
-    r.bg:SetColorTexture(1, 0.6, 0.3, i % 2 == 0 and 0.05 or 0.02)
+    ns.Paint(r.bg, "glow", i % 2 == 0 and 0.05 or 0.02)
     r.edge = r:CreateTexture(nil, "BORDER"); r.edge:SetPoint("TOPLEFT"); r.edge:SetPoint("BOTTOMLEFT"); r.edge:SetWidth(3)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(30, 30); r.icon:SetPoint("LEFT", 10, 0)
     r.name = r:CreateFontString(nil, "OVERLAY", "GPFont_TextBold"); r.name:SetPoint("TOPLEFT", 50, -6)
@@ -355,7 +355,8 @@ function page:Refresh()
             for p = 1, 5 do
                 local pip = r.pips[p]
                 pip:SetShown(showPips)
-                if p <= e.size then pip:SetColorTexture(1, 0.55, 0.2, 1) else pip:SetColorTexture(0.25, 0.2, 0.18, 1) end
+                local c = ns.Theme().ember
+                if p <= e.size then pip:SetColorTexture(c[1], c[2], c[3], 1) else pip:SetColorTexture(0.25, 0.2, 0.18, 1) end
             end
             r.count:SetText(e.size <= 1 and L["Allein"] or (L["Gruppe %d/%d"]):format(e.size, e.max))
 

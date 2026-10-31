@@ -8,35 +8,37 @@ local HISTORY = 150
 local SendChat = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
 local HAS_CLUB = C_Club and C_Club.GetGuildClubId and C_Club.GetStreams and C_Club.GetMessageRanges
 
-local page = ns.AddTab(L["Gildenchat"])
+-- Reiter "Gilde & Chat" (GuildPrideUI.lua): Kanal-Leiste oben auf der Seite,
+-- Nachrichten und Eingabe im Chat-Bereich links neben der Mitgliederliste
+local page = ns.CommunityPage
+local pane = ns.ChatPane
 
--- Aktueller Kanal: { kind = "GUILD" | "OFFICER" | "CLUB", clubId, streamId, label }
+-- Aktueller Kanal: { kind = "GUILD" | "OFFICER" | "CLUB", clubId, streamId, label, club }
 local channel = { kind = "GUILD", label = L["Gilde"] }
 
 ---------------------------------------------------------------------
 -- Kanal-Leiste
 ---------------------------------------------------------------------
 local bGuild = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bGuild:SetSize(100, 24); bGuild:SetPoint("TOPLEFT", 0, 0); bGuild:SetText(L["Gilde"])
+bGuild:SetSize(90, 24); bGuild:SetPoint("TOPLEFT", 0, 0); bGuild:SetText(L["Gilde"])
 local bOfficer = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bOfficer:SetSize(100, 24); bOfficer:SetPoint("LEFT", bGuild, "RIGHT", 6, 0); bOfficer:SetText(L["Offiziere"])
+bOfficer:SetSize(90, 24); bOfficer:SetPoint("LEFT", bGuild, "RIGHT", 6, 0); bOfficer:SetText(L["Offiziere"])
 local bClub = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bClub:SetSize(170, 24); bClub:SetPoint("LEFT", bOfficer, "RIGHT", 6, 0); bClub:SetText("Communities  ▾")
-
-local current = page:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
-current:SetPoint("RIGHT", page, "TOPRIGHT", -4, -12)
+bClub:SetSize(180, 24); bClub:SetPoint("LEFT", bOfficer, "RIGHT", 6, 0); bClub:SetText("Communities  ▾")
+-- Lange Community-Namen abschneiden statt über den Knopf hinaus
+if bClub:GetFontString() then bClub:GetFontString():SetWidth(164); bClub:GetFontString():SetWordWrap(false) end
 
 ---------------------------------------------------------------------
 -- Nachrichtenfeld
 ---------------------------------------------------------------------
-local box = CreateFrame("Frame", nil, page)
-box:SetPoint("TOPLEFT", 0, -32)
+local box = CreateFrame("Frame", nil, pane)
+box:SetPoint("TOPLEFT", 0, 0)
 box:SetPoint("BOTTOMRIGHT", 0, 40)
 local boxBg = box:CreateTexture(nil, "BACKGROUND")
 boxBg:SetAllPoints(); boxBg:SetColorTexture(0, 0, 0, 0.45)
 local boxEdge = box:CreateTexture(nil, "BORDER")
 boxEdge:SetPoint("TOPLEFT"); boxEdge:SetPoint("BOTTOMLEFT"); boxEdge:SetWidth(3)
-boxEdge:SetColorTexture(1, 0.45, 0.15, 1)
+ns.Paint(boxEdge, "ember")
 
 local msgs = CreateFrame("ScrollingMessageFrame", nil, box)
 msgs:SetPoint("TOPLEFT", 12, -8)
@@ -64,15 +66,15 @@ end
 ---------------------------------------------------------------------
 -- Eingabe
 ---------------------------------------------------------------------
-local input = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
+local input = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
 input:SetPoint("BOTTOMLEFT", 8, 6)
-input:SetPoint("BOTTOMRIGHT", -110, 6)
+input:SetPoint("BOTTOMRIGHT", -94, 6)
 input:SetHeight(24)
 input:SetAutoFocus(false)
 input:SetMaxLetters(255)
 
-local send = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-send:SetSize(100, 26)
+local send = CreateFrame("Button", nil, pane, "UIPanelButtonTemplate")
+send:SetSize(86, 26)
 send:SetPoint("BOTTOMRIGHT", 0, 5)
 send:SetText(L["Senden"])
 
@@ -309,7 +311,6 @@ local focused
 
 local function Redraw()
     msgs:Clear()
-    current:SetText(L["Kanal: |cfff0c88c"] .. (channel.label or "") .. "|r")
     if HAS_CLUB then
         local clubId, streamId = Resolve(channel)
         if not clubId then
@@ -381,6 +382,9 @@ local function Highlight()
     set(bGuild, channel.kind == "GUILD")
     set(bOfficer, channel.kind == "OFFICER")
     set(bClub, channel.kind == "CLUB")
+    -- Gewählte Community steht im Knopf
+    local label = channel.kind == "CLUB" and not Secret(channel.label) and channel.label or nil
+    bClub:SetText(label and (label .. "  ▾") or "Communities  ▾")
 end
 
 -- Im Schlachtfeld liefert der Server teils geschützte Werte; ein Fehler beim
@@ -389,7 +393,6 @@ local function SafeRedraw()
     local ok = pcall(Redraw)
     if not ok then
         msgs:Clear()
-        current:SetText(L["Kanal: |cfff0c88c"] .. (Secret(channel.label) and "" or (channel.label or "")) .. "|r")
         msgs:AddMessage(L["|cff888888Verlauf hier gerade nicht verfügbar (Blizzard-Schutz in Instanzen).|r"])
     end
 end
@@ -397,6 +400,8 @@ end
 local function SetChannel(ch)
     channel = ch
     Highlight()
+    -- Mitgliederliste daneben zeigt dieselbe Gilde bzw. Community
+    if ns.SetMemberSource then ns.SetMemberSource(ch.kind == "CLUB" and ch.club or nil) end
     SafeRedraw()
 end
 
@@ -429,7 +434,8 @@ end
 
 local function Pick(club, st)
     local label = #club.streams > 1 and (club.name .. " · " .. st.name) or club.name
-    SetChannel({ kind = "CLUB", clubId = club.id, streamId = st.id, label = label })
+    SetChannel({ kind = "CLUB", clubId = club.id, streamId = st.id, label = label,
+                 club = { id = club.id, name = club.name, bnet = club.bnet } })
 end
 
 bClub:SetScript("OnClick", function(self)
@@ -500,7 +506,8 @@ send:SetScript("OnClick", Send)
 input:SetScript("OnEnterPressed", Send)
 input:SetScript("OnEscapePressed", input.ClearFocus)
 
-function page:Refresh()
+-- Aufgerufen von "Gilde & Chat" (GuildPrideUI.lua) beim Anzeigen/Aktualisieren
+function ns.ChatRefresh()
     local canOfficer = (C_GuildInfo and C_GuildInfo.CanViewOfficerNote and C_GuildInfo.CanViewOfficerNote())
         or (CanViewOfficerNote and CanViewOfficerNote())
     bOfficer:SetShown(canOfficer and true or false)
@@ -511,12 +518,14 @@ function page:Refresh()
     SetChannel(channel)
 end
 
-page:SetScript("OnHide", function()
+-- Chat ausgeblendet (anderer Reiter oder große Mitgliederliste): Stream freigeben
+pane:SetScript("OnHide", function()
     if focused and C_Club and C_Club.UnfocusStream then
         C_Club.UnfocusStream(focused[1], focused[2])
         focused = nil
     end
 end)
+pane:SetScript("OnShow", function() SafeRedraw() end)
 
 ---------------------------------------------------------------------
 -- Ereignisse
@@ -526,7 +535,7 @@ if HAS_CLUB then
     local pendingRedraw
     local function RedrawSoon()
         if pendingRedraw then return end
-        pendingRedraw = C_Timer.NewTimer(0.5, function() pendingRedraw = nil; if page:IsVisible() then SafeRedraw() end end)
+        pendingRedraw = C_Timer.NewTimer(0.5, function() pendingRedraw = nil; if pane:IsVisible() then SafeRedraw() end end)
     end
     f:RegisterEvent("CLUB_MESSAGE_ADDED")
     f:RegisterEvent("CLUB_MESSAGE_HISTORY_RECEIVED")
@@ -545,12 +554,12 @@ if HAS_CLUB then
                 Remember(Cache(clubId, streamId), { e })
             end
             local myClub, myStream = Resolve(channel)
-            if page:IsVisible() and clubId == myClub and streamId == myStream then
+            if pane:IsVisible() and clubId == myClub and streamId == myStream then
                 msgs:AddMessage(EntryLine(e, channel.kind))
             end
             return
         end
-        if not page:IsVisible() then return end
+        if not pane:IsVisible() then return end
         local myClub = Resolve(channel)
         if clubId == myClub then RedrawSoon() end
     end)
@@ -582,7 +591,7 @@ else
         local e = { t = time(), ch = ch, who = Ambiguate(author, "guild"), full = author, text = text, class = class }
         table.insert(list, e)
         while #list > MAX_SAVED do table.remove(list, 1) end
-        if page:IsVisible() and channel.kind == ch then
+        if pane:IsVisible() and channel.kind == ch then
             msgs:AddMessage(Line(e.t, e.who, e.full, ClassHex(nil, e.class), e.text, ch))
         end
     end)

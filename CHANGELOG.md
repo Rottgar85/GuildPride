@@ -1,5 +1,19 @@
 # GuildPride Changelog
 
+## Unreleased
+
+**English**
+- New tab **Guild & Chat**: chat on the left, members on the right, like Blizzard's community window. Picking guild, officers or a community also switches the member list. **Member list** opens the full list with notes, "last online" and invites
+- Tabs sorted by use: Overview, Guild & Chat, Events, Group finder, Polls, Milestones, Guild info. Settings now sit at the bottom of the sidebar
+- Five styles to choose from in the settings: Forge (as before), Frost, Emerald, Arcane and Night. They change instantly, no reload needed
+- Removed the test commands `/gp testjoin` and `/gp testleave`
+
+**Deutsch**
+- Neuer Reiter **Gilde & Chat**: Chat links, Mitglieder rechts, wie im Blizzard-Community-Fenster. Die Wahl von Gilde, Offizieren oder einer Community stellt auch die Mitgliederliste um. **Mitgliederliste** öffnet die große Liste mit Notizen, „zuletzt online“ und Einladen
+- Reiter nach Nutzung sortiert: Übersicht, Gilde & Chat, Events, Gruppensuche, Umfragen, Meilensteine, Gildeninfo. Die Einstellungen stehen jetzt unten in der Seitenleiste
+- Fünf Styles zur Auswahl in den Einstellungen: Schmiede (wie bisher), Frost, Smaragd, Arkan und Nacht. Sie wechseln sofort, ohne /reload
+- Testbefehle `/gp testjoin` und `/gp testleave` entfernt
+
 ## 1.8.0
 
 **English**

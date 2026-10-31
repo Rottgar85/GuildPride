@@ -181,7 +181,7 @@ end
 ---------------------------------------------------------------------
 -- Oberfläche
 ---------------------------------------------------------------------
-local page = ns.AddTab(L["Umfragen"])
+local page = ns.AddTab(L["Umfragen"], 50)
 local selected
 
 local empty = page:CreateFontString(nil, "OVERLAY", "GPFont_Muted")
@@ -325,7 +325,7 @@ dlg:SetPoint("CENTER")
 dlg:SetFrameStrata("DIALOG")
 dlg:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 2 })
 dlg:SetBackdropColor(0.07, 0.05, 0.04, 0.97)
-dlg:SetBackdropBorderColor(0.80, 0.55, 0.27, 1)
+ns.Paint(dlg, "accent")
 dlg:EnableMouse(true)
 dlg:Hide()
 tinsert(UISpecialFrames, "GuildPridePollDialog")

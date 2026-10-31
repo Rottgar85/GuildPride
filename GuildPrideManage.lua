@@ -75,7 +75,7 @@ panel:SetFrameLevel(page:GetFrameLevel() + 20)
 panel:EnableMouse(true)
 panel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 2 })
 panel:SetBackdropColor(0.07, 0.05, 0.04, 0.97)
-panel:SetBackdropBorderColor(0.80, 0.55, 0.27, 1)
+ns.Paint(panel, "accent")
 panel:Hide()
 
 local closeBtn = CreateFrame("Button", nil, panel)
@@ -112,15 +112,16 @@ local function Button(w, label, x, y, secure)
     b:SetSize(w, 24); b:SetPoint("TOPLEFT", x, y)
     local bg = b:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(); bg:SetTexture(ns.MEDIA .. "nav")
+    ns.Paint(bg, "tex")
     b.gpBg = bg
     local hl = b:CreateTexture(nil, "HIGHLIGHT")
     hl:SetPoint("TOPLEFT", 3, -3); hl:SetPoint("BOTTOMRIGHT", -3, 3)
-    hl:SetColorTexture(1, 0.5, 0.2, 0.15)
+    ns.Paint(hl, "glow", 0.15)
     b:SetNormalFontObject(GPFont_Button)
     b:SetHighlightFontObject(GPFont_Button)
     b:SetDisabledFontObject(GPFont_ButtonOff)
     b:SetText(label)
-    hooksecurefunc(b, "SetEnabled", function(_, on) bg:SetDesaturated(not on); bg:SetAlpha(on and 1 or 0.5) end)
+    hooksecurefunc(b, "SetEnabled", function(_, on) ns.PaintEnabled(bg, on) end)
 
     -- Genau eine Klick-Phase: ohne festes useOnKeyDown hängt es an der
     -- Einstellung ActionButtonUseKeyDown und der Knopf kann "tot" sein.

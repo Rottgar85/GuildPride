@@ -5,8 +5,8 @@ local L = ns.L
 
 local MEDIA = "Interface\\AddOns\\GuildPride\\Media\\"
 local CLASS_COLORS = RAID_CLASS_COLORS
-local COPPER = { 0.80, 0.55, 0.27 }
 local GOLD_TEXT = "|cfff0c88c"
+local Paint = ns.Paint
 
 local W, H, SIDEBAR, HEADER = 860, 580, 180, 96
 
@@ -30,18 +30,19 @@ tinsert(UISpecialFrames, "GuildPrideFrame") -- ESC schließt
 local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
 bg:SetAllPoints()
 bg:SetTexture(MEDIA .. "bg")
+Paint(bg, "tex")
 
--- Kupferrahmen (1 px außen + 2 px innen) und Ecken-Ornamente
-local function Line(p1, p2, x1, y1, x2, y2, size, r, g, b)
+-- Rahmen (2 px, Farbe je nach Style) und Ecken-Ornamente
+local function Line(p1, p2, size)
     local t = frame:CreateTexture(nil, "BORDER")
-    t:SetColorTexture(r, g, b, 1)
-    t:SetPoint(p1, x1, y1); t:SetPoint(p2, x2, y2)
+    Paint(t, "accent")
+    t:SetPoint(p1); t:SetPoint(p2)
     if p1:find("LEFT") and p2:find("LEFT") or p1:find("RIGHT") and p2:find("RIGHT") then t:SetWidth(size) else t:SetHeight(size) end
 end
-Line("TOPLEFT", "TOPRIGHT", 0, 0, 0, 0, 2, unpack(COPPER))
-Line("BOTTOMLEFT", "BOTTOMRIGHT", 0, 0, 0, 0, 2, unpack(COPPER))
-Line("TOPLEFT", "BOTTOMLEFT", 0, 0, 0, 0, 2, unpack(COPPER))
-Line("TOPRIGHT", "BOTTOMRIGHT", 0, 0, 0, 0, 2, unpack(COPPER))
+Line("TOPLEFT", "TOPRIGHT", 2)
+Line("BOTTOMLEFT", "BOTTOMRIGHT", 2)
+Line("TOPLEFT", "BOTTOMLEFT", 2)
+Line("TOPRIGHT", "BOTTOMRIGHT", 2)
 
 local corners = {
     { "TOPLEFT",     0, 1, 0, 1 },
@@ -55,6 +56,7 @@ for _, c in ipairs(corners) do
     t:SetPoint(c[1], c[1]:find("LEFT") and -6 or 6, c[1]:find("TOP") and 6 or -6)
     t:SetTexture(MEDIA .. "corner")
     t:SetTexCoord(c[2], c[3], c[4], c[5])
+    Paint(t, "tex")
 end
 
 -- Seitenleiste
@@ -63,6 +65,7 @@ side:SetPoint("TOPLEFT", 2, -2)
 side:SetPoint("BOTTOMLEFT", 2, 2)
 side:SetWidth(SIDEBAR)
 side:SetTexture(MEDIA .. "sidebar")
+Paint(side, "tex")
 
 -- Gildenkürzel + Wappenrock der Gilde (aus dem Spiel)
 local tagText = frame:CreateFontString(nil, "OVERLAY", "GPFont_Huge")
@@ -72,6 +75,7 @@ local crestGlow = frame:CreateTexture(nil, "ARTWORK", nil, 0)
 crestGlow:SetSize(124, 124)
 crestGlow:SetPoint("TOP", tagText, "BOTTOM", 0, 4)
 crestGlow:SetTexture(MEDIA .. "crest_glow")
+Paint(crestGlow, "tex")
 
 local tabardBg = frame:CreateTexture(nil, "ARTWORK", nil, 1)
 local tabardBorder = frame:CreateTexture(nil, "ARTWORK", nil, 2)
@@ -121,10 +125,10 @@ header:SetPoint("TOPLEFT", SIDEBAR + 2, -2)
 header:SetPoint("TOPRIGHT", -2, -2)
 header:SetHeight(HEADER)
 header:SetTexture(MEDIA .. "header")
+Paint(header, "tex")
 
 local title = frame:CreateFontString(nil, "OVERLAY", "GPFont_Huge")
 title:SetPoint("TOPLEFT", header, "TOPLEFT", 24, -20)
-title:SetTextColor(0.94, 0.78, 0.55)
 title:SetShadowOffset(2, -2)
 
 local subtitle = frame:CreateFontString(nil, "OVERLAY", "GPFont_Text")
@@ -132,7 +136,7 @@ subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 2, -6)
 
 local pageTitle = frame:CreateFontString(nil, "OVERLAY", "GPFont_Large")
 pageTitle:SetPoint("TOPRIGHT", header, "TOPRIGHT", -46, -24)
-pageTitle:SetTextColor(1, 0.55, 0.25)
+Paint(pageTitle, "title")
 
 local close = CreateFrame("Button", nil, frame)
 close:SetSize(26, 26)
@@ -160,21 +164,46 @@ local content = CreateFrame("Frame", nil, frame)
 content:SetPoint("TOPLEFT", SIDEBAR + 14, -HEADER - 12)
 content:SetPoint("BOTTOMRIGHT", -14, 14)
 
-local function SelectTab(id)
-    for i, page in ipairs(pages) do
-        page:SetShown(i == id)
-        local tab = tabs[i]
-        if tab then
-            tab.bgTex:SetTexture(MEDIA .. (i == id and "nav_active" or "nav"))
-            tab.text:SetTextColor(i == id and 1 or 0.85, i == id and 0.82 or 0.75, i == id and 0.55 or 0.65)
-        end
+local function MarkTabs()
+    local t = ns.Theme()
+    for i, tab in ipairs(tabs) do
+        local on = i == frame.selected
+        tab.bgTex:SetTexture(MEDIA .. (on and "nav_active" or "nav"))
+        if on then tab.text:SetTextColor(t.button[1], t.button[2], t.button[3])
+        else tab.text:SetTextColor(0.82, 0.79, 0.76) end
     end
+end
+ns.OnThemeChanged(MarkTabs)
+
+local function SelectTab(id)
+    for i, page in ipairs(pages) do page:SetShown(i == id) end
     frame.selected = id
+    MarkTabs()
     pageTitle:SetText(tabs[id] and tabs[id].label or "")
     if pages[id] and pages[id].Refresh then pages[id]:Refresh() end
 end
 
-local function AddTab(label)
+-- Reiter nach "order" sortiert untereinander; ab Ordnung 90 (Einstellungen)
+-- unten in der Seitenleiste
+local function LayoutTabs()
+    local sorted = {}
+    for _, tab in ipairs(tabs) do sorted[#sorted + 1] = tab end
+    table.sort(sorted, function(a, b) return a.order < b.order end)
+    local top, bottom = 0, 0
+    for _, tab in ipairs(sorted) do
+        tab:ClearAllPoints()
+        if tab.order >= 90 then
+            tab:SetPoint("BOTTOMLEFT", 10, 34 + bottom * 40)
+            bottom = bottom + 1
+        else
+            tab:SetPoint("TOPLEFT", 10, -168 - top * 40)
+            top = top + 1
+        end
+    end
+end
+
+-- order: Platz in der Seitenleiste (kleiner = weiter oben)
+local function AddTab(label, order)
     local id = #pages + 1
     local page = CreateFrame("Frame", nil, content)
     page:SetAllPoints()
@@ -183,23 +212,25 @@ local function AddTab(label)
 
     local tab = CreateFrame("Button", nil, frame)
     tab:SetSize(SIDEBAR - 16, 36)
-    tab:SetPoint("TOPLEFT", 10, -168 - (id - 1) * 40)
     tab.bgTex = tab:CreateTexture(nil, "BACKGROUND")
     tab.bgTex:SetAllPoints()
     tab.bgTex:SetTexture(MEDIA .. "nav")
+    Paint(tab.bgTex, "tex")
     local hl = tab:CreateTexture(nil, "HIGHLIGHT")
     hl:SetPoint("TOPLEFT", 3, -3); hl:SetPoint("BOTTOMRIGHT", -3, 3)
-    hl:SetColorTexture(1, 0.5, 0.2, 0.12)
+    Paint(hl, "glow", 0.12)
     tab.text = tab:CreateFontString(nil, "OVERLAY", "GPFont_Normal")
     tab.text:SetPoint("LEFT", 18, 0)
     tab.text:SetText(label)
     tab.label = label
+    tab.order = order or id * 10
     tab:SetScript("OnClick", function()
         PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
         SelectTab(id)
     end)
     tabs[id] = tab
     page.tabId = id
+    LayoutTabs()
     return page
 end
 
@@ -208,12 +239,11 @@ local function Section(parent, text, anchor, y)
     local fs = parent:CreateFontString(nil, "OVERLAY", "GPFont_Large")
     if anchor then fs:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, y or -20) else fs:SetPoint("TOPLEFT", 4, y or -4) end
     fs:SetText(text)
-    fs:SetTextColor(0.94, 0.78, 0.55)
     local line = parent:CreateTexture(nil, "ARTWORK")
     line:SetHeight(1)
     line:SetPoint("LEFT", fs, "RIGHT", 10, 0)
     line:SetPoint("RIGHT", parent, "RIGHT", -4, 0)
-    line:SetColorTexture(COPPER[1], COPPER[2], COPPER[3], 0.5)
+    Paint(line, "accent", 0.5)
     return fs
 end
 ns.Section = Section
@@ -226,24 +256,25 @@ function ns.NewScroll(parent)
     return scroll
 end
 
--- Scrollbare Liste
-local function CreateList(parent, rowHeight)
+-- Scrollbare Liste (width: Zeilenbreite, Standard 620)
+local function CreateList(parent, rowHeight, width)
+    width = width or 620
     local scroll = ns.NewScroll(parent)
     scroll:SetPoint("TOPLEFT", 0, -4)
     scroll:SetPoint("BOTTOMRIGHT", -26, 0)
     local child = CreateFrame("Frame", nil, scroll)
-    child:SetSize(620, 1)
+    child:SetSize(width, 1)
     scroll:SetScrollChild(child)
     child.rows = {}
     function child:GetRow(i)
         local row = self.rows[i]
         if not row then
             row = CreateFrame("Frame", nil, self)
-            row:SetSize(620, rowHeight)
+            row:SetSize(width, rowHeight)
             row:SetPoint("TOPLEFT", 0, -(i - 1) * rowHeight)
             row.bg = row:CreateTexture(nil, "BACKGROUND")
             row.bg:SetAllPoints()
-            row.bg:SetColorTexture(1, 0.6, 0.3, i % 2 == 0 and 0.05 or 0)
+            Paint(row.bg, "glow", i % 2 == 0 and 0.05 or 0)
             row.left = row:CreateFontString(nil, "OVERLAY", "GPFont_Text")
             row.left:SetPoint("LEFT", 8, 0)
             row.mid = row:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
@@ -265,7 +296,7 @@ end
 ---------------------------------------------------------------------
 -- 1) Übersicht
 ---------------------------------------------------------------------
-local overview = AddTab(L["Übersicht"])
+local overview = AddTab(L["Übersicht"], 10)
 -- Der Gildenknopf in der Mikroleiste ruft ToggleGuildFrame auf und
 -- öffnet damit automatisch dieses Fenster (siehe Hook unten).
 
@@ -277,10 +308,10 @@ local function Tile(i, label)
     f:SetPoint("TOPLEFT", (i - 1) * 210, -4)
     local b = f:CreateTexture(nil, "BACKGROUND"); b:SetAllPoints(); b:SetColorTexture(0, 0, 0, 0.45)
     local edge = f:CreateTexture(nil, "BORDER"); edge:SetPoint("TOPLEFT"); edge:SetPoint("BOTTOMLEFT"); edge:SetWidth(3)
-    edge:SetColorTexture(1, 0.45, 0.15, 1)
+    Paint(edge, "ember")
     f.value = f:CreateFontString(nil, "OVERLAY", "GPFont_Huge")
     f.value:SetPoint("TOPLEFT", 14, -10)
-    f.value:SetTextColor(1, 0.85, 0.6)
+    Paint(f.value, "button")
     f.label = f:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
     f.label:SetPoint("BOTTOMLEFT", 14, 10)
     f.label:SetText(label)
@@ -329,9 +360,36 @@ function overview:Refresh()
 end
 
 ---------------------------------------------------------------------
--- 2) Mitglieder (Gilde oder eine Community)
+-- 2) Gilde & Chat – wie Blizzards Community-Fenster: Chat links, Mitglieder
+--    rechts. "Mitgliederliste" schaltet auf die große Liste mit Details um.
+--    Die Kanal-Leiste oben links (GuildPrideChat.lua) bestimmt auch, wessen
+--    Mitglieder angezeigt werden (Gilde oder eine Community).
 ---------------------------------------------------------------------
-local members = AddTab(L["Mitglieder"])
+local community = AddTab(L["Gilde & Chat"], 20)
+local ROSTER_W = 210
+
+local bViewList = CreateFrame("Button", nil, community, "UIPanelButtonTemplate")
+bViewList:SetSize(130, 24); bViewList:SetPoint("TOPRIGHT", 0, 0); bViewList:SetText(L["Mitgliederliste"])
+local bViewChat = CreateFrame("Button", nil, community, "UIPanelButtonTemplate")
+bViewChat:SetSize(70, 24); bViewChat:SetPoint("RIGHT", bViewList, "LEFT", -6, 0); bViewChat:SetText(L["Chat"])
+
+-- Chat-Bereich (wird von GuildPrideChat.lua gefüllt)
+local chatPane = CreateFrame("Frame", nil, community)
+chatPane:SetPoint("TOPLEFT", 0, -32)
+chatPane:SetPoint("BOTTOMRIGHT", -(ROSTER_W + 10), 0)
+
+-- Kompakte Mitgliederliste neben dem Chat
+local roster = CreateFrame("Frame", nil, community)
+roster:SetPoint("TOPRIGHT", 0, -32)
+roster:SetPoint("BOTTOMRIGHT", 0, 0)
+roster:SetWidth(ROSTER_W)
+
+-- Große Mitgliederliste (statt Chat)
+local members = CreateFrame("Frame", nil, community)
+members:SetPoint("TOPLEFT", 0, -32)
+members:SetPoint("BOTTOMRIGHT")
+members:Hide()
+
 local showOffline = false
 local source   -- nil = Gilde, sonst { id, name, bnet } einer Community
 local HAS_CLUB = C_Club and C_Club.GetSubscribedClubs and C_Club.GetClubMembers and C_Club.GetMemberInfo
@@ -385,14 +443,9 @@ function ns.InviteToClub(club, name)
     end
 end
 
--- Kopfzeile: Gilde | Communities ▾ | Nur online | Alle
-local bSrcGuild = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
-bSrcGuild:SetSize(90, 24); bSrcGuild:SetPoint("TOPLEFT", 0, 0); bSrcGuild:SetText(L["Gilde"])
-local bSrcClub = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
-bSrcClub:SetSize(170, 24); bSrcClub:SetPoint("LEFT", bSrcGuild, "RIGHT", 6, 0); bSrcClub:SetText("Communities  ▾")
-bSrcClub:SetShown(HAS_CLUB and true or false)
+-- Große Liste, Kopfzeile: Nur online | Alle
 local bOnline = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
-bOnline:SetSize(110, 24); bOnline:SetPoint("LEFT", bSrcClub, "RIGHT", 18, 0); bOnline:SetText(L["Nur online"])
+bOnline:SetSize(110, 24); bOnline:SetPoint("TOPLEFT", 0, 0); bOnline:SetText(L["Nur online"])
 local bAll = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
 bAll:SetSize(150, 24); bAll:SetPoint("LEFT", bOnline, "RIGHT", 6, 0); bAll:SetText(L["Alle (inkl. offline)"])
 
@@ -400,6 +453,20 @@ local listHolder = CreateFrame("Frame", nil, members)
 listHolder:SetPoint("TOPLEFT", 0, -32)
 listHolder:SetPoint("BOTTOMRIGHT", 0, 36)
 local memberList = CreateList(listHolder, 24)
+
+-- Kompakte Liste: Kopf mit Anzahl und "Offline zeigen", darunter die Namen
+local rosterBg = roster:CreateTexture(nil, "BACKGROUND")
+rosterBg:SetAllPoints(); rosterBg:SetColorTexture(0, 0, 0, 0.45)
+local rosterCount = roster:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
+rosterCount:SetPoint("TOPLEFT", 10, -10)
+local rosterOffline = CreateFrame("CheckButton", nil, roster, "UICheckButtonTemplate")
+rosterOffline:SetSize(20, 20); rosterOffline:SetPoint("TOPRIGHT", -4, -3)
+local rosterOfflineText = roster:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
+rosterOfflineText:SetPoint("RIGHT", rosterOffline, "LEFT", -2, 0); rosterOfflineText:SetText(L["Offline zeigen"])
+local rosterHolder = CreateFrame("Frame", nil, roster)
+rosterHolder:SetPoint("TOPLEFT", 6, -24)
+rosterHolder:SetPoint("BOTTOMRIGHT", -2, 4)
+local rosterList = CreateList(rosterHolder, 20, ROSTER_W - 34)
 
 -- Fußzeile: Name eingeben + Einladen, rechts die Anzahl
 local inviteBox = CreateFrame("EditBox", nil, members, "InputBoxTemplate")
@@ -423,6 +490,12 @@ inviteBtn:SetScript("OnClick", DoInvite)
 inviteBox:SetScript("OnEnterPressed", DoInvite)
 inviteBox:SetScript("OnEscapePressed", inviteBox.ClearFocus)
 
+-- Beide Listen neu zeichnen (nur die sichtbare)
+local function RefreshMembers()
+    if members:IsShown() then members:Refresh() end
+    if roster:IsShown() then roster:Refresh() end
+end
+
 local function SetOffline(on)
     showOffline = on
     -- Manche Clients liefern Offline-Mitglieder nur, wenn das eingeschaltet ist
@@ -430,45 +503,48 @@ local function SetOffline(on)
         if SetGuildRosterShowOffline then SetGuildRosterShowOffline(on) end
         if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
     end
-    members:Refresh()
+    RefreshMembers()
 end
 bOnline:SetScript("OnClick", function() SetOffline(false) end)
 bAll:SetScript("OnClick", function() SetOffline(true) end)
+rosterOffline:SetScript("OnClick", function(self) SetOffline(self:GetChecked() and true or false) end)
 
-local function SetSource(club)
+-- Wessen Mitglieder? nil = Gilde, sonst { id, name, bnet } einer Community.
+-- Wird beim Kanalwechsel im Chat aufgerufen.
+function ns.SetMemberSource(club)
+    if (club and club.id) == (source and source.id) then return end
     source = club
     if ns.HideMemberPanel then ns.HideMemberPanel() end
     -- Online-Status der Community-Mitglieder vom Server holen
     if C_Club and C_Club.ClearClubPresenceSubscription then pcall(C_Club.ClearClubPresenceSubscription) end
     if club and C_Club.SetClubPresenceSubscription then pcall(C_Club.SetClubPresenceSubscription, club.id) end
     if not club and C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
-    members:Refresh()
+    RefreshMembers()
 end
-bSrcGuild:SetScript("OnClick", function() SetSource(nil) end)
 
-bSrcClub:SetScript("OnClick", function(self)
-    local list = Communities()
-    if #list == 0 then ns.Print(L["Du bist in keiner Blizzard-Community."]); return end
-    if MenuUtil and MenuUtil.CreateContextMenu then
-        MenuUtil.CreateContextMenu(self, function(_, root)
-            root:CreateTitle("Communities")
-            for _, club in ipairs(list) do
-                root:CreateButton(club.name .. (club.bnet and " |cff82c5ff(Battle.net)|r" or ""), function() SetSource(club) end)
-            end
-        end)
-    else
-        -- Fallback: der Reihe nach durchschalten
-        local idx = 1
-        for i, c in ipairs(list) do if source and c.id == source.id then idx = i % #list + 1 end end
-        SetSource(list[idx])
-    end
-end)
+-- Chat oder große Liste
+local function SetView(list)
+    GuildPrideDB.listView = list
+    chatPane:SetShown(not list); roster:SetShown(not list); members:SetShown(list)
+    if bViewChat.gpBg then bViewChat.gpBg:SetTexture(MEDIA .. (list and "nav" or "nav_active")) end
+    if bViewList.gpBg then bViewList.gpBg:SetTexture(MEDIA .. (list and "nav_active" or "nav")) end
+    RefreshMembers()
+end
+bViewChat:SetScript("OnClick", function() SetView(false) end)
+bViewList:SetScript("OnClick", function() SetView(true) end)
 
--- Für die Mitgliederverwaltung (GuildPrideManage.lua)
+function community:Refresh()
+    SetView(GuildPrideDB.listView and true or false)
+    if ns.ChatRefresh then ns.ChatRefresh() end
+end
+
+-- Für Chat und Mitgliederverwaltung (GuildPrideChat.lua, GuildPrideManage.lua)
 ns.Communities = Communities
 ns.CanInviteToClub = CanInviteToClub
 ns.FullName = FullName
-ns.MembersPage = members
+ns.CommunityPage = community
+ns.ChatPane = chatPane
+ns.MembersPage = community
 
 -- "zuletzt online vor …"
 local function LastOnline(i)
@@ -564,17 +640,10 @@ local function ClubData(club, inGuild)
     return data, total, online
 end
 
-function members:Refresh()
+-- Mitglieder der aktuellen Quelle, online zuerst
+local function MemberData()
     -- Community nicht mehr vorhanden (verlassen) -> zurück zur Gilde
     if source and not (C_Club.GetClubInfo and C_Club.GetClubInfo(source.id)) then source = nil end
-    local function mark(btn, on)
-        if btn.gpBg then btn.gpBg:SetTexture(MEDIA .. (on and "nav_active" or "nav")) end
-    end
-    mark(bOnline, not showOffline); mark(bAll, showOffline)
-    mark(bSrcGuild, source == nil); mark(bSrcClub, source ~= nil)
-    bSrcClub:SetText(source and (source.name .. "  ▾") or "Communities  ▾")
-    inviteBtn:SetText(source and L["In Community einladen"] or L["In Gilde einladen"])
-
     local data, total, online
     if source then data, total, online = ClubData(source, GuildNames()) else data, total, online = GuildData() end
     table.sort(data, function(a, b)
@@ -582,27 +651,46 @@ function members:Refresh()
         if not a.online and a.hours ~= b.hours then return a.hours < b.hours end
         return (a.level or 0) > (b.level or 0)
     end)
+    return data, total, online
+end
+
+local function ClassName(m)
+    local c = CLASS_COLORS[m.class] or NORMAL_FONT_COLOR
+    return ("|cff%02x%02x%02x%s|r"):format(c.r * 255, c.g * 255, c.b * 255, m.name)
+end
+
+-- Linksklick: Details/Verwaltung · Rechtsklick: Menü (GuildPrideManage.lua)
+local function RowClicks(row)
+    row:EnableMouse(true)
+    row:SetScript("OnMouseUp", function(self, button)
+        if not self.data then return end
+        if button == "RightButton" then
+            if ns.MemberMenu then ns.MemberMenu(self, self.data) end
+        elseif ns.ShowMemberPanel then
+            ns.ShowMemberPanel(self.data, self)
+        end
+    end)
+end
+
+function members:Refresh()
+    local function mark(btn, on)
+        if btn.gpBg then btn.gpBg:SetTexture(MEDIA .. (on and "nav_active" or "nav")) end
+    end
+    mark(bOnline, not showOffline); mark(bAll, showOffline)
+    inviteBtn:SetText(source and L["In Community einladen"] or L["In Gilde einladen"])
+
+    local data, total, online = MemberData()
     countText:SetText((L["%d online · %d offline"]):format(online, total - online))
     for i, m in ipairs(data) do
         local row = memberList:GetRow(i)
         if not row.gpMenu then
             row.gpMenu = true
-            row:EnableMouse(true)
             row.mid:SetWidth(260); row.mid:SetJustifyH("LEFT"); row.mid:SetWordWrap(false)
-            -- Linksklick: Details/Verwaltung · Rechtsklick: Menü (GuildPrideManage.lua)
-            row:SetScript("OnMouseUp", function(self, button)
-                if not self.data then return end
-                if button == "RightButton" then
-                    if ns.MemberMenu then ns.MemberMenu(self, self.data) end
-                elseif ns.ShowMemberPanel then
-                    ns.ShowMemberPanel(self.data, self)
-                end
-            end)
+            RowClicks(row)
         end
         row.data = m
-        local c = CLASS_COLORS[m.class] or NORMAL_FONT_COLOR
         local alpha = m.online and 1 or 0.55   -- Offline-Mitglieder gedimmt
-        row.left:SetText(("|cff%02x%02x%02x%s|r"):format(c.r * 255, c.g * 255, c.b * 255, m.name))
+        row.left:SetText(ClassName(m))
         row.left:SetAlpha(alpha); row.mid:SetAlpha(alpha)
         local mid = (m.level and m.level > 0) and ("Lvl %d · %s"):format(m.level, m.rank or "") or (m.rank or "")
         if source and m.inGuild then mid = mid .. "  |cff999999(" .. L["Gilde"] .. ")|r" end
@@ -611,6 +699,44 @@ function members:Refresh()
         row.right:SetText(m.online and ("|cff40ff40●|r " .. (m.zone or "")) or ("|cff777777" .. (m.last or "") .. "|r"))
     end
     memberList:Finish(#data)
+end
+
+-- Kompakte Liste: Name und Level, Rest im Tooltip
+local function RosterTooltip(row)
+    local m = row.data
+    if not m then return end
+    GameTooltip:SetOwner(row, "ANCHOR_LEFT")
+    GameTooltip:AddLine(ClassName(m))
+    if m.level and m.level > 0 then GameTooltip:AddLine(("Lvl %d"):format(m.level), 1, 1, 1) end
+    if m.rank and m.rank ~= "" then GameTooltip:AddLine((L["Rang: %s"]):format(m.rank), 0.8, 0.8, 0.8) end
+    if m.online then GameTooltip:AddLine("|cff40ff40●|r " .. (m.zone or ""), 1, 1, 1)
+    else GameTooltip:AddLine(m.last or L["offline"], 0.5, 0.5, 0.5) end
+    if m.note and m.note ~= "" then GameTooltip:AddLine(m.note, 0.6, 0.6, 0.6, true) end
+    GameTooltip:Show()
+end
+
+function roster:Refresh()
+    rosterOffline:SetChecked(showOffline)
+    local data, total, online = MemberData()
+    rosterCount:SetText((L["%d online · %d offline"]):format(online, total - online))
+    for i, m in ipairs(data) do
+        local row = rosterList:GetRow(i)
+        if not row.gpMenu then
+            row.gpMenu = true
+            row.mid:Hide()
+            row.left:SetPoint("RIGHT", row.right, "LEFT", -4, 0)
+            row.left:SetWordWrap(false)
+            RowClicks(row)
+            row:SetScript("OnEnter", RosterTooltip)
+            row:SetScript("OnLeave", GameTooltip_Hide)
+        end
+        row.data = m
+        local alpha = m.online and 1 or 0.55
+        row.left:SetText((m.online and "|cff40ff40●|r " or "|cff555555●|r ") .. ClassName(m))
+        row.left:SetAlpha(alpha)
+        row.right:SetText((m.level and m.level > 0) and m.level or "")
+    end
+    rosterList:Finish(#data)
 end
 
 -- Community-Mitglieder ändern sich -> Liste neu zeichnen (gebündelt)
@@ -622,14 +748,14 @@ if HAS_CLUB then
         pcall(cf.RegisterEvent, cf, e)
     end
     cf:SetScript("OnEvent", function(_, _, clubId)
-        if not (source and members:IsVisible()) or pending then return end
+        if not (source and community:IsVisible()) or pending then return end
         if clubId and clubId ~= source.id then return end
-        pending = C_Timer.NewTimer(0.5, function() pending = nil; members:Refresh() end)
+        pending = C_Timer.NewTimer(0.5, function() pending = nil; RefreshMembers() end)
     end)
-    members:HookScript("OnHide", function()
+    community:HookScript("OnHide", function()
         if C_Club.ClearClubPresenceSubscription then pcall(C_Club.ClearClubPresenceSubscription) end
     end)
-    members:HookScript("OnShow", function()
+    community:HookScript("OnShow", function()
         if source and C_Club.SetClubPresenceSubscription then pcall(C_Club.SetClubPresenceSubscription, source.id) end
     end)
 end
@@ -637,7 +763,7 @@ end
 ---------------------------------------------------------------------
 -- 3) Meilensteine (Verlauf)
 ---------------------------------------------------------------------
-local milestones = AddTab(L["Meilensteine"])
+local milestones = AddTab(L["Meilensteine"], 60)
 local msList = CreateList(milestones, 24)
 
 function milestones:Refresh()
@@ -671,7 +797,35 @@ end)
 ---------------------------------------------------------------------
 -- 4) Einstellungen
 ---------------------------------------------------------------------
-local settings = AddTab(L["Einstellungen"])
+local settings = AddTab(L["Einstellungen"], 90)
+
+-- Style-Auswahl ganz oben: ein Knopf je Style, der aktive ist hervorgehoben
+local styleLabel = settings:CreateFontString(nil, "OVERLAY", "GPFont_TextBold")
+styleLabel:SetPoint("TOPLEFT", 4, -4)
+styleLabel:SetText(L["Style"])
+local styleButtons = {}
+for i, t in ipairs(ns.THEMES) do
+    local b = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
+    b:SetSize(110, 24)
+    b:SetPoint("TOPLEFT", 4 + (i - 1) * 116, -22)
+    b:SetText(t.name)
+    b:SetScript("OnClick", function() ns.ApplyTheme(t.key) end)
+    -- Farbtupfer des Styles
+    local dot = b:CreateTexture(nil, "OVERLAY")
+    dot:SetSize(8, 8); dot:SetPoint("LEFT", 8, 0)
+    dot:SetColorTexture(t.ember[1], t.ember[2], t.ember[3], 1)
+    b.key = t.key
+    styleButtons[i] = b
+end
+local function MarkStyle()
+    local current = ns.Theme().key
+    for _, b in ipairs(styleButtons) do
+        if b.gpBg then b.gpBg:SetTexture(MEDIA .. (b.key == current and "nav_active" or "nav")) end
+    end
+end
+ns.OnThemeChanged(MarkStyle)
+
+local OPT_Y = -60
 local options = {
     { key = "replaceGuildFrame", label = L["Dieses Fenster statt Blizzard-Gildenfenster (J)"] },
     { key = "popup",         label = L["Meilenstein-Popups anzeigen"] },
@@ -683,7 +837,7 @@ local options = {
 local checks = {}
 for i, opt in ipairs(options) do
     local cb = CreateFrame("CheckButton", nil, settings, "UICheckButtonTemplate")
-    cb:SetPoint("TOPLEFT", 0, -(i - 1) * 34)
+    cb:SetPoint("TOPLEFT", 0, OPT_Y - (i - 1) * 30)
     local label = settings:CreateFontString(nil, "OVERLAY", "GPFont_Text")
     label:SetPoint("LEFT", cb, "RIGHT", 4, 0)
     label:SetText(opt.label)
@@ -695,13 +849,13 @@ end
 
 local blizzBtn = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
 blizzBtn:SetSize(220, 26)
-blizzBtn:SetPoint("TOPLEFT", 4, -(#options * 34) - 16)
+blizzBtn:SetPoint("TOPLEFT", 4, OPT_Y - (#options * 30) - 8)
 blizzBtn:SetText(L["Blizzard-Gildenfenster öffnen"])
 blizzBtn:SetScript("OnClick", function() ns.OpenBlizzardGuild() end)
 
 -- Werbetext: gespeichert und auf Knopfdruck in die Chat-Eingabe gelegt.
 -- Abschicken (und Kanal wählen, z. B. "/2 ") macht der Spieler selbst.
-local baseY = -(#options * 34) - 58
+local baseY = OPT_Y - (#options * 30) - 46
 local recruitLabel = settings:CreateFontString(nil, "OVERLAY", "GPFont_TextBold")
 recruitLabel:SetPoint("TOPLEFT", 4, baseY)
 recruitLabel:SetText(L["Werbetext (z. B. „/2 Gilde XY sucht …“)"])
@@ -762,6 +916,7 @@ function ns.NoteTemplates()
 end
 
 function settings:Refresh()
+    MarkStyle()
     for key, cb in pairs(checks) do cb:SetChecked(GuildPrideDB[key]) end
     if not recruitBox:HasFocus() then recruitBox:SetText(GuildPrideDB.recruitText or "") end
     if not tplBox:HasFocus() then tplBox:SetText(table.concat(GuildPrideDB.noteTemplates or {}, "\n")) end

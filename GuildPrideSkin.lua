@@ -1,8 +1,8 @@
 -- GuildPride: Einheitlicher Look für alle Knöpfe, Eingabefelder und Dialoge
--- Wandelt Blizzard-Standardelemente in den Schmiede-Stil um.
+-- Wandelt Blizzard-Standardelemente in den gewählten Style um (GuildPrideTheme.lua).
 local ADDON, ns = ...
 local MEDIA = "Interface\\AddOns\\GuildPride\\Media\\"
-local COPPER = { 0.80, 0.55, 0.27 }
+local Paint, PaintEnabled = ns.Paint, ns.PaintEnabled
 local skinned = setmetatable({}, { __mode = "k" })
 
 local function HideRegions(obj, ...)
@@ -25,11 +25,13 @@ local function SkinButton(btn)
     bg:SetAllPoints()
     bg:SetTexture(MEDIA .. "nav")
     btn.gpBg = bg
+    bg.gpOff = not btn:IsEnabled()
+    Paint(bg, "tex")
 
     local hl = btn:GetHighlightTexture()
     if hl then
         hl:SetTexture(nil)
-        hl:SetColorTexture(1, 0.5, 0.2, 0.15)
+        Paint(hl, "glow", 0.15)
         hl:ClearAllPoints(); hl:SetPoint("TOPLEFT", 3, -3); hl:SetPoint("BOTTOMRIGHT", -3, 3)
     end
 
@@ -39,9 +41,9 @@ local function SkinButton(btn)
 
     btn:HookScript("OnMouseDown", function(self) if self:IsEnabled() then bg:SetTexture(MEDIA .. "nav_active") end end)
     btn:HookScript("OnMouseUp", function() bg:SetTexture(MEDIA .. "nav") end)
-    hooksecurefunc(btn, "SetEnabled", function(self, on) bg:SetDesaturated(not on); bg:SetAlpha(on and 1 or 0.5) end)
-    hooksecurefunc(btn, "Disable", function() bg:SetDesaturated(true); bg:SetAlpha(0.5) end)
-    hooksecurefunc(btn, "Enable", function() bg:SetDesaturated(false); bg:SetAlpha(1) end)
+    hooksecurefunc(btn, "SetEnabled", function(_, on) PaintEnabled(bg, on) end)
+    hooksecurefunc(btn, "Disable", function() PaintEnabled(bg, false) end)
+    hooksecurefunc(btn, "Enable", function() PaintEnabled(bg, true) end)
 end
 ns.SkinButton = SkinButton
 
@@ -66,6 +68,7 @@ local function SkinEditBox(eb)
     bg:SetPoint("TOPLEFT", -6, 2)
     bg:SetPoint("BOTTOMRIGHT", 2, -2)
     bg:SetTexture(MEDIA .. "input")
+    Paint(bg, "tex")
     eb:SetFontObject(GPFont_Text)
     eb:SetTextInsets(2, 2, 0, 0)
 end
@@ -81,12 +84,12 @@ local function SkinDialog(f)
         edgeSize = 2,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    f:SetBackdropBorderColor(COPPER[1], COPPER[2], COPPER[3], 1)
+    Paint(f, "accent")
     -- Glut-Leiste oben
     local bar = f:CreateTexture(nil, "ARTWORK")
     bar:SetPoint("TOPLEFT", 2, -2); bar:SetPoint("TOPRIGHT", -2, -2)
     bar:SetHeight(4)
-    bar:SetColorTexture(1, 0.45, 0.15, 0.9)
+    Paint(bar, "ember", 0.9)
 end
 ns.SkinDialog = SkinDialog
 

@@ -464,7 +464,7 @@ end
 ---------------------------------------------------------------------
 -- UI: Reiter "Events"
 ---------------------------------------------------------------------
-local page = ns.AddTab("Events")
+local page = ns.AddTab("Events", 30)
 
 -- Beim Öffnen die Events der anderen abfragen (höchstens alle 2 Minuten)
 local lastAsk = 0
