@@ -101,8 +101,6 @@ local function Relays()
     return pick
 end
 
-ns.SendStats = { direct = 0, relayed = 0, failed = 0, lastResult = nil }
-
 local function Failed(res)
     if type(res) ~= "number" then return res == false end
     local ok = RESULT and RESULT.Success or 0
@@ -117,7 +115,6 @@ local function Relay(msg)
     for _, r in ipairs(Relays()) do
         res = C_ChatInfo.SendAddonMessage(PREFIX, "RLY:" .. id .. SEP .. msg, "WHISPER", r)
     end
-    ns.SendStats.relayed = ns.SendStats.relayed + 1
     return res
 end
 
@@ -125,14 +122,11 @@ end
 -- Rang ausdrücklich nicht schreiben darf, zusätzlich über andere weiterleiten.
 local function SendToGuild(msg)
     local res = C_ChatInfo.SendAddonMessage(PREFIX, msg, "GUILD")
-    ns.SendStats.lastResult = res
     if Throttled(res) then return res end
     if Failed(res) or not ns.CanSpeakGuild() then
-        if Failed(res) then ns.SendStats.failed = ns.SendStats.failed + 1 end
         Relay(msg)
         return nil
     end
-    ns.SendStats.direct = ns.SendStats.direct + 1
     return res
 end
 

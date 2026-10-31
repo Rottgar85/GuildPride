@@ -260,11 +260,6 @@ ns.On("MSL", function(payload, sender)
     ns.AddLog(kind, who, tonumber(value) or (value ~= "" and value or nil), t)
 end)
 
----------------------------------------------------------------------
--- Empfangs- und Sendezähler (intern)
----------------------------------------------------------------------
-ns.RecvStats = { raw = 0, total = 0, others = 0, secret = 0, badChannel = 0, byRank = {} }
-
 local function RequestHistory()
     local newest = Log()[1]
     local listen = (not ns.CanListenGuild or ns.CanListenGuild()) and 1 or 0
@@ -430,16 +425,10 @@ f:SetScript("OnEvent", function(_, event, ...)
 
     elseif event == "CHAT_MSG_ADDON" then
         local prefix, message, channel, sender = ...
-        local r = ns.RecvStats
         -- Geschützte Werte zuerst prüfen: schon ein Vergleich damit wirft einen Fehler
-        if IsSecret(prefix) then r.secret = r.secret + 1; return end
-        if prefix ~= PREFIX then return end
-        r.raw = r.raw + 1
-        if IsSecret(message) or IsSecret(sender) or IsSecret(channel) then r.secret = r.secret + 1; return end
-        if channel ~= "GUILD" and channel ~= "WHISPER" and channel ~= "OFFICER" and channel ~= "CHANNEL" then
-            r.badChannel, r.lastBadChannel = r.badChannel + 1, tostring(channel)
-            return
-        end
+        if IsSecret(prefix) or prefix ~= PREFIX then return end
+        if IsSecret(message) or IsSecret(sender) or IsSecret(channel) then return end
+        if channel ~= "GUILD" and channel ~= "WHISPER" and channel ~= "OFFICER" and channel ~= "CHANNEL" then return end
         if type(message) ~= "string" or type(sender) ~= "string" then return end
         -- Absender immer als "Name-Realm": manchmal kommt er ohne Realm an, dann
         -- wurden eigene Nachrichten für fremde gehalten (z. B. doppelte Hinweise)
@@ -453,17 +442,6 @@ f:SetScript("OnEvent", function(_, event, ...)
         if now - recentSweep > 60 then
             recentSweep = now
             for k, t in pairs(recent) do if now - t >= 30 then recent[k] = nil end end
-        end
-        r.total = r.total + 1
-        if sender ~= ns.Me() then
-            r.others = r.others + 1; r.lastFrom, r.lastKind, r.lastAt = sender, message:match("^(%u+)"), GetTime()
-            -- Je Rang und Kanal zählen: zeigt, ob ein Rang nur per Flüstern ankommt
-            local rank = guildMembers[sender]
-            if rank then
-                local b = r.byRank[rank - 1] or { GUILD = 0, WHISPER = 0, OFFICER = 0 }
-                r.byRank[rank - 1] = b
-                b[channel] = (b[channel] or 0) + 1
-            end
         end
         ns.AddonUsers[sender] = true
         Dispatch(message, sender)

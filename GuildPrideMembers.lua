@@ -47,7 +47,7 @@ dismiss:SetPoint("TOPRIGHT", -2, -2)
 dismiss:SetScript("OnClick", function() toast:Hide() end)
 
 local hideTimer
-local function ShowToast(kind, name, test)
+local function ShowToast(kind, name)
     local short = Ambiguate(name, "guild")
     if kind == "join" then
         headline:SetText(L["|cff40ff40Neues Gildenmitglied!|r"])
@@ -65,10 +65,8 @@ local function ShowToast(kind, name, test)
     if hideTimer then hideTimer:Cancel() end
     hideTimer = C_Timer.NewTimer(kind == "join" and 30 or 12, function() toast:Hide() end)
 
-    -- Im Verlauf (Reiter Meilensteine) festhalten; Testspieler nicht
-    if not test then
-        ns.AddLog(kind == "join" and "JOIN" or (kind == "kick" and "KICK" or "LEAVE"), short)
-    end
+    -- Im Verlauf (Reiter Meilensteine) festhalten
+    ns.AddLog(kind == "join" and "JOIN" or (kind == "kick" and "KICK" or "LEAVE"), short)
     if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
 end
 
@@ -92,18 +90,3 @@ f:SetScript("OnEvent", function(_, _, msg)
     name = KICK and msg:match(KICK)
     if name then ShowToast("kick", name) end
 end)
-
----------------------------------------------------------------------
--- Testbefehle: /gp testjoin, /gp testleave
----------------------------------------------------------------------
-local orig = SlashCmdList.GUILDPRIDE
-SlashCmdList.GUILDPRIDE = function(arg)
-    local cmd = (arg or ""):match("^(%S*)")
-    if cmd:lower() == "testjoin" then
-        ShowToast("join", L["Testspieler"], true)
-    elseif cmd:lower() == "testleave" then
-        ShowToast("leave", L["Testspieler"], true)
-    else
-        orig(arg)
-    end
-end

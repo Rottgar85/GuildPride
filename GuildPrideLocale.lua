@@ -95,7 +95,6 @@ local enUS = {
     ["hat die Gilde verlassen."] = "has left the guild.",
     ["ist der Gilde beigetreten"] = "joined the guild",
     ["hat die Gilde verlassen"] = "left the guild",
-    ["Testspieler"] = "TestPlayer",
     ["hat Level %d erreicht!"] = "reached level %d!",
     ["MEILENSTEIN ERREICHT"] = "MILESTONE REACHED",
     ["Gildeninfo"] = "Guild Info",
