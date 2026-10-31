@@ -28,6 +28,19 @@ local THEMES = {
       accent = { 0.50, 0.50, 0.56 }, ember = { 0.82, 0.82, 0.88 }, glow = { 0.80, 0.80, 0.90 },
       heading = { 0.90, 0.90, 0.93 }, button = { 0.95, 0.95, 0.97 }, title = { 0.85, 0.85, 0.92 } },
 }
+-- Eigener Style: alle Farben aus einer selbst gewählten Farbe abgeleitet
+local function Mix(c, w) return { c[1] + (1 - c[1]) * w, c[2] + (1 - c[2]) * w, c[3] + (1 - c[3]) * w } end
+local custom = { key = "custom", name = L["Eigene"] }
+local function BuildCustom()
+    local s = GuildPrideDB and GuildPrideDB.customColor or { 1.00, 0.45, 0.15 }
+    local c = { s[1], s[2], s[3] }
+    custom.tint = Mix(c, 0.35)
+    custom.accent = { c[1] * 0.8, c[2] * 0.8, c[3] * 0.8 }
+    custom.ember, custom.glow, custom.title = c, c, Mix(c, 0.15)
+    custom.heading, custom.button = Mix(c, 0.6), Mix(c, 0.7)
+end
+BuildCustom()
+THEMES[#THEMES + 1] = custom
 ns.THEMES = THEMES
 
 local byKey = {}
@@ -91,6 +104,7 @@ function ns.OnThemeChanged(fn) listeners[#listeners + 1] = fn end
 
 function ns.ApplyTheme(key)
     if key and byKey[key] then GuildPrideDB.theme = key end
+    BuildCustom()
     local t = ns.Theme()
     for name, role in pairs(FONTS) do
         local f = _G[name]
@@ -98,6 +112,29 @@ function ns.ApplyTheme(key)
     end
     for obj, spec in pairs(painted) do PaintNow(obj, spec[1], spec[2]) end
     for _, fn in ipairs(listeners) do fn(t) end
+end
+
+-- Eigene Farbe wählen (Blizzards Farbwähler); Abbrechen stellt die alte wieder her
+function ns.PickCustomColor()
+    local old = GuildPrideDB.customColor or { 1.00, 0.45, 0.15 }
+    local function Set(r, g, b)
+        GuildPrideDB.customColor = { r, g, b }
+        ns.ApplyTheme("custom")
+    end
+    local function Picked()
+        local r, g, b = ColorPickerFrame:GetColorRGB()
+        Set(r, g, b)
+    end
+    local function Cancel() Set(old[1], old[2], old[3]) end
+    if ColorPickerFrame.SetupColorPickerAndShow then
+        ColorPickerFrame:SetupColorPickerAndShow({ r = old[1], g = old[2], b = old[3],
+            swatchFunc = Picked, cancelFunc = Cancel, hasOpacity = false })
+    else
+        ColorPickerFrame.func, ColorPickerFrame.cancelFunc = Picked, Cancel
+        ColorPickerFrame.hasOpacity = false
+        ColorPickerFrame:SetColorRGB(old[1], old[2], old[3])
+        ColorPickerFrame:Hide(); ColorPickerFrame:Show()
+    end
 end
 
 local ev = CreateFrame("Frame")

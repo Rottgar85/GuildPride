@@ -1,5 +1,31 @@
 # GuildPride Changelog
 
+## Unreleased
+
+**English**
+- Member list: search box (name, rank, note, zone) and sortable column headers (name, level, rank, last online); the choice is remembered
+- Officers who can remove members get an **Inactive** filter in the guild list: 30+, 60+ or 90+ days offline
+- Chat: unread counts on the guild, officer and community buttons, in the community menu and on the Guild & Chat tab. Messages that mention you get a » and gold text
+- **Guild keystones** (Retail only): GuildPride shares your keystone and M+ rating with the guild. New "Guild keystones" view in the group finder; the key also shows in the member list and tooltip. Old keys disappear at the weekly reset. Not shown in WoW Forever
+- Overview: new **This week** section with level-ups, raid kills, M+ bests (Retail only), achievements, mounts, joins, departures and the busiest member
+- Optional automatic welcome for new members (own text with `{name}`). Only one GuildPride user greets, never during chat lockdown
+- Events: **Repeat every week**. Three hours after the start the event moves to the next week; old sign-ups expire
+- Events: attendance is recorded 10 minutes after the start (creator or officer in the group), or with **Record attendance**. **Attendance** shows signed up, present and rate per player. Stored locally only
+- Minimap button: left-click opens the window, right-click the settings, drag to move. Can be turned off
+- Sixth style **Custom** with Blizzard's color picker; window size (70–130 %), opacity (50–100 %) and chat font (10–18 pt) can be adjusted. The settings page now scrolls
+
+**Deutsch**
+- Mitgliederliste: Suchfeld (Name, Rang, Notiz, Zone) und sortierbare Spaltenköpfe (Name, Level, Rang, zuletzt online); die Wahl wird gemerkt
+- Wer Mitglieder entfernen darf, bekommt in der Gildenliste den Filter **Inaktive**: 30+, 60+ oder 90+ Tage offline
+- Chat: Zähler für ungelesene Nachrichten an Gilde, Offiziere und Communities, im Community-Menü und am Reiter Gilde & Chat. Nachrichten mit deinem Namen bekommen ein » und goldene Schrift
+- **Schlüssel der Gilde** (nur Retail): GuildPride teilt Schlüsselstein und M+-Wertung mit der Gilde. Neue Ansicht „Schlüssel der Gilde“ in der Gruppensuche, der Schlüssel steht auch in Mitgliederliste und Tooltip. Alte Schlüssel fallen beim Wochenreset weg. In WoW Forever ausgeblendet
+- Übersicht: neuer Abschnitt **Diese Woche** mit Level-Aufstiegen, Raid-Siegen, M+-Bestwerten (nur Retail), Erfolgen, Reittieren, Beitritten, Abgängen und dem fleißigsten Mitglied
+- Wahlweise automatische Begrüßung neuer Mitglieder (eigener Text mit `{name}`). Es begrüßt nur ein GuildPride-Nutzer, nie während der Chat-Sperre
+- Events: **Jede Woche wiederholen**. 3 Stunden nach Beginn rückt das Event auf die nächste Woche, alte Anmeldungen verfallen
+- Events: Anwesenheit wird 10 Minuten nach Beginn erfasst (Ersteller oder Offizier in der Gruppe) oder per **Anwesenheit erfassen**. **Anwesenheit** zeigt je Spieler Zusagen, Anwesenheit und Quote. Nur lokal gespeichert
+- Minimap-Knopf: Linksklick öffnet das Fenster, Rechtsklick die Einstellungen, ziehen verschiebt. Abschaltbar
+- Sechster Style **Eigene** mit Blizzards Farbwähler; Fenstergröße (70–130 %), Deckkraft (50–100 %) und Chat-Schrift (10–18 pt) einstellbar. Die Einstellungsseite ist jetzt scrollbar
+
 ## 1.9.0
 
 **English**

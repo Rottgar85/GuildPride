@@ -223,7 +223,8 @@ ns.Queue = Queue
 function ns.QueueLength() return #queue end
 
 local function SendEvent(e, target)
-    Queue("EVT", target, e.id, e.t, e.title, e.desc, e.creator, e.ver, e.note or "")
+    -- rep: Wiederholung in Tagen (7 = jede Woche); ältere Versionen ignorieren das Feld
+    Queue("EVT", target, e.id, e.t, e.title, e.desc, e.creator, e.ver, e.note or "", e.rep or 0)
 end
 local function SendDelete(e, target) Queue("DEL", target, e.id, e.ver) end
 local function SendSign(id, name, s, target) Queue("SGN", target, id, name, s.s, s.v, s.r or "") end
@@ -296,12 +297,15 @@ local function GetOrStub(id)
     return e
 end
 
-local function ApplyEvent(id, t, title, desc, creator, ver, note, fromOther)
+local function ApplyEvent(id, t, title, desc, creator, ver, note, fromOther, rep)
     local e = GetOrStub(id)
     if ver <= e.ver then return end
     local isNew = not e.title
-    e.t, e.title, e.desc, e.creator, e.ver, e.deleted = t, title, desc, creator, ver, nil
+    -- Wiederholtes Event: hier schon weitergerückt? Dann nicht zurücksetzen
+    if not (rep and rep > 0 and e.rep == rep and e.t and e.t > t) then e.t = t end
+    e.title, e.desc, e.creator, e.ver, e.deleted = title, desc, creator, ver, nil
     e.note = note or ""
+    e.rep = (rep and rep > 0) and rep or nil
     if isNew and fromOther then
         ns.Print((L["Neues Gildenevent: |cffffd100%s|r am %s"]):format(title, ns.FormatDate(t, "short")))
     end
@@ -352,8 +356,9 @@ local function OnEventMessage(kind, payload, sender)
     if sender == Me() then return end
     local a = { strsplit(SEP, payload) }
     if kind == "EVT" then
+        local rep = tonumber(a[8]) or 0
         ApplyEvent(a[1], tonumber(a[2]) or 0, Clean(a[3], 40), Clean(a[4], 120), a[5], tonumber(a[6]) or 0,
-            Clean(a[7], 100), true)
+            Clean(a[7], 100), true, (rep == 7) and 7 or 0)
     elseif kind == "DEL" then
         ApplyDelete(a[1], tonumber(a[2]) or 0)
     elseif kind == "SGN" then
@@ -373,11 +378,34 @@ end
 ---------------------------------------------------------------------
 -- Aktionen
 ---------------------------------------------------------------------
-local function CreateEvent(title, t, desc)
+local function CreateEvent(title, t, desc, rep)
     local e = GetOrStub(Me() .. "-" .. Now() .. "-" .. math.random(1000, 9999))
-    ApplyEvent(e.id, t, Clean(title, 40), Clean(desc, 120), Me(), Now())
+    ApplyEvent(e.id, t, Clean(title, 40), Clean(desc, 120), Me(), Now(), nil, nil, rep)
     SendEvent(e)
     ns.RefreshUI()
+end
+
+-- Wöchentliche Events: 3 Std. nach Beginn auf die nächste Woche rücken.
+-- Jeder rechnet gleich; Anmeldungen von vor dem letzten Termin verfallen.
+function ns.RollEvents()
+    if not GuildPrideDB then return end
+    local now = Now()
+    for _, e in pairs(DB()) do
+        if e.rep and e.rep > 0 and e.title and not e.deleted and e.t then
+            local moved = false
+            while e.t + 3 * 3600 < now do
+                e.t = e.t + e.rep * 86400
+                moved = true
+            end
+            if moved then
+                e.reminded = nil
+                local cutoff = e.t - e.rep * 86400 + 3 * 3600
+                for name, s in pairs(e.signups) do
+                    if (s.v or 0) < cutoff then e.signups[name] = nil end
+                end
+            end
+        end
+    end
 end
 
 local function DeleteEvent(e)
@@ -394,7 +422,7 @@ local function MyRole()
 end
 
 local function SetNote(e, note)
-    ApplyEvent(e.id, e.t, e.title, e.desc, e.creator, Now(), Clean(note, 100))
+    ApplyEvent(e.id, e.t, e.title, e.desc, e.creator, Now(), Clean(note, 100), nil, e.rep)
     SendEvent(e)
     ns.RefreshUI()
 end
@@ -447,6 +475,7 @@ local function ParseDate(dayStr, clockStr)
 end
 
 local function UpcomingEvents()
+    ns.RollEvents()
     local list, cutoff = {}, Now() - 3 * 3600 -- 3 h nach Beginn noch sichtbar
     for _, e in pairs(DB()) do
         if e.title and not e.deleted and e.t > cutoff then list[#list + 1] = e end
@@ -532,6 +561,7 @@ local bDel   = Btn(L["Löschen"], 80, bNo, 20, function()
     if Sel() then StaticPopup_Show("GUILDPRIDE_DELETE_EVENT", Sel().title, nil, Sel()) end
 end)
 local bNew   = Btn(L["Neues Event"], 110, bDel, 8, function() ns.ShowCreateDialog() end)
+local bAttend = Btn(L["Anwesenheit"], 110, bNew, 8, function() end)   -- Klick siehe unten
 
 -- Rollenwahl (oben rechts im Detailbereich)
 local roleBtns = {}
@@ -595,6 +625,82 @@ bInvite:SetPoint("RIGHT", bNote, "LEFT", -6, 0)
 bInvite:SetText(L["Alle Zugesagten einladen"])
 bInvite:SetScript("OnClick", function() if Sel() then InviteAttendees(Sel()) end end)
 
+---------------------------------------------------------------------
+-- Anwesenheit: wer zugesagt hat und wer wirklich in der Gruppe war.
+-- Nur lokal gespeichert: GuildPrideDB.attendance["id:t"] = { title, t, yes, present }
+---------------------------------------------------------------------
+local function Attendance()
+    GuildPrideDB.attendance = GuildPrideDB.attendance or {}
+    return GuildPrideDB.attendance
+end
+
+local function GroupNames()
+    local out = {}
+    local realm = GetNormalizedRealmName() or ""
+    local n = GetNumGroupMembers()
+    for i = 1, n do
+        local unit = IsInRaid() and ("raid" .. i) or (i == n and "player" or ("party" .. i))
+        local name, r = UnitName(unit)
+        if name and not (issecretvalue and issecretvalue(name)) then
+            out[name .. "-" .. ((r and r ~= "") and r or realm)] = true
+        end
+    end
+    out[Me()] = true
+    return out
+end
+
+local function RecordAttendance(e, quiet)
+    if not IsInGroup() then
+        if not quiet then ns.Print(L["Du bist in keiner Gruppe – Anwesenheit kann nicht erfasst werden."]) end
+        return
+    end
+    local rec = { title = e.title, t = e.t, yes = {}, present = {} }
+    for name, s in pairs(e.signups) do
+        if s.s == "yes" then rec.yes[#rec.yes + 1] = name end
+    end
+    for name in pairs(GroupNames()) do rec.present[#rec.present + 1] = name end
+    Attendance()[e.id .. ":" .. e.t] = rec
+    if not quiet then ns.Print((L["Anwesenheit für |cffffd100%s|r erfasst (%d da)."]):format(e.title, #rec.present)) end
+end
+
+-- Übersicht: je Spieler Zusagen, davon da, Quote
+local function AttendanceText()
+    local stats, events = {}, 0
+    for _, rec in pairs(Attendance()) do
+        events = events + 1
+        local here = {}
+        for _, n in ipairs(rec.present) do here[n] = true end
+        for _, n in ipairs(rec.yes) do
+            local s = stats[n] or { yes = 0, came = 0 }
+            s.yes = s.yes + 1
+            if here[n] then s.came = s.came + 1 end
+            stats[n] = s
+        end
+    end
+    if events == 0 then return L["|cff888888Noch nichts erfasst. Das passiert 10 Min. nach Beginn automatisch (Ersteller oder Offizier in der Gruppe).|r"] end
+    local list = {}
+    for n, s in pairs(stats) do list[#list + 1] = { n = n, s = s } end
+    table.sort(list, function(a, b)
+        local qa, qb = a.s.came / a.s.yes, b.s.came / b.s.yes
+        if qa ~= qb then return qa > qb end
+        return a.n < b.n
+    end)
+    local parts = {}
+    for _, x in ipairs(list) do
+        local q = math.floor(x.s.came / x.s.yes * 100 + 0.5)
+        local col = q >= 75 and "|cff40ff40" or (q >= 50 and "|cffffd100" or "|cffff6060")
+        parts[#parts + 1] = ("%s %s%d/%d (%d %%)|r"):format(Ambiguate(x.n, "guild"), col, x.s.came, x.s.yes, q)
+    end
+    return (L["Erfasste Events: %d · da / zugesagt (Quote)"]):format(events) .. "\n" .. table.concat(parts, "  ·  ")
+end
+
+local attendView = false
+local bRecord = CreateFrame("Button", nil, detail, "UIPanelButtonTemplate")
+bRecord:SetSize(160, 22)
+bRecord:SetPoint("RIGHT", bInvite, "LEFT", -6, 0)
+bRecord:SetText(L["Anwesenheit erfassen"])
+bRecord:SetScript("OnClick", function() if Sel() then RecordAttendance(Sel()) end end)
+
 -- Aufstellung: bis 5 Spieler 1/1/3, sonst Schlachtzug mit 2 Tanks und
 -- einem Heiler je 5 Spieler
 local function Lineup(roleCount, total)
@@ -639,6 +745,8 @@ StaticPopupDialogs["GUILDPRIDE_DELETE_EVENT"] = {
     timeout = 0, whileDead = true, hideOnEscape = true,
 }
 
+bAttend:SetScript("OnClick", function() attendView = not attendView; page:Refresh() end)
+
 function page:Refresh()
     local list = UpcomingEvents()
     empty:SetShown(#list == 0)
@@ -650,7 +758,7 @@ function page:Refresh()
             local c = CountSignups(e)
             local mine = e.signups[Me()]
             b.when:SetText(ns.FormatDate(e.t, "short"))
-            b.title:SetText(e.title)
+            b.title:SetText(e.title .. (e.rep and ("  |cff999999(" .. L["jede Woche"] .. ")|r") or ""))
             b.info:SetText(("%s%d|r / %s%d|r%s"):format(STATUS.yes.color, c.yes, STATUS.maybe.color, c.maybe,
                 mine and ("  " .. STATUS[mine.s].color .. "●|r") or ""))
             b.bg:SetColorTexture(1, 0.82, 0, e.id == selected and 0.18 or (i % 2 == 0 and 0.04 or 0))
@@ -659,14 +767,32 @@ function page:Refresh()
 
     local e = Sel()
     if e and (e.deleted or not e.title) then e, selected = nil, nil end
-    detail:SetShown(e ~= nil)
+    if not CanManage() then attendView = false end
+    detail:SetShown(e ~= nil or attendView)
     bYes:SetEnabled(e ~= nil); bMaybe:SetEnabled(e ~= nil); bNo:SetEnabled(e ~= nil)
     bDel:SetShown(CanManage() and e ~= nil)
     bNew:SetShown(CanManage())
+    bAttend:SetShown(CanManage())
+    if attendView then bAttend:LockHighlight() else bAttend:UnlockHighlight() end
+
+    -- Anwesenheits-Übersicht im Detailbereich
+    local eventOnly = not attendView
+    for _, b in pairs(roleBtns) do b:SetShown(eventOnly) end
+    roleLabel:SetShown(eventOnly)
+    bRecord:SetShown(eventOnly and CanManage())
+    if attendView then
+        dTitle:SetText(L["Anwesenheit"])
+        dWhen:SetText(L["Nur auf diesem Rechner gespeichert."])
+        dDesc:SetText("")
+        dPeople:SetText(AttendanceText())
+        bNote:Hide(); bInvite:Hide()
+        return
+    end
     if not e then return end
 
     dTitle:SetText(e.title)
-    dWhen:SetText((L["%s · erstellt von %s"]):format(ns.FormatDate(e.t, "long"), Ambiguate(e.creator or "?", "guild")))
+    dWhen:SetText((L["%s · erstellt von %s"]):format(ns.FormatDate(e.t, "long"), Ambiguate(e.creator or "?", "guild"))
+        .. (e.rep and (" · " .. L["jede Woche"]) or ""))
     local descText = e.desc ~= "" and e.desc or L["|cff888888Keine Beschreibung.|r"]
     if e.note and e.note ~= "" then
         descText = descText .. L["\n|cffff7d0aOffiziers-Notiz:|r "] .. e.note
@@ -708,7 +834,7 @@ end
 -- Dialog: Event erstellen
 ---------------------------------------------------------------------
 local dlg = CreateFrame("Frame", "GuildPrideCreateEvent", UIParent, "BackdropTemplate")
-dlg:SetSize(360, 230)
+dlg:SetSize(360, 256)
 dlg:SetPoint("CENTER")
 dlg:SetFrameStrata("DIALOG")
 dlg:EnableMouse(true)
@@ -743,6 +869,10 @@ local order = { fTitle, fDate, fTime, fDesc }
 for i, eb in ipairs(order) do
     eb:SetScript("OnTabPressed", function() order[i % #order + 1]:SetFocus() end)
 end
+local fRepeat = CreateFrame("CheckButton", nil, dlg, "UICheckButtonTemplate")
+fRepeat:SetSize(24, 24); fRepeat:SetPoint("TOPLEFT", 24, -170)
+local fRepeatText = dlg:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
+fRepeatText:SetPoint("LEFT", fRepeat, "RIGHT", 2, 0); fRepeatText:SetText(L["Jede Woche wiederholen"])
 local fErr   = dlg:CreateFontString(nil, "OVERLAY", "GPFont_Red")
 fErr:SetPoint("BOTTOM", 0, 48)
 
@@ -759,7 +889,7 @@ ok:SetScript("OnClick", function()
     if bad == "date" then fErr:SetText(L["Datum bitte als TT.MM.JJJJ eingeben (z. B. 24.12.2026)."]); return end
     if bad == "time" then fErr:SetText(L["Uhrzeit bitte als HH:MM eingeben (z. B. 20:00)."]); return end
     if t < time() then fErr:SetText(L["Der Termin liegt in der Vergangenheit."]); return end
-    CreateEvent(title, t, strtrim(fDesc:GetText()))
+    CreateEvent(title, t, strtrim(fDesc:GetText()), fRepeat:GetChecked() and 7 or 0)
     dlg:Hide()
 end)
 for _, eb in ipairs(order) do
@@ -773,7 +903,7 @@ function ns.ShowCreateDialog()
     local start = time()
     if tonumber(date("%H")) >= 20 then start = start + 86400 end
     fTitle:SetText(""); fDate:SetText(date("%d.%m.%Y", start)); fTime:SetText("20:00")
-    fDesc:SetText(""); fErr:SetText("")
+    fDesc:SetText(""); fErr:SetText(""); fRepeat:SetChecked(false)
     dlg:Show(); fTitle:SetFocus()
 end
 
@@ -791,7 +921,13 @@ end)
 C_Timer.NewTicker(30, function()
     if not GuildPrideDB then return end
     local now = Now()
+    ns.RollEvents()
     for _, e in pairs(DB()) do
+        -- 10 Min. nach Beginn Anwesenheit erfassen (Ersteller bzw. Offizier in der Gruppe)
+        if e.title and not e.deleted and now >= e.t + 600 and now < e.t + 3 * 3600 and IsInGroup()
+           and (e.creator == Me() or CanManage()) and not Attendance()[e.id .. ":" .. e.t] then
+            RecordAttendance(e, true)
+        end
         local mine = e.signups and e.signups[Me()]
         if e.title and not e.deleted and mine and mine.s ~= "no" and not e.reminded
            and e.t - now <= 900 and e.t - now > 0 then

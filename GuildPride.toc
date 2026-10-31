@@ -15,6 +15,7 @@ GuildPrideUI.lua
 GuildPrideEvents.lua
 GuildPrideMembers.lua
 GuildPrideRules.lua
+GuildPrideKeys.lua
 GuildPrideHelp.lua
 GuildPrideVersion.lua
 GuildPrideChat.lua
@@ -22,3 +23,4 @@ GuildPridePolls.lua
 GuildPrideManage.lua
 GuildPrideSkin.lua
 GuildPrideMilestone.lua
+GuildPrideMinimap.lua

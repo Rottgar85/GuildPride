@@ -243,6 +243,57 @@ local enUS = {
     ["Rechtsklick: anflüstern"] = "Right-click: whisper",
     ["an"] = "on",
     ["aus"] = "off",
+    -- 1.10: Suche, Sortierung, Inaktive
+    ["Suchen …"] = "Search …",
+    ["Name"] = "Name",
+    ["Level"] = "Level",
+    ["Rang"] = "Rank",
+    ["Online / zuletzt"] = "Online / last seen",
+    ["Inaktiv %d+ Tage"] = "Inactive %d+ days",
+    ["Inaktive: aus"] = "Inactive: off",
+    ["Ja"] = "Yes",
+    ["Nein"] = "No",
+    -- Wochenrückblick
+    ["Diese Woche"] = "This week",
+    ["Level-Aufstiege"] = "Level-ups",
+    ["Raid-Siege"] = "Raid kills",
+    ["M+-Bestwerte"] = "M+ bests",
+    ["Erfolge"] = "Achievements",
+    ["Reittiere"] = "Mounts",
+    ["Neue Mitglieder"] = "New members",
+    ["Abgänge"] = "Departures",
+    ["Fleißigstes Mitglied: |cfff0c88c%s|r (%d Meilensteine)"] = "Busiest member: |cfff0c88c%s|r (%d milestones)",
+    -- Schlüsselsteine (nur Retail)
+    ["Schlüssel der Gilde"] = "Guild keystones",
+    ["Schlüssel: +%d %s"] = "Keystone: +%d %s",
+    ["M+-Wertung: %d"] = "M+ rating: %d",
+    ["kein Schlüssel"] = "no keystone",
+    ["Noch keine Schlüssel bekannt (nur Mitglieder mit GuildPride)."] = "No keystones known yet (only members with GuildPride).",
+    -- Begrüßung
+    ["Willkommen in der Gilde, {name}!"] = "Welcome to the guild, {name}!",
+    ["Neue Mitglieder automatisch im Gildenchat begrüßen"] = "Automatically welcome new members in guild chat",
+    ["Begrüßungstext ({name} = neues Mitglied)"] = "Welcome text ({name} = new member)",
+    -- Events: wöchentlich, Anwesenheit
+    ["Jede Woche wiederholen"] = "Repeat every week",
+    ["jede Woche"] = "every week",
+    ["Anwesenheit"] = "Attendance",
+    ["Anwesenheit erfassen"] = "Record attendance",
+    ["Anwesenheit für |cffffd100%s|r erfasst (%d da)."] = "Attendance for |cffffd100%s|r recorded (%d present).",
+    ["Du bist in keiner Gruppe – Anwesenheit kann nicht erfasst werden."] = "You are not in a group – attendance cannot be recorded.",
+    ["Erfasste Events: %d · da / zugesagt (Quote)"] = "Recorded events: %d · present / signed up (rate)",
+    ["Nur auf diesem Rechner gespeichert."] = "Stored on this computer only.",
+    ["|cff888888Noch nichts erfasst. Das passiert 10 Min. nach Beginn automatisch (Ersteller oder Offizier in der Gruppe).|r"] =
+        "|cff888888Nothing recorded yet. This happens automatically 10 min after the start (creator or officer in the group).|r",
+    -- Aussehen, Minimap
+    ["Eigene"] = "Custom",
+    ["Eigene Farbe wählen …"] = "Pick custom color …",
+    ["Fenstergröße"] = "Window size",
+    ["Deckkraft"] = "Opacity",
+    ["Chat-Schrift"] = "Chat font",
+    ["Minimap-Knopf anzeigen"] = "Show minimap button",
+    ["Linksklick: Gildenfenster"] = "Left-click: guild window",
+    ["Rechtsklick: Einstellungen"] = "Right-click: settings",
+    ["Ziehen: verschieben"] = "Drag: move",
 }
 
 -- Fehlende Übersetzung -> deutscher Text als Rückfall

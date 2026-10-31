@@ -234,6 +234,13 @@ local function AddTab(label, order)
     return page
 end
 
+-- Zusatz hinter dem Reiternamen, z. B. ungelesene Nachrichten "(3)"
+function ns.SetTabBadge(page, text)
+    local tab = tabs[page.tabId]
+    if not tab then return end
+    tab.text:SetText(tab.label .. (text and ("  |cffff8c40" .. text .. "|r") or ""))
+end
+
 -- Abschnitts-Überschrift mit Kupferlinie
 local function Section(parent, text, anchor, y)
     local fs = parent:CreateFontString(nil, "OVERLAY", "GPFont_Large")
@@ -326,7 +333,47 @@ local motd = overview:CreateFontString(nil, "OVERLAY", "GPFont_Text")
 motd:SetPoint("TOPLEFT", motdLabel, "BOTTOMLEFT", 0, -10)
 motd:SetWidth(620); motd:SetJustifyH("LEFT")
 
-local recentLabel = Section(overview, L["Letzte Meilensteine"], motd, -26)
+local weekLabel = Section(overview, L["Diese Woche"], motd, -26)
+local weekText = overview:CreateFontString(nil, "OVERLAY", "GPFont_Text")
+weekText:SetPoint("TOPLEFT", weekLabel, "BOTTOMLEFT", 0, -10)
+weekText:SetWidth(620); weekText:SetJustifyH("LEFT"); weekText:SetSpacing(4)
+
+-- Wochenrückblick aus dem Verlauf (seit dem letzten Wochenreset)
+local WEEK_KINDS = {
+    { kinds = { LEVEL = true }, label = L["Level-Aufstiege"] },
+    { kinds = { BOSS = true },  label = L["Raid-Siege"] },
+    { kinds = { MPLUS = true }, label = L["M+-Bestwerte"], retail = true },
+    { kinds = { ACH = true },   label = L["Erfolge"] },
+    { kinds = { MOUNT = true }, label = L["Reittiere"] },
+    { kinds = { JOIN = true },  label = L["Neue Mitglieder"] },
+    { kinds = { LEAVE = true, KICK = true }, label = L["Abgänge"] },
+}
+local function WeekSummary()
+    local since, counts, byWho = ns.WeekStart(), {}, {}
+    for _, e in ipairs(GuildPrideDB.log or {}) do
+        if (e.t or 0) >= since then
+            for i, w in ipairs(WEEK_KINDS) do
+                if w.kinds[e.kind] then counts[i] = (counts[i] or 0) + 1 end
+            end
+            if e.kind ~= "JOIN" and e.kind ~= "LEAVE" and e.kind ~= "KICK" and e.who then
+                byWho[e.who] = (byWho[e.who] or 0) + 1
+            end
+        end
+    end
+    local parts = {}
+    for i, w in ipairs(WEEK_KINDS) do
+        if not w.retail or ns.IS_RETAIL then
+            parts[#parts + 1] = ("%s |cffffd18c%d|r"):format(w.label, counts[i] or 0)
+        end
+    end
+    local text = table.concat(parts, "  ·  ")
+    local best, n = nil, 0
+    for who, c in pairs(byWho) do if c > n then best, n = who, c end end
+    if best then text = text .. "\n" .. (L["Fleißigstes Mitglied: |cfff0c88c%s|r (%d Meilensteine)"]):format(best, n) end
+    return text
+end
+
+local recentLabel = Section(overview, L["Letzte Meilensteine"], weekText, -26)
 local recent = overview:CreateFontString(nil, "OVERLAY", "GPFont_Text")
 recent:SetPoint("TOPLEFT", recentLabel, "BOTTOMLEFT", 0, -10)
 recent:SetWidth(620); recent:SetJustifyH("LEFT"); recent:SetSpacing(6)
@@ -336,6 +383,7 @@ function overview:Refresh()
     tiles[1].value:SetText(("%d / %d"):format(online or 0, total or 0))
 
     local nextEvent
+    if ns.RollEvents then ns.RollEvents() end   -- wöchentliche Events auf den nächsten Termin
     for _, e in pairs(GuildPrideDB.events or {}) do
         if e.title and not e.deleted and e.t and e.t > GetServerTime() and (not nextEvent or e.t < nextEvent.t) then
             nextEvent = e
@@ -344,14 +392,15 @@ function overview:Refresh()
     tiles[2].value:SetText(nextEvent and ns.FormatDate(nextEvent.t, "short") or "–")
     tiles[2].label:SetText(nextEvent and (L["NÄCHSTES EVENT: "] .. nextEvent.title:upper()) or L["NÄCHSTES EVENT"])
 
-    local week, cutoff = 0, time() - 7 * 86400
-    for _, e in ipairs(GuildPrideDB.log or {}) do if e.t > cutoff then week = week + 1 end end
+    local week, cutoff = 0, ns.WeekStart()
+    for _, e in ipairs(GuildPrideDB.log or {}) do if e.t >= cutoff then week = week + 1 end end
     tiles[3].value:SetText(week)
 
     local text = GetGuildRosterMOTD and GetGuildRosterMOTD() or ""
     motd:SetText(text ~= "" and text or L["|cff888888Keine Nachricht gesetzt.|r"])
+    weekText:SetText(WeekSummary())
     local lines = {}
-    for i = 1, math.min(6, #(GuildPrideDB.log or {})) do
+    for i = 1, math.min(5, #(GuildPrideDB.log or {})) do
         local e = GuildPrideDB.log[i]
         local icon = (e.kind == "LEVEL" and ns.BadgeFor) and ("|T%s:18|t"):format(ns.BadgeFor(e.kind, e.value)) or "|cffff8c40•|r"
         lines[#lines + 1] = ("%s |cfff0c88c%s|r %s  |cff777777%s|r"):format(icon, e.who, ns.LogText(e), ns.FormatDay(e.t))
@@ -449,8 +498,56 @@ bOnline:SetSize(110, 24); bOnline:SetPoint("TOPLEFT", 0, 0); bOnline:SetText(L["
 local bAll = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
 bAll:SetSize(150, 24); bAll:SetPoint("LEFT", bOnline, "RIGHT", 6, 0); bAll:SetText(L["Alle (inkl. offline)"])
 
+-- Suche (Name, Rang, Notiz, Zone)
+local searchBox = CreateFrame("EditBox", nil, members, "InputBoxTemplate")
+searchBox:SetSize(150, 22); searchBox:SetPoint("LEFT", bAll, "RIGHT", 14, 0)
+searchBox:SetAutoFocus(false); searchBox:SetMaxLetters(30)
+local searchHint = searchBox:CreateFontString(nil, "OVERLAY", "GPFont_Muted")
+searchHint:SetPoint("LEFT", 2, 0); searchHint:SetText(L["Suchen …"])
+searchBox:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+searchBox:SetScript("OnEnterPressed", searchBox.ClearFocus)
+
+-- Inaktive Mitglieder (nur Gilde, nur wer entfernen darf): aus -> 30 -> 60 -> 90 Tage
+local INACTIVE_STEPS = { 0, 30, 60, 90 }
+local inactiveDays = 0
+local bInactive = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
+bInactive:SetSize(150, 24); bInactive:SetPoint("TOPRIGHT", 0, 0)
+
+-- Spaltenköpfe: Klick sortiert, erneuter Klick dreht die Richtung
+local SORT_COLS = {
+    { key = "name",  label = L["Name"],             x = 8 },
+    { key = "level", label = L["Level"],            x = 200 },
+    { key = "rank",  label = L["Rang"],             x = 260 },
+    { key = "last",  label = L["Online / zuletzt"], right = true },
+}
+local sortHeads = {}
+local function MarkSort()
+    local s = GuildPrideDB.memberSort or {}
+    for _, h in ipairs(sortHeads) do
+        local on = (s.key or "last") == h.key
+        local arrow = s.desc and "Interface\\Buttons\\Arrow-Up-Up" or "Interface\\Buttons\\Arrow-Down-Up"
+        h.text:SetText(h.label .. (on and (" |T" .. arrow .. ":10|t") or ""))
+        if on then h.text:SetTextColor(1, 0.82, 0.55) else h.text:SetTextColor(0.6, 0.56, 0.52) end
+    end
+end
+for _, c in ipairs(SORT_COLS) do
+    local h = CreateFrame("Button", nil, members)
+    h:SetSize(110, 16)
+    if c.right then h:SetPoint("TOPRIGHT", -34, -30) else h:SetPoint("TOPLEFT", c.x, -30) end
+    h.text = h:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
+    h.text:SetPoint(c.right and "RIGHT" or "LEFT")
+    h.key, h.label = c.key, c.label
+    h:SetScript("OnClick", function(self)
+        local s = GuildPrideDB.memberSort or {}
+        if (s.key or "last") == self.key then s.desc = not s.desc else s.key, s.desc = self.key, false end
+        GuildPrideDB.memberSort = s
+        members:Refresh()
+    end)
+    sortHeads[#sortHeads + 1] = h
+end
+
 local listHolder = CreateFrame("Frame", nil, members)
-listHolder:SetPoint("TOPLEFT", 0, -32)
+listHolder:SetPoint("TOPLEFT", 0, -46)
 listHolder:SetPoint("BOTTOMRIGHT", 0, 36)
 local memberList = CreateList(listHolder, 24)
 
@@ -507,6 +604,19 @@ local function SetOffline(on)
 end
 bOnline:SetScript("OnClick", function() SetOffline(false) end)
 bAll:SetScript("OnClick", function() SetOffline(true) end)
+searchBox:SetScript("OnTextChanged", function(self)
+    searchHint:SetShown(self:GetText() == "")
+    if members:IsShown() then members:Refresh() end
+end)
+bInactive:SetScript("OnClick", function()
+    for i, d in ipairs(INACTIVE_STEPS) do
+        if d == inactiveDays then inactiveDays = INACTIVE_STEPS[i % #INACTIVE_STEPS + 1]; break end
+    end
+    -- Offline-Mitglieder vom Server holen
+    if inactiveDays > 0 and SetGuildRosterShowOffline then SetGuildRosterShowOffline(true) end
+    if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
+    members:Refresh()
+end)
 rosterOffline:SetScript("OnClick", function(self) SetOffline(self:GetChecked() and true or false) end)
 
 -- Wessen Mitglieder? nil = Gilde, sonst { id, name, bnet } einer Community.
@@ -591,14 +701,14 @@ local function GuildNames()
     return set
 end
 
-local function GuildData()
+local function GuildData(withOffline)
     local data, total, online = {}, 0, 0
     for i = 1, GetNumGuildMembers() do
         local name, rank, rankIndex, level, _, zone, note, officerNote, isOnline, _, classFile = GetGuildRosterInfo(i)
         if name then
             total = total + 1
             if isOnline then online = online + 1 end
-            if isOnline or showOffline then
+            if isOnline or withOffline then
                 local full = FullName(name)
                 data[#data + 1] = { name = Ambiguate(name, "guild"), full = full, rank = rank, rankIndex = rankIndex,
                                     level = level, zone = zone, note = note, officerNote = officerNote,
@@ -612,7 +722,7 @@ local function GuildData()
     return data, total, online
 end
 
-local function ClubData(club, inGuild)
+local function ClubData(club, inGuild, withOffline)
     local data, total, online = {}, 0, 0
     local P = Enum.ClubMemberPresence or {}
     for _, id in ipairs(C_Club.GetClubMembers(club.id) or {}) do
@@ -623,7 +733,7 @@ local function ClubData(club, inGuild)
             local isOnline = p ~= nil and p ~= P.Offline and p ~= P.Unknown
             local mobile = p ~= nil and p == P.OnlineMobile
             if isOnline then online = online + 1 end
-            if isOnline or showOffline then
+            if isOnline or withOffline then
                 local full = not club.bnet and FullName(info.name) or nil
                 local y, mo, d, h = info.lastOnlineYear, info.lastOnlineMonth, info.lastOnlineDay, info.lastOnlineHour
                 data[#data + 1] = { name = club.bnet and info.name or Ambiguate(info.name, "guild"), full = full,
@@ -640,18 +750,50 @@ local function ClubData(club, inGuild)
     return data, total, online
 end
 
--- Mitglieder der aktuellen Quelle, online zuerst
-local function MemberData()
+local function Plain(v)
+    return type(v) == "string" and not (issecretvalue and issecretvalue(v)) and v or ""
+end
+
+-- Passt das Mitglied zur Suche? (Name, Rang, Notiz, Zone)
+local function Matches(m, q)
+    if q == "" then return true end
+    for _, v in ipairs({ m.name, m.rank, m.note, m.zone }) do
+        if Plain(v):lower():find(q, 1, true) then return true end
+    end
+    return false
+end
+
+-- Sortierwert je Spalte; "last": online zuerst, dann zuletzt online
+local function SortValue(m, key)
+    if key == "name" then return Plain(m.name):lower() end
+    if key == "level" then return -(m.level or 0) end
+    if key == "rank" then return m.rankIndex or m.role or 99 end
+    return m.online and -1 or (m.hours or 0)
+end
+
+-- Mitglieder der aktuellen Quelle
+-- opts: offline (auch Offline), query (Suche), inactive (Tage, nur Offline ab da),
+--       sort/desc (Spalte und Richtung, Standard "last")
+local function MemberData(opts)
+    opts = opts or {}
     -- Community nicht mehr vorhanden (verlassen) -> zurück zur Gilde
     if source and not (C_Club.GetClubInfo and C_Club.GetClubInfo(source.id)) then source = nil end
+    local inactive = opts.inactive or 0
+    local withOffline = opts.offline or inactive > 0
     local data, total, online
-    if source then data, total, online = ClubData(source, GuildNames()) else data, total, online = GuildData() end
-    table.sort(data, function(a, b)
+    if source then data, total, online = ClubData(source, GuildNames(), withOffline) else data, total, online = GuildData(withOffline) end
+    local q, keep = strtrim(opts.query or ""):lower(), {}
+    for _, m in ipairs(data) do
+        if Matches(m, q) and (inactive == 0 or (not m.online and (m.hours or 0) >= inactive * 24)) then keep[#keep + 1] = m end
+    end
+    local key = opts.sort or "last"
+    table.sort(keep, function(a, b)
+        local va, vb = SortValue(a, key), SortValue(b, key)
+        if va ~= vb then if opts.desc then return va > vb end return va < vb end
         if a.online ~= b.online then return a.online end
-        if not a.online and a.hours ~= b.hours then return a.hours < b.hours end
-        return (a.level or 0) > (b.level or 0)
+        return Plain(a.name):lower() < Plain(b.name):lower()
     end)
-    return data, total, online
+    return keep, total, online
 end
 
 local function ClassName(m)
@@ -678,8 +820,16 @@ function members:Refresh()
     end
     mark(bOnline, not showOffline); mark(bAll, showOffline)
     inviteBtn:SetText(source and L["In Community einladen"] or L["In Gilde einladen"])
+    -- Inaktive: nur Gilde, nur wer Mitglieder entfernen darf
+    local canInactive = not source and ((CanGuildRemove and CanGuildRemove()) or ns.IsOfficer())
+    if not canInactive then inactiveDays = 0 end
+    bInactive:SetShown(canInactive and true or false)
+    bInactive:SetText(inactiveDays > 0 and (L["Inaktiv %d+ Tage"]):format(inactiveDays) or L["Inaktive: aus"])
+    MarkSort()
 
-    local data, total, online = MemberData()
+    local s = GuildPrideDB.memberSort or {}
+    local data, total, online = MemberData({ offline = showOffline, sort = s.key, desc = s.desc,
+                                             query = searchBox:GetText(), inactive = inactiveDays })
     countText:SetText((L["%d online · %d offline"]):format(online, total - online))
     for i, m in ipairs(data) do
         local row = memberList:GetRow(i)
@@ -694,6 +844,8 @@ function members:Refresh()
         row.left:SetAlpha(alpha); row.mid:SetAlpha(alpha)
         local mid = (m.level and m.level > 0) and ("Lvl %d · %s"):format(m.level, m.rank or "") or (m.rank or "")
         if source and m.inGuild then mid = mid .. "  |cff999999(" .. L["Gilde"] .. ")|r" end
+        local key = ns.KeyText and m.full and ns.KeyText(m.full)
+        if key then mid = mid .. "  " .. key end
         if m.note and m.note ~= "" then mid = mid .. "  |cff888888" .. m.note .. "|r" end
         row.mid:SetText(mid)
         row.right:SetText(m.online and ("|cff40ff40●|r " .. (m.zone or "")) or ("|cff777777" .. (m.last or "") .. "|r"))
@@ -712,12 +864,13 @@ local function RosterTooltip(row)
     if m.online then GameTooltip:AddLine("|cff40ff40●|r " .. (m.zone or ""), 1, 1, 1)
     else GameTooltip:AddLine(m.last or L["offline"], 0.5, 0.5, 0.5) end
     if m.note and m.note ~= "" then GameTooltip:AddLine(m.note, 0.6, 0.6, 0.6, true) end
+    if ns.KeyTooltip and m.full then ns.KeyTooltip(GameTooltip, m.full) end
     GameTooltip:Show()
 end
 
 function roster:Refresh()
     rosterOffline:SetChecked(showOffline)
-    local data, total, online = MemberData()
+    local data, total, online = MemberData({ offline = showOffline })
     rosterCount:SetText((L["%d online · %d offline"]):format(online, total - online))
     for i, m in ipairs(data) do
         local row = rosterList:GetRow(i)
@@ -797,7 +950,14 @@ end)
 ---------------------------------------------------------------------
 -- 4) Einstellungen
 ---------------------------------------------------------------------
-local settings = AddTab(L["Einstellungen"], 90)
+local settingsPage = AddTab(L["Einstellungen"], 90)
+-- Die Seite ist länger als das Fenster: Inhalt in einem Scrollbereich
+local settingsScroll = ns.NewScroll(settingsPage)
+settingsScroll:SetPoint("TOPLEFT", 0, 0)
+settingsScroll:SetPoint("BOTTOMRIGHT", -26, 0)
+local settings = CreateFrame("Frame", nil, settingsScroll)
+settings:SetSize(640, 1)
+settingsScroll:SetScrollChild(settings)
 
 -- Style-Auswahl ganz oben: ein Knopf je Style, der aktive ist hervorgehoben
 local styleLabel = settings:CreateFontString(nil, "OVERLAY", "GPFont_TextBold")
@@ -806,14 +966,14 @@ styleLabel:SetText(L["Style"])
 local styleButtons = {}
 for i, t in ipairs(ns.THEMES) do
     local b = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
-    b:SetSize(110, 24)
-    b:SetPoint("TOPLEFT", 4 + (i - 1) * 116, -22)
+    b:SetSize(98, 24)
+    b:SetPoint("TOPLEFT", 4 + (i - 1) * 104, -22)
     b:SetText(t.name)
     b:SetScript("OnClick", function() ns.ApplyTheme(t.key) end)
     -- Farbtupfer des Styles
     local dot = b:CreateTexture(nil, "OVERLAY")
     dot:SetSize(8, 8); dot:SetPoint("LEFT", 8, 0)
-    dot:SetColorTexture(t.ember[1], t.ember[2], t.ember[3], 1)
+    b.dot, b.theme = dot, t
     b.key = t.key
     styleButtons[i] = b
 end
@@ -821,11 +981,19 @@ local function MarkStyle()
     local current = ns.Theme().key
     for _, b in ipairs(styleButtons) do
         if b.gpBg then b.gpBg:SetTexture(MEDIA .. (b.key == current and "nav_active" or "nav")) end
+        local c = b.theme.ember   -- "Eigene" ändert die Farbe
+        b.dot:SetColorTexture(c[1], c[2], c[3], 1)
     end
 end
 ns.OnThemeChanged(MarkStyle)
 
-local OPT_Y = -60
+-- Eigener Style: Farbe über Blizzards Farbwähler
+local colorBtn = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
+colorBtn:SetSize(170, 22); colorBtn:SetPoint("TOPLEFT", 4, -50)
+colorBtn:SetText(L["Eigene Farbe wählen …"])
+colorBtn:SetScript("OnClick", function() ns.PickCustomColor() end)
+
+local OPT_Y = -80
 local options = {
     { key = "replaceGuildFrame", label = L["Dieses Fenster statt Blizzard-Gildenfenster (J)"] },
     { key = "popup",         label = L["Meilenstein-Popups anzeigen"] },
@@ -833,7 +1001,14 @@ local options = {
     { key = "memberAlerts",  label = L["Warnung bei Beitritt / Austritt"] },
     { key = "helpAlerts",    label = L["Hinweis, wenn jemand Gruppe / Quest-Hilfe sucht"] },
     { key = "shareMilestones", label = L["Eigene Erfolge, Bosse, M+ und Reittiere mit der Gilde teilen"] },
+    { key = "minimap",       label = L["Minimap-Knopf anzeigen"],
+      changed = function() if ns.UpdateMinimap then ns.UpdateMinimap() end end },
+    { key = "welcome",       label = L["Neue Mitglieder automatisch im Gildenchat begrüßen"] },
 }
+local function SetOption(opt, on)
+    GuildPrideDB[opt.key] = on and true or false
+    if opt.changed then opt.changed() end
+end
 local checks = {}
 for i, opt in ipairs(options) do
     local cb = CreateFrame("CheckButton", nil, settings, "UICheckButtonTemplate")
@@ -841,9 +1016,7 @@ for i, opt in ipairs(options) do
     local label = settings:CreateFontString(nil, "OVERLAY", "GPFont_Text")
     label:SetPoint("LEFT", cb, "RIGHT", 4, 0)
     label:SetText(opt.label)
-    cb:SetScript("OnClick", function(self)
-        GuildPrideDB[opt.key] = self:GetChecked() and true or false
-    end)
+    cb:SetScript("OnClick", function(self) SetOption(opt, self:GetChecked()) end)
     checks[opt.key] = cb
 end
 
@@ -853,9 +1026,62 @@ blizzBtn:SetPoint("TOPLEFT", 4, OPT_Y - (#options * 30) - 8)
 blizzBtn:SetText(L["Blizzard-Gildenfenster öffnen"])
 blizzBtn:SetScript("OnClick", function() ns.OpenBlizzardGuild() end)
 
+-- Begrüßungstext (GuildPrideMembers.lua), {name} = neues Mitglied
+local welcomeY = OPT_Y - (#options * 30) - 46
+local welcomeLabel = settings:CreateFontString(nil, "OVERLAY", "GPFont_TextBold")
+welcomeLabel:SetPoint("TOPLEFT", 4, welcomeY)
+welcomeLabel:SetText(L["Begrüßungstext ({name} = neues Mitglied)"])
+local welcomeBox = CreateFrame("EditBox", nil, settings, "InputBoxTemplate")
+welcomeBox:SetSize(470, 22); welcomeBox:SetPoint("TOPLEFT", 10, welcomeY - 18)
+welcomeBox:SetAutoFocus(false); welcomeBox:SetMaxLetters(200)
+welcomeBox:SetScript("OnTextChanged", function(self, user)
+    if user then GuildPrideDB.welcomeText = self:GetText() end
+end)
+welcomeBox:SetScript("OnEnterPressed", welcomeBox.ClearFocus)
+welcomeBox:SetScript("OnEscapePressed", welcomeBox.ClearFocus)
+
+-- Regler mit - / +: Fenstergröße, Deckkraft, Chat-Schrift
+local function ApplyLook()
+    frame:SetScale(GuildPrideDB.scale or 1)
+    frame:SetAlpha(GuildPrideDB.alpha or 1)
+end
+local steppers = {}
+local function Stepper(label, y, key, step, min, max, fmt, apply)
+    local l = settings:CreateFontString(nil, "OVERLAY", "GPFont_Text")
+    l:SetPoint("TOPLEFT", 8, y); l:SetWidth(170); l:SetText(label)
+    local minus = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
+    minus:SetSize(26, 22); minus:SetPoint("LEFT", l, "RIGHT", 4, 0); minus:SetText("-")
+    local value = settings:CreateFontString(nil, "OVERLAY", "GPFont_TextBold")
+    value:SetPoint("LEFT", minus, "RIGHT", 6, 0); value:SetWidth(60)
+    local plus = CreateFrame("Button", nil, settings, "UIPanelButtonTemplate")
+    plus:SetSize(26, 22); plus:SetPoint("LEFT", value, "RIGHT", 6, 0); plus:SetText("+")
+    local s = { value = value }
+    function s.Show() value:SetText(fmt(GuildPrideDB[key])) end
+    local function Change(d)
+        local v = (GuildPrideDB[key] or min) + d
+        v = math.max(min, math.min(max, math.floor(v / step + 0.5) * step))
+        GuildPrideDB[key] = v
+        apply(v)
+        s.Show()
+    end
+    minus:SetScript("OnClick", function() Change(-step) end)
+    plus:SetScript("OnClick", function() Change(step) end)
+    steppers[#steppers + 1] = s
+end
+local lookY = welcomeY - 56
+local function Pct(v) return ("%d %%"):format(math.floor((v or 1) * 100 + 0.5)) end
+Stepper(L["Fenstergröße"], lookY, "scale", 0.05, 0.7, 1.3, Pct, ApplyLook)
+Stepper(L["Deckkraft"], lookY - 28, "alpha", 0.05, 0.5, 1, Pct, ApplyLook)
+Stepper(L["Chat-Schrift"], lookY - 56, "chatFont", 1, 10, 18, function(v) return ("%d pt"):format(v or 12) end,
+    function(v) if ns.SetChatFont then ns.SetChatFont(v) end end)
+
+local lookFrame = CreateFrame("Frame")
+lookFrame:RegisterEvent("PLAYER_LOGIN")
+lookFrame:SetScript("OnEvent", ApplyLook)
+
 -- Werbetext: gespeichert und auf Knopfdruck in die Chat-Eingabe gelegt.
 -- Abschicken (und Kanal wählen, z. B. "/2 ") macht der Spieler selbst.
-local baseY = OPT_Y - (#options * 30) - 46
+local baseY = lookY - 96
 local recruitLabel = settings:CreateFontString(nil, "OVERLAY", "GPFont_TextBold")
 recruitLabel:SetPoint("TOPLEFT", 4, baseY)
 recruitLabel:SetText(L["Werbetext (z. B. „/2 Gilde XY sucht …“)"])
@@ -915,12 +1141,20 @@ function ns.NoteTemplates()
     return out
 end
 
-function settings:Refresh()
+settings:SetHeight(-(baseY - 150))
+
+function settingsPage:Refresh()
     MarkStyle()
     for key, cb in pairs(checks) do cb:SetChecked(GuildPrideDB[key]) end
+    for _, s in ipairs(steppers) do s.Show() end
+    if not welcomeBox:HasFocus() then
+        local w = GuildPrideDB.welcomeText
+        welcomeBox:SetText((w and w ~= "") and w or (ns.WELCOME_DEFAULT or ""))
+    end
     if not recruitBox:HasFocus() then recruitBox:SetText(GuildPrideDB.recruitText or "") end
     if not tplBox:HasFocus() then tplBox:SetText(table.concat(GuildPrideDB.noteTemplates or {}, "\n")) end
 end
+ns.SettingsPage = settingsPage
 
 -- Dieselben Schalter im WoW-Menü (Optionen -> AddOns -> GuildPride)
 if Settings and Settings.RegisterCanvasLayoutCategory then
@@ -935,9 +1169,7 @@ if Settings and Settings.RegisterCanvasLayoutCategory then
         local label = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         label:SetPoint("LEFT", cb, "RIGHT", 4, 0)
         label:SetText(opt.label)
-        cb:SetScript("OnClick", function(self)
-            GuildPrideDB[opt.key] = self:GetChecked() and true or false
-        end)
+        cb:SetScript("OnClick", function(self) SetOption(opt, self:GetChecked()) end)
         panelChecks[opt.key] = cb
     end
     local open = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")

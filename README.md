@@ -19,7 +19,7 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - **Guild info**: the info text from Blizzard's guild window, the same for everyone, with a notice when it changes. It is edited in Blizzard's guild window (Blizzard blocks addons from changing it)
 - **Guild & Chat**: guild chat, officer chat and your Blizzard communities with the members right next to the chat, like Blizzard's community window. Server-side history plus a local copy so old messages keep their author names
 - **Members list**: one click from the chat to the full list of your guild or community, online only or everyone, with rank, notes and "last online"
-- **Styles**: Forge, Frost, Emerald, Arcane and Night, switchable any time in the settings
+- **Styles**: Forge, Frost, Emerald, Arcane, Night and Custom, switchable any time in the settings
 - **Invite players** to the guild or a community: type a name, or right-click a member
 - **Guild management**: click a member to see notes and to promote, demote, set a rank, remove or transfer leadership (depending on your rights)
 - **Community management**: right-click a member to change their role, edit their note or remove them
@@ -28,6 +28,12 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - **Event lineup**: role check for group or raid and "Invite all attendees" for officers
 - **Recruiting text and note templates**, plus a settings page in the WoW options (`/gp options`)
 - **Version check**: a reminder when a newer version is in use in the guild
+- **Search and sort members**: search by name, rank, note or zone; click a column header (name, level, rank, last online) to sort, click again to reverse
+- **Unread counts and mentions**: guild, officer and community buttons, the community menu and the Guild & Chat tab show how many messages are unread. Lines with your name get a » and gold text
+- **Guild keystones** (Retail only): everyone with GuildPride shares keystone and M+ rating. "Guild keystones" in the group finder, the key in the member list and tooltip. Hidden in WoW Forever
+- **This week** on the overview: level-ups, raid kills, M+ bests (Retail), achievements, mounts, joins, departures and the busiest member
+- **For officers**: "Inactive" filter (30+, 60+, 90+ days), automatic welcome message, weekly recurring events and attendance tracking
+- **Minimap button**, a custom style with your own color, and adjustable window size, opacity and chat font
 
 ### Commands
 - `/gp` or `/guildpride` open the window, `/gp help` all commands
@@ -61,7 +67,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - **Gildeninfo**: der Info-Text aus dem Blizzard-Gildenfenster, für alle gleich, mit Hinweis bei Änderungen. Bearbeitet wird er im Blizzard-Gildenfenster (Blizzard sperrt das Ändern für Addons)
 - **Gilde & Chat**: Gildenchat, Offizierschat und eure Blizzard-Communities, die Mitglieder direkt neben dem Chat wie im Blizzard-Community-Fenster. Verlauf vom Server und lokale Kopie, damit alte Nachrichten ihren Namen behalten
 - **Mitgliederliste**: ein Klick vom Chat zur großen Liste eurer Gilde oder Community, nur online oder alle, mit Rang, Notizen und „zuletzt online“
-- **Styles**: Schmiede, Frost, Smaragd, Arkan und Nacht, jederzeit in den Einstellungen umschaltbar
+- **Styles**: Schmiede, Frost, Smaragd, Arkan, Nacht und Eigene, jederzeit in den Einstellungen umschaltbar
 - **Spieler einladen** in die Gilde oder eine Community: Namen eingeben oder Rechtsklick auf ein Mitglied
 - **Gildenverwaltung**: Klick auf ein Mitglied zeigt die Notizen, dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten)
 - **Community-Verwaltung**: Rechtsklick auf ein Mitglied, um die Rolle zu ändern, die Notiz zu bearbeiten oder es zu entfernen
@@ -70,6 +76,12 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - **Event-Aufstellung**: Rollen-Check für Gruppe oder Schlachtzug und „Alle Zugesagten einladen“ für Offiziere
 - **Werbetext und Notiz-Vorlagen**, dazu eine Einstellungsseite in den WoW-Optionen (`/gp optionen`)
 - **Versionscheck**: Erinnerung, wenn in der Gilde eine neuere Version genutzt wird
+- **Mitglieder suchen und sortieren**: Suche nach Name, Rang, Notiz oder Zone; Klick auf einen Spaltenkopf (Name, Level, Rang, zuletzt online) sortiert, erneuter Klick dreht die Richtung
+- **Ungelesen und Erwähnungen**: Gilde, Offiziere, Communities, das Community-Menü und der Reiter Gilde & Chat zeigen, wie viele Nachrichten ungelesen sind. Zeilen mit deinem Namen bekommen ein » und goldene Schrift
+- **Schlüssel der Gilde** (nur Retail): alle mit GuildPride teilen Schlüsselstein und M+-Wertung. „Schlüssel der Gilde“ in der Gruppensuche, der Schlüssel in Mitgliederliste und Tooltip. In WoW Forever ausgeblendet
+- **Diese Woche** auf der Übersicht: Level-Aufstiege, Raid-Siege, M+-Bestwerte (Retail), Erfolge, Reittiere, Beitritte, Abgänge und das fleißigste Mitglied
+- **Für Offiziere**: Filter „Inaktive“ (30+, 60+, 90+ Tage), automatische Begrüßung, wöchentlich wiederholte Events und Anwesenheit
+- **Minimap-Knopf**, eigener Style mit selbst gewählter Farbe, dazu einstellbare Fenstergröße, Deckkraft und Chat-Schrift
 
 ### Befehle
 - `/gp` oder `/guildpride` Fenster öffnen, `/gp hilfe` alle Befehle

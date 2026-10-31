@@ -237,6 +237,28 @@ local bClear = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 bClear:SetSize(100, 24); bClear:SetPoint("LEFT", bQuest, "RIGHT", 4, 0); bClear:SetText(L["Austragen"])
 bClear:SetScript("OnClick", function() Set(nil) end)
 
+-- Ansicht "Schlüssel der Gilde" (nur Retail, siehe GuildPrideKeys.lua)
+local keysView = false
+local keysHolder, keysList, keysEmpty
+local bKeys = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bKeys:SetSize(150, 24); bKeys:SetPoint("LEFT", bClear, "RIGHT", 12, 0)
+bKeys:SetShown(ns.GuildKeys ~= nil)
+if ns.GuildKeys then
+    keysHolder = CreateFrame("Frame", nil, page)
+    keysHolder:SetPoint("TOPLEFT", 0, -84)
+    keysHolder:SetPoint("BOTTOMRIGHT", 0, 0)
+    keysHolder:Hide()
+    keysList = ns.CreateList(keysHolder, 24)
+    keysEmpty = keysHolder:CreateFontString(nil, "OVERLAY", "GPFont_Muted")
+    keysEmpty:SetPoint("TOP", 0, -76)
+    keysEmpty:SetText(L["Noch keine Schlüssel bekannt (nur Mitglieder mit GuildPride)."])
+    bKeys:SetScript("OnClick", function()
+        keysView = not keysView
+        if keysView and ns.AskKeys then ns.AskKeys() end
+        page:Refresh()
+    end)
+end
+
 local status = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
 status:SetPoint("RIGHT", page, "TOPRIGHT", -4, -64)
 status:SetJustifyH("RIGHT")
@@ -317,6 +339,24 @@ function page:Refresh()
             .. "  |cff999999" .. (L["Gruppe %d/%d"]):format(size, max) .. "|r")
     else
         status:SetText(L["|cff888888Du bist nicht eingetragen.|r"])
+    end
+
+    -- Schlüssel der Gilde statt der Suchliste
+    bKeys:SetText(keysView and L["Gruppensuche"] or L["Schlüssel der Gilde"])
+    if keysHolder then keysHolder:SetShown(keysView) end
+    if keysView then
+        for _, r in ipairs(rows) do r:Hide() end
+        empty:Hide()
+        local list = ns.GuildKeys()
+        keysEmpty:SetShown(#list == 0)
+        for i, k in ipairs(list) do
+            local row = keysList:GetRow(i)
+            row.left:SetText(Ambiguate(k.name, "guild") .. (k.name == ns.Me() and (" |cff999999(" .. L["du"] .. ")|r") or ""))
+            row.mid:SetText(k.level > 0 and ("|cffa335ee+%d|r %s"):format(k.level, k.map or "") or ("|cff777777" .. L["kein Schlüssel"] .. "|r"))
+            row.right:SetText(k.rating > 0 and ("|cffffd100" .. (L["M+-Wertung: %d"]):format(k.rating) .. "|r") or "")
+        end
+        keysList:Finish(#list)
+        return
     end
 
     local list = {}

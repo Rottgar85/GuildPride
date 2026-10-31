@@ -73,18 +73,53 @@ end
 ---------------------------------------------------------------------
 -- Systemnachrichten auswerten
 ---------------------------------------------------------------------
+---------------------------------------------------------------------
+-- Automatische Begrüßung (Einstellung). Jeder mit GuildPride wartet zufällig
+-- 2–8 s; wer zuerst begrüßt, meldet das ("WEL"), die anderen schweigen.
+---------------------------------------------------------------------
+ns.WELCOME_DEFAULT = L["Willkommen in der Gilde, {name}!"]
+local welcomed = {}   -- [Name] = Zeit, zu der jemand begrüßt hat
+
+ns.On("WEL", function(payload)
+    if payload and payload ~= "" then welcomed[Ambiguate(payload, "none")] = GetTime() end
+end)
+
+-- Chat-Sperre (Midnight, z. B. in Instanzen): dann nicht senden
+local function Locked()
+    return C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()
+end
+
+local function Welcome(name)
+    if not GuildPrideDB.welcome then return end
+    local short = Ambiguate(name, "none")
+    C_Timer.After(2 + math.random() * 6, function()
+        if welcomed[short] and GetTime() - welcomed[short] < 60 then return end
+        if Locked() or not IsInGuild() then return end
+        welcomed[short] = GetTime()
+        ns.Queue("WEL", nil, short)
+        local text = strtrim(GuildPrideDB.welcomeText or "")
+        if text == "" then text = ns.WELCOME_DEFAULT end
+        local SendChat = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+        SendChat((text:gsub("{name}", Ambiguate(name, "guild"))), "GUILD")
+    end)
+end
+
 local f = CreateFrame("Frame")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
 f:SetScript("OnEvent", function(_, _, msg)
-    if not GuildPrideDB or GuildPrideDB.memberAlerts == false then return end
+    if not GuildPrideDB then return end
     if issecretvalue and issecretvalue(msg) then return end
     if type(msg) ~= "string" then return end
 
     local name = JOIN and msg:match(JOIN)
     if name then
-        if Ambiguate(name, "none") ~= UnitName("player") then ShowToast("join", name) end
+        if Ambiguate(name, "none") ~= UnitName("player") then
+            Welcome(name)
+            if GuildPrideDB.memberAlerts ~= false then ShowToast("join", name) end
+        end
         return
     end
+    if GuildPrideDB.memberAlerts == false then return end
     name = LEAVE and msg:match(LEAVE)
     if name then ShowToast("leave", name); return end
     name = KICK and msg:match(KICK)

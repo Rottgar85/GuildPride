@@ -29,6 +29,19 @@ do
     Make("GPFont_Muted",       "Text.ttf",      12, 0.51, 0.47, 0.45)
     Make("GPFont_MutedSmall",  "Text.ttf",       9, 0.51, 0.47, 0.45)
     Make("GPFont_Red",         "Text.ttf",      11, 1.00, 0.30, 0.25)
+    Make("GPFont_Chat",        "Text.ttf",      12, 0.92, 0.90, 0.88)   -- Größe einstellbar
+    ns.FONT_TEXT = F .. "Text.ttf"
+end
+
+-- Retail (mit Mythisch+)? WoW Forever hat Interface 16001 und kein M+.
+ns.IS_RETAIL = (select(4, GetBuildInfo()) or 0) >= 100000 and C_MythicPlus ~= nil
+
+-- Beginn der laufenden Woche (Blizzard-Wochenreset, sonst die letzten 7 Tage)
+function ns.WeekStart()
+    local now = GetServerTime()
+    local left = C_DateAndTime and C_DateAndTime.GetSecondsUntilWeeklyReset and C_DateAndTime.GetSecondsUntilWeeklyReset()
+    if left and not (issecretvalue and issecretvalue(left)) then return now + left - 7 * 86400 end
+    return now - 7 * 86400
 end
 local PREFIX = "GuildPride"          -- max. 16 Zeichen
 local MILESTONES = { [10]=true, [20]=true, [30]=true, [40]=true, [50]=true,
@@ -39,7 +52,8 @@ local MILESTONES = { [10]=true, [20]=true, [30]=true, [40]=true, [50]=true,
 local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_Tournaments_banner_Human"
 
 local defaults = { sound = true, popup = true, useCustomLogo = false,
-                   replaceGuildFrame = true, memberAlerts = true, helpAlerts = true, shareMilestones = true }
+                   replaceGuildFrame = true, memberAlerts = true, helpAlerts = true, shareMilestones = true,
+                   minimap = true, chatFont = 12, scale = 1, alpha = 1, welcome = false }
 
 -- Weitere Meilensteine neben LEVEL (Wert ist Text bzw. ID)
 local EXTRA_KINDS = { ACH = true, BOSS = true, MPLUS = true, MOUNT = true }

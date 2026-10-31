@@ -43,7 +43,14 @@ ns.Paint(boxEdge, "ember")
 local msgs = CreateFrame("ScrollingMessageFrame", nil, box)
 msgs:SetPoint("TOPLEFT", 12, -8)
 msgs:SetPoint("BOTTOMRIGHT", -24, 8)
-msgs:SetFontObject(GPFont_Text)
+msgs:SetFontObject(GPFont_Chat)
+
+-- Chat-Schriftgröße (Einstellungen, 10–18 pt)
+function ns.SetChatFont(size)
+    size = math.max(10, math.min(18, size or 12))
+    GuildPrideDB.chatFont = size
+    GPFont_Chat:SetFont(ns.FONT_TEXT, size, "")
+end
 msgs:SetJustifyH("LEFT")
 msgs:SetFading(false)
 msgs:SetMaxLines(300)
@@ -93,15 +100,27 @@ end
 
 local TEXT_COLOR = { GUILD = "|cffe6e0da", OFFICER = "|cff40c040", CLUB = "|cff8fd3ff" }
 
-local function Line(t, who, full, hex, text, kind)
-    local name = full and ("|Hplayer:%s|h|cff%s%s|r|h"):format(full, hex, who) or ("|cff%s%s|r"):format(hex, who)
-    return ("|cff777777%s|r  %s: %s%s|r"):format(date("%H:%M", t), name, TEXT_COLOR[kind] or "|cffffffff", text)
-end
-
 -- Name noch nicht geladen? (Der Server liefert ältere Nachrichten oft ohne
 -- Autorennamen; Blizzard zeigt dann "Unbekannt".)
 -- Geschützte Werte (Midnight) zuerst prüfen: schon ein Vergleich wirft einen Fehler
 local function Secret(v) return issecretvalue and issecretvalue(v) or false end
+
+-- Kommt mein Name im Text vor (nicht in eigenen Nachrichten)?
+local function MentionsMe(text, who)
+    if Secret(text) or type(text) ~= "string" then return false end
+    local me = UnitName("player")
+    if not me or who == me then return false end
+    return text:lower():find(me:lower(), 1, true) ~= nil
+end
+
+local function Line(t, who, full, hex, text, kind)
+    local name = full and ("|Hplayer:%s|h|cff%s%s|r|h"):format(full, hex, who) or ("|cff%s%s|r"):format(hex, who)
+    -- Erwähnung: » davor und goldene Schrift
+    if MentionsMe(text, who) then
+        return ("|cff777777%s|r  |cffffd100»|r %s: |cffffd100%s|r"):format(date("%H:%M", t), name, text)
+    end
+    return ("|cff777777%s|r  %s: %s%s|r"):format(date("%H:%M", t), name, TEXT_COLOR[kind] or "|cffffffff", text)
+end
 
 -- Geschützter Text: Midnight-Geheimwert oder Blizzards |K…|k-Platzhalter. Der
 -- Platzhalter gilt nur in der laufenden Sitzung; gespeichert wird daraus später
@@ -304,6 +323,45 @@ local function Store()
 end
 
 ---------------------------------------------------------------------
+-- Ungelesen: Zähler je Kanal ("GUILD", "OFFICER", "clubId:streamId")
+---------------------------------------------------------------------
+local unread = {}
+
+local function ChannelKey(ch)
+    if ch.kind == "CLUB" then return tostring(ch.clubId) .. ":" .. tostring(ch.streamId) end
+    return ch.kind
+end
+
+-- Gilden-Streams auf "GUILD"/"OFFICER" abbilden, alles andere "clubId:streamId"
+local function StreamKey(clubId, streamId)
+    for _, kind in ipairs({ "GUILD", "OFFICER" }) do
+        local c, s = Resolve({ kind = kind })
+        if c and c == clubId and s == streamId then return kind end
+    end
+    return tostring(clubId) .. ":" .. tostring(streamId)
+end
+
+local function Count(text, n)
+    return n and n > 0 and (text .. "  |cffff8c40(" .. n .. ")|r") or text
+end
+
+local function ClubUnread(clubId)
+    local n, prefix = 0, tostring(clubId) .. ":"
+    for k, v in pairs(unread) do
+        if k:sub(1, #prefix) == prefix then n = n + v end
+    end
+    return n
+end
+
+local UpdateBadges   -- unten, braucht die Kanal-Knöpfe
+
+local function MarkUnread(key)
+    if pane:IsVisible() and ChannelKey(channel) == key then return end
+    unread[key] = (unread[key] or 0) + 1
+    UpdateBadges()
+end
+
+---------------------------------------------------------------------
 -- Anzeigen
 ---------------------------------------------------------------------
 local requested = {}
@@ -382,9 +440,22 @@ local function Highlight()
     set(bGuild, channel.kind == "GUILD")
     set(bOfficer, channel.kind == "OFFICER")
     set(bClub, channel.kind == "CLUB")
+    UpdateBadges()
+end
+
+-- Kanal-Knöpfe mit Zählern beschriften, Summe am Reiter "Gilde & Chat"
+function UpdateBadges()
+    bGuild:SetText(Count(L["Gilde"], unread.GUILD))
+    bOfficer:SetText(Count(L["Offiziere"], bOfficer:IsShown() and unread.OFFICER or 0))
+    local clubs = 0
+    for k, v in pairs(unread) do
+        if k ~= "GUILD" and k ~= "OFFICER" then clubs = clubs + v end
+    end
     -- Gewählte Community steht im Knopf
     local label = channel.kind == "CLUB" and not Secret(channel.label) and channel.label or nil
-    bClub:SetText(label and (label .. "  ▾") or "Communities  ▾")
+    bClub:SetText(Count(label and (label .. "  ▾") or "Communities  ▾", clubs))
+    local total = (unread.GUILD or 0) + (bOfficer:IsShown() and unread.OFFICER or 0) + clubs
+    if ns.SetTabBadge then ns.SetTabBadge(page, total > 0 and ("(" .. total .. ")") or nil) end
 end
 
 -- Im Schlachtfeld liefert der Server teils geschützte Werte; ein Fehler beim
@@ -399,6 +470,7 @@ end
 
 local function SetChannel(ch)
     channel = ch
+    if pane:IsVisible() then unread[ChannelKey(ch)] = nil end
     Highlight()
     -- Mitgliederliste daneben zeigt dieselbe Gilde bzw. Community
     if ns.SetMemberSource then ns.SetMemberSource(ch.kind == "CLUB" and ch.club or nil) end
@@ -448,14 +520,15 @@ bClub:SetScript("OnClick", function(self)
         MenuUtil.CreateContextMenu(self, function(_, root)
             root:CreateTitle("Communities")
             for _, club in ipairs(list) do
-                local label = club.name .. (club.bnet and " |cff82c5ff(Battle.net)|r" or "")
+                local label = Count(club.name .. (club.bnet and " |cff82c5ff(Battle.net)|r" or ""), ClubUnread(club.id))
                 if #club.streams <= 1 then
                     local st = club.streams[1]
                     if st then root:CreateButton(label, function() Pick(club, st) end) end
                 else
                     local sub = root:CreateButton(label)
                     for _, st in ipairs(club.streams) do
-                        sub:CreateButton(st.name, function() Pick(club, st) end)
+                        local n = unread[tostring(club.id) .. ":" .. tostring(st.id)]
+                        sub:CreateButton(Count(st.name, n), function() Pick(club, st) end)
                     end
                 end
             end
@@ -525,7 +598,11 @@ pane:SetScript("OnHide", function()
         focused = nil
     end
 end)
-pane:SetScript("OnShow", function() SafeRedraw() end)
+pane:SetScript("OnShow", function()
+    unread[ChannelKey(channel)] = nil
+    UpdateBadges()
+    SafeRedraw()
+end)
 
 ---------------------------------------------------------------------
 -- Ereignisse
@@ -552,6 +629,10 @@ if HAS_CLUB then
             -- Geschützt: nicht speichern (der Server liefert sie beim nächsten Anzeigen neu)
             if not IsProtected(e.text) then
                 Remember(Cache(clubId, streamId), { e })
+            end
+            -- Ungelesen zählen (eigene Nachrichten nicht)
+            if e.isSelf ~= true and not (e.full and e.full == ns.Me()) then
+                MarkUnread(StreamKey(clubId, streamId))
             end
             local myClub, myStream = Resolve(channel)
             if pane:IsVisible() and clubId == myClub and streamId == myStream then
@@ -591,8 +672,14 @@ else
         local e = { t = time(), ch = ch, who = Ambiguate(author, "guild"), full = author, text = text, class = class }
         table.insert(list, e)
         while #list > MAX_SAVED do table.remove(list, 1) end
+        if author ~= ns.Me() and Ambiguate(author, "guild") ~= UnitName("player") then MarkUnread(ch) end
         if pane:IsVisible() and channel.kind == ch then
             msgs:AddMessage(Line(e.t, e.who, e.full, ClassHex(nil, e.class), e.text, ch))
         end
     end)
 end
+
+-- Gespeicherte Chat-Schriftgröße nach dem Login anwenden
+local lf = CreateFrame("Frame")
+lf:RegisterEvent("PLAYER_LOGIN")
+lf:SetScript("OnEvent", function() ns.SetChatFont(GuildPrideDB.chatFont) end)
