@@ -296,12 +296,20 @@ local status = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
 status:SetPoint("TOPLEFT", 6, -82)
 status:SetJustifyH("LEFT")
 
--- Liste: zwei Zeilen pro Eintrag
-local ROWS, ROW_H, rows = 7, 44, {}
-for i = 1, ROWS do
-    local r = CreateFrame("Frame", nil, page)
-    r:SetSize(650, ROW_H - 2)
-    r:SetPoint("TOPLEFT", 0, -98 - (i - 1) * ROW_H)
+-- Liste: zwei Zeilen pro Eintrag, scrollbar bei vielen Einträgen
+local ROW_H, ROW_W, rows = 44, 624, {}
+local listScroll = ns.NewScroll(page)
+listScroll:SetPoint("TOPLEFT", 0, -98)
+listScroll:SetPoint("BOTTOMRIGHT", -26, 0)
+local listChild = CreateFrame("Frame", nil, listScroll)
+listChild:SetSize(ROW_W, 1)
+listScroll:SetScrollChild(listChild)
+
+local function GetRow(i)
+    if rows[i] then return rows[i] end
+    local r = CreateFrame("Frame", nil, listChild)
+    r:SetSize(ROW_W, ROW_H - 2)
+    r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
     r.bg = r:CreateTexture(nil, "BACKGROUND"); r.bg:SetAllPoints()
     ns.Paint(r.bg, "glow", i % 2 == 0 and 0.05 or 0.02)
     r.edge = r:CreateTexture(nil, "BORDER"); r.edge:SetPoint("TOPLEFT"); r.edge:SetPoint("BOTTOMLEFT"); r.edge:SetWidth(3)
@@ -331,6 +339,7 @@ for i = 1, ROWS do
     end)
     r.tell:HookScript("OnLeave", function() GameTooltip:Hide() end)
     rows[i] = r
+    return r
 end
 local empty = page:CreateFontString(nil, "OVERLAY", "GPFont_Muted")
 empty:SetPoint("TOP", 0, -160)
@@ -379,8 +388,8 @@ function page:Refresh()
     -- Schlüssel der Gilde statt der Suchliste
     bKeys:SetText(keysView and L["Gruppensuche"] or L["Schlüssel der Gilde"])
     if keysHolder then keysHolder:SetShown(keysView) end
+    listScroll:SetShown(not keysView)
     if keysView then
-        for _, r in ipairs(rows) do r:Hide() end
         empty:Hide()
         local list = ns.GuildKeys()
         keysEmpty:SetShown(#list == 0)
@@ -406,10 +415,12 @@ function page:Refresh()
     table.sort(list, function(a, b) return a.e.t > b.e.t end)
     empty:SetShown(#list == 0)
 
-    for i, r in ipairs(rows) do
-        local item = list[i]
-        r:SetShown(item ~= nil)
-        if item then
+    for i = #list + 1, #rows do rows[i]:Hide() end
+    listChild:SetHeight(math.max(1, #list * ROW_H))
+    for i, item in ipairs(list) do
+        local r = GetRow(i)
+        r:Show()
+        do
             local e, t = item.e, TYPES[item.e.kind]
             local c = RAID_CLASS_COLORS[e.class]
             local hex = c and c.colorStr and c.colorStr:sub(3) or "f0c88c"
