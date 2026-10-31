@@ -1,6 +1,6 @@
 # GuildPride Changelog
 
-## Unreleased
+## 1.9.0
 
 **English**
 - New tab **Guild & Chat**: chat on the left, members on the right, like Blizzard's community window. Picking guild, officers or a community also switches the member list. **Member list** opens the full list with notes, "last online" and invites
