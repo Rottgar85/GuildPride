@@ -74,8 +74,29 @@ local function DungeonText(d)
     return d.name .. (diff and (" (" .. diff .. ")") or "")
 end
 
--- Dungeons der jeweiligen Spielversion aus dem Gruppenbrowser: { name, min, max }.
--- Varianten je Schwierigkeit ("… (Heroisch)") werden zu einem Eintrag zusammengefasst.
+-- Schwierigkeit einer Aktivität aus dem Gruppenbrowser: N, H oder M
+local function ActivityDiff(info, suffix)
+    if info.isMythicActivity then return "M" end
+    if info.isHeroicActivity then return "H" end
+    if (info.difficultyID or 0) > 0 and GetDifficultyInfo then
+        local _, _, isHeroic, _, displayHeroic, displayMythic = GetDifficultyInfo(info.difficultyID)
+        if displayMythic then return "M" end
+        if isHeroic or displayHeroic then return "H" end
+    end
+    -- Ältere Clients: nur der Zusatz im Namen ("… (Heroisch)")
+    suffix = suffix and suffix:lower() or ""
+    if suffix ~= "" then
+        local function Has(s) return s and s ~= "" and suffix:find(s:lower(), 1, true) end
+        if Has(PLAYER_DIFFICULTY6) or Has("mythic") or Has(DIFF_LABEL.M) then return "M" end
+        if Has(PLAYER_DIFFICULTY2) or Has("heroic") or Has(DIFF_LABEL.H) then return "H" end
+    end
+    return "N"
+end
+
+-- Dungeons der jeweiligen Spielversion aus dem Gruppenbrowser:
+-- { name, diffs = { N = { min, max }, H = { min, max } } }. Varianten je
+-- Schwierigkeit ("… (Heroisch)") werden zu einem Eintrag zusammengefasst; in
+-- diffs steht nur, was es für diesen Dungeon wirklich gibt.
 local dungeonCache
 local function DungeonList()
     if dungeonCache then return dungeonCache end
@@ -85,22 +106,31 @@ local function DungeonList()
     local ok, acts = pcall(G.GetAvailableActivities, GROUP_FINDER_CATEGORY_ID_DUNGEONS or 2)
     for _, aid in ipairs(ok and acts or {}) do
         local info = G.GetActivityInfoTable(aid)
-        local name = info and info.fullName and (info.fullName:gsub("%s*%(.-%)%s*$", ""))
-        if name and name ~= "" then
+        local full = info and info.fullName
+        local name = full and (full:gsub("%s*%(.-%)%s*$", ""))
+        if name and name ~= "" and not info.isMythicPlusActivity then
+            local diff = ActivityDiff(info, full:match("%(([^%(%)]*)%)%s*$"))
             local lo = info.minLevelSuggestion or 0
             if lo == 0 then lo = info.minLevel or 0 end
             local hi = info.maxLevelSuggestion or 0
             local d = seen[name]
             if not d then
-                d = { name = name, min = lo, max = hi }
+                d = { name = name, diffs = {} }
                 seen[name] = d
                 out[#out + 1] = d
-            else
-                if lo > 0 and (d.min == 0 or lo < d.min) then d.min = lo end
-                if hi > d.max then d.max = hi end
             end
+            local v = d.diffs[diff]
+            if not v then
+                d.diffs[diff] = { min = lo, max = hi }
+            else
+                if lo > 0 and (v.min == 0 or lo < v.min) then v.min = lo end
+                if hi > v.max then v.max = hi end
+            end
+            -- Sortierung nach der niedrigsten Stufe über alle Schwierigkeiten
+            if lo > 0 and (not d.min or lo < d.min) then d.min = lo end
         end
     end
+    for _, d in ipairs(out) do d.min = d.min or 0 end
     table.sort(out, function(a, b)
         if a.min ~= b.min then return a.min < b.min end
         return a.name < b.name
@@ -418,8 +448,9 @@ local searchHint = search:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
 searchHint:SetPoint("LEFT", 2, 0)
 searchHint:SetText(L["Suchen …"])
 
-local diffSel = hasDiff and DIFFS[1].key or ""
+local diffSel = hasDiff and DIFFS[1].key or "N"
 local diffBtns = {}
+local FillDungeons
 local function UpdateDiffButtons()
     for key, b in pairs(diffBtns) do
         if b.gpBg then b.gpBg:SetTexture(ns.MEDIA .. (key == diffSel and "nav_active" or "nav")) end
@@ -427,28 +458,51 @@ local function UpdateDiffButtons()
     end
 end
 if hasDiff then
-    for i, d in ipairs(DIFFS) do
+    for _, d in ipairs(DIFFS) do
         local b = CreateFrame("Button", nil, dungeonPicker, "UIPanelButtonTemplate")
         b:SetSize(64, 20)
-        b:SetPoint("TOPLEFT", 8 + (i - 1) * 68, -32)
         b:SetText(d.label)
-        b:SetScript("OnClick", function() diffSel = d.key; UpdateDiffButtons() end)
+        b:SetScript("OnClick", function() diffSel = d.key; UpdateDiffButtons(); FillDungeons() end)
         diffBtns[d.key] = b
     end
+end
+
+-- Nur Schwierigkeiten anbieten, die mindestens ein Dungeon wirklich hat
+local function LayoutDiffButtons()
+    if not hasDiff then return end
+    local have = {}
+    for _, d in ipairs(DungeonList()) do
+        for key in pairs(d.diffs) do have[key] = true end
+    end
+    local x, first = 8, nil
+    for _, d in ipairs(DIFFS) do
+        local b = diffBtns[d.key]
+        b:SetShown(have[d.key] or false)
+        if have[d.key] then
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", x, -32)
+            x = x + 68
+            first = first or d.key
+        end
+    end
+    if not have[diffSel] then diffSel = first or "N" end
     UpdateDiffButtons()
 end
 
-local function FillDungeons()
+function FillDungeons()
     local filter = search:GetText():lower()
     local function Pick(d)
-        pickedDungeon = d and { name = d.name, min = d.min, max = d.max, diff = diffSel, keyLevel = 0 } or nil
+        local v = d and d.diffs[diffSel]
+        pickedDungeon = v and { name = d.name, min = v.min, max = v.max, diff = hasDiff and diffSel or "", keyLevel = 0 } or nil
         dungeonPicker:Hide()
         ApplyPicks()
     end
     local items = { { text = "|cff999999" .. L["Kein Dungeon"] .. "|r", onClick = function() Pick(nil) end } }
+    -- Nur Dungeons, die es in der gewählten Schwierigkeit gibt
     for _, d in ipairs(DungeonList()) do
-        if filter == "" or d.name:lower():find(filter, 1, true) then
-            local lv = LevelRange(d.min, d.max)
+        local v = d.diffs[diffSel]
+        if v and (filter == "" or d.name:lower():find(filter, 1, true)) then
+            local lv = LevelRange(v.min, v.max)
             items[#items + 1] = { text = (lv ~= "" and ("|cff999999[%s]|r "):format(lv) or "") .. "|cff66ccff" .. d.name .. "|r",
                                   onClick = function() Pick(d) end }
         end
@@ -468,6 +522,7 @@ local function OpenDungeonPicker()
     end
     dungeonPicker:Show()
     search:SetText("")
+    LayoutDiffButtons()
     FillDungeons()
 end
 
