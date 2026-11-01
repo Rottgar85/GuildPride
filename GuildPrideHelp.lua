@@ -195,7 +195,7 @@ local page = ns.AddTab(L["Gruppensuche"], 40)
 
 local hint = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
 hint:SetPoint("TOPLEFT", 2, -2)
-hint:SetText(L["Notiz (optional), Rollen wählen, dann eintragen. Die Gruppengröße wird automatisch übernommen."])
+hint:SetText(L["Titel (optional), Rollen wählen, dann eintragen. Die Gruppengröße wird automatisch übernommen."])
 
 local noteBox = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
 noteBox:SetSize(240, 22)
@@ -296,8 +296,8 @@ local status = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
 status:SetPoint("TOPLEFT", 6, -82)
 status:SetJustifyH("LEFT")
 
--- Liste: zwei Zeilen pro Eintrag, scrollbar bei vielen Einträgen
-local ROW_H, ROW_W, rows = 44, 624, {}
+-- Liste: Titel groß oben, darunter zwei Zeilen; scrollbar bei vielen Einträgen
+local ROW_H, ROW_W, rows = 60, 624, {}
 local listScroll = ns.NewScroll(page)
 listScroll:SetPoint("TOPLEFT", 0, -98)
 listScroll:SetPoint("BOTTOMRIGHT", -26, 0)
@@ -314,7 +314,10 @@ local function GetRow(i)
     ns.Paint(r.bg, "glow", i % 2 == 0 and 0.05 or 0.02)
     r.edge = r:CreateTexture(nil, "BORDER"); r.edge:SetPoint("TOPLEFT"); r.edge:SetPoint("BOTTOMLEFT"); r.edge:SetWidth(3)
     r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(30, 30); r.icon:SetPoint("LEFT", 10, 0)
-    r.name = r:CreateFontString(nil, "OVERLAY", "GPFont_TextBold"); r.name:SetPoint("TOPLEFT", 50, -6)
+    -- Titel: der oben eingegebene Text, sonst die Art des Eintrags
+    r.title = r:CreateFontString(nil, "OVERLAY", "GPFont_Large"); r.title:SetPoint("TOPLEFT", 50, -6)
+    r.title:SetWidth(420); r.title:SetJustifyH("LEFT"); r.title:SetWordWrap(false)
+    r.name = r:CreateFontString(nil, "OVERLAY", "GPFont_TextBold"); r.name:SetPoint("TOPLEFT", 50, -25)
     r.info = r:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall"); r.info:SetPoint("LEFT", r.name, "RIGHT", 10, 0)
     r.line2 = r:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall"); r.line2:SetPoint("BOTTOMLEFT", 50, 7)
     r.line2:SetWidth(420); r.line2:SetJustifyH("LEFT"); r.line2:SetWordWrap(false)
@@ -326,7 +329,7 @@ local function GetRow(i)
         t:SetPoint("RIGHT", r, "RIGHT", -112 - (5 - p) * 12, 8)
         r.pips[p] = t
     end
-    r.count = r:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall"); r.count:SetPoint("TOPRIGHT", r, "TOPRIGHT", -112, -28)
+    r.count = r:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall"); r.count:SetPoint("TOPRIGHT", r, "TOPRIGHT", -112, -36)
     r.tell = CreateFrame("Button", nil, r, "UIPanelButtonTemplate")
     r.tell:SetSize(96, 24); r.tell:SetPoint("RIGHT", -6, 0); r.tell:SetText(L["Beitreten"])
     -- Rechtsklick: trotzdem anflüstern
@@ -431,11 +434,11 @@ function page:Refresh()
             r.name:SetText(("|cff%s%s|r"):format(hex, Ambiguate(item.name, "guild"))
                 .. (e.self and (" |cff999999(" .. L["du"] .. ")|r") or ""))
             r.info:SetText(("Lvl %d · %s · |cff999999%s|r"):format(e.level, RoleLabel(e.role), e.zone))
+            r.title:SetText(e.note ~= "" and e.note or (t.color .. KindLabel(e.kind, e.size) .. "|r"))
 
             local parts = { t.color .. KindLabel(e.kind, e.size) .. "|r" }
             if e.kind == "key" then parts[#parts + 1] = KeyLabel(e.map, e.keyLevel) end
             if e.needs ~= "" then parts[#parts + 1] = (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
-            if e.note ~= "" then parts[#parts + 1] = "|cffe6e0da" .. e.note .. "|r" end
             parts[#parts + 1] = "|cff777777" .. Ago(now, e.t) .. "|r"
             r.line2:SetText(table.concat(parts, "  ·  "))
 
