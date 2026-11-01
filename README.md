@@ -102,27 +102,12 @@ Den Ordner `GuildPride` nach `World of Warcraft/_retail_/Interface/AddOns` kopie
 
 ## Screenshots
 
-![Overview](docs/en_overview.png)
+*In-game screenshots (German client) · Spiel-Screenshots*
 
-![Milestones](docs/en_milestones.png)
+![Overview / Übersicht](docs/screenshots/1_uebersicht.jpg)
 
-![Events](docs/en_events.png)
+![Group finder – dungeon picker / Gruppensuche – Dungeon-Auswahl](docs/screenshots/3_gruppensuche_dungeon.jpg)
 
-![Group finder](docs/en_lfg_alt.png)
+![Milestone pop-up / Meilenstein-Popup](docs/screenshots/4_meilenstein_popup.jpg)
 
-![Guild chat](docs/en_chat_alt.png)
-
-<details>
-<summary>Deutsche Screenshots</summary>
-
-![Übersicht](docs/de_overview.png)
-
-![Meilensteine](docs/de_milestones.png)
-
-![Events](docs/de_events.png)
-
-![Gruppensuche](docs/de_lfg.png)
-
-![Gildenchat](docs/de_chat.png)
-
-</details>
+![Settings / Einstellungen](docs/screenshots/5_einstellungen.jpg)
