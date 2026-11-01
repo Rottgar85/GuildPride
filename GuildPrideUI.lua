@@ -861,7 +861,8 @@ local function RosterTooltip(row)
     GameTooltip:AddLine(ClassName(m))
     if m.level and m.level > 0 then GameTooltip:AddLine(("Lvl %d"):format(m.level), 1, 1, 1) end
     if m.rank and m.rank ~= "" then GameTooltip:AddLine((L["Rang: %s"]):format(m.rank), 0.8, 0.8, 0.8) end
-    if m.online then GameTooltip:AddLine("|cff40ff40●|r " .. (m.zone or ""), 1, 1, 1)
+    -- Blizzards Tooltip-Schrift kennt "●" nicht (Kästchen) -> Online-Symbol als Grafik
+    if m.online then GameTooltip:AddLine("|TInterface\\FriendsFrame\\StatusIcon-Online:12:12|t " .. (m.zone or ""), 1, 1, 1)
     else GameTooltip:AddLine(m.last or L["offline"], 0.5, 0.5, 0.5) end
     if m.note and m.note ~= "" then GameTooltip:AddLine(m.note, 0.6, 0.6, 0.6, true) end
     if ns.KeyTooltip and m.full then ns.KeyTooltip(GameTooltip, m.full) end
