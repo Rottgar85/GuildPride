@@ -19,8 +19,7 @@ local STATUS = {
 -- Daten
 ---------------------------------------------------------------------
 local function DB()
-    GuildPrideDB.events = GuildPrideDB.events or {}
-    return GuildPrideDB.events
+    return ns.GuildTable("events")   -- je Gilde getrennt
 end
 
 local function Me()
@@ -838,12 +837,9 @@ bInvite:SetScript("OnClick", function() if Sel() then InviteAttendees(Sel()) end
 
 ---------------------------------------------------------------------
 -- Anwesenheit: wer zugesagt hat und wer wirklich in der Gruppe war.
--- Nur lokal gespeichert: GuildPrideDB.attendance["id:t"] = { title, t, yes, present }
+-- Nur lokal gespeichert, je Gilde: ["id:t"] = { title, t, yes, present }
 ---------------------------------------------------------------------
-local function Attendance()
-    GuildPrideDB.attendance = GuildPrideDB.attendance or {}
-    return GuildPrideDB.attendance
-end
+local function Attendance() return ns.GuildTable("attendance") end
 
 local function GroupNames()
     local out = {}

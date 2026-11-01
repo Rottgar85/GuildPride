@@ -357,7 +357,7 @@ function overview:Refresh()
 
     local nextEvent
     if ns.RollEvents then ns.RollEvents() end   -- wöchentliche Events auf den nächsten Termin
-    for _, e in pairs(GuildPrideDB.events or {}) do
+    for _, e in pairs(ns.GuildTable("events")) do
         if e.title and not e.deleted and e.t and e.t > GetServerTime() and (not nextEvent or e.t < nextEvent.t) then
             nextEvent = e
         end

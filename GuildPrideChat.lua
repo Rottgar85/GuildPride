@@ -344,8 +344,9 @@ end
 
 -- Lokaler Fallback (Clients ohne C_Club)
 local function Store()
-    GuildPrideDB.chat = GuildPrideDB.chat or { GUILD = {}, OFFICER = {} }
-    return GuildPrideDB.chat
+    local s = ns.GuildTable("chat")   -- je Gilde getrennt
+    s.GUILD, s.OFFICER = s.GUILD or {}, s.OFFICER or {}
+    return s
 end
 
 ---------------------------------------------------------------------

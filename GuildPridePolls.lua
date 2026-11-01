@@ -8,8 +8,7 @@ local L = ns.L
 local MAX_OPTS = 6
 
 local function DB()
-    GuildPrideDB.polls = GuildPrideDB.polls or {}
-    return GuildPrideDB.polls
+    return ns.GuildTable("polls")   -- je Gilde getrennt
 end
 
 local function Me() return ns.Me() end

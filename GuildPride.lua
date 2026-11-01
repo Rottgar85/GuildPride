@@ -150,6 +150,19 @@ function ns.GuildId()
     return guild .. "@" .. (realm or GetNormalizedRealmName() or "")
 end
 
+-- Gespeicherte Daten einer Gilde (Verlauf, Events, Umfragen, Chat …) liegen je
+-- Gilde getrennt in GuildPrideDB.guilds["Gilde@Realm"][feld]: ein Account kann
+-- Charaktere in mehreren Gilden haben. Ohne Gilde: leere Wegwerf-Tabelle.
+function ns.GuildTable(field)
+    local id = ns.GuildId()
+    if not id or not GuildPrideDB then return {} end
+    GuildPrideDB.guilds = GuildPrideDB.guilds or {}
+    local g = GuildPrideDB.guilds[id] or {}
+    GuildPrideDB.guilds[id] = g
+    g[field] = g[field] or {}
+    return g[field]
+end
+
 -- Meilensteine über den abgesicherten Kanal (ohne Kanal-Schlüssel über die
 -- Gilde). Der eigene kommt sofort in den Verlauf: ob der Kanal die eigene
 -- Nachricht zurückliefert, ist nicht sicher; ein Echo wird ohnehin aussortiert.
@@ -215,14 +228,7 @@ local function LogKey(e)
     return (e.kind or "?") .. ":" .. tostring(e.who) .. ":" .. tostring(v)
 end
 
--- Verlauf je Gilde getrennt: ein Account kann Charaktere in mehreren Gilden haben
-local function Log()
-    local id = ns.GuildId()
-    if not id or not GuildPrideDB then return {} end
-    GuildPrideDB.logs = GuildPrideDB.logs or {}
-    GuildPrideDB.logs[id] = GuildPrideDB.logs[id] or {}
-    return GuildPrideDB.logs[id]
-end
+local function Log() return ns.GuildTable("log") end
 ns.GuildLog = Log
 
 -- Neuen Eintrag aufnehmen; true, wenn er neu war
@@ -269,11 +275,8 @@ end
 -- sind, kommen nach dem Login nur still in den Verlauf (kein Popup-Schwall).
 local rosterSeen = false
 local function CheckRosterLevels()
-    local id = ns.GuildId()
-    if not IsInGuild() or not id or GetNumGuildMembers() == 0 then return end
-    GuildPrideDB.guildLevels = GuildPrideDB.guildLevels or {}
-    GuildPrideDB.guildLevels[id] = GuildPrideDB.guildLevels[id] or {}
-    local known = GuildPrideDB.guildLevels[id]
+    if not IsInGuild() or not ns.GuildId() or GetNumGuildMembers() == 0 then return end
+    local known = ns.GuildTable("levels")
     local silent = not rosterSeen
     for i = 1, GetNumGuildMembers() do
         local name, _, _, level = GetGuildRosterInfo(i)
@@ -509,17 +512,14 @@ f:SetScript("OnEvent", function(_, event, ...)
         for k, v in pairs(defaults) do
             if GuildPrideDB[k] == nil then GuildPrideDB[k] = v end
         end
-        -- Einmalige Bereinigung vor der ersten Veröffentlichung:
-        -- entfernt alle Testdaten (Events, Verlauf, Warteschlangen).
-        if GuildPrideDB.cleanStart ~= 1 then
-            GuildPrideDB.events = {}
-            GuildPrideDB.chat = nil
-            GuildPrideDB.cleanStart = 1
-        end
-        -- Bis 1.12.3 gab es einen Verlauf für den ganzen Account, Gilden gemischt.
-        -- Er wird verworfen: jede Gilde beginnt leer und holt sich ihren Verlauf
-        -- über den abgesicherten Kanal von den anderen Mitgliedern.
-        GuildPrideDB.log, GuildPrideDB.levels = nil, nil
+        GuildPrideDB.cleanStart = nil   -- alte Einmal-Bereinigung, nicht mehr nötig
+        -- Bis 1.12.3 lagen Verlauf, Events, Umfragen, Anwesenheit, Chat und der
+        -- Gildeninfo-Stand einmal für den ganzen Account vor, Gilden gemischt.
+        -- Das wird verworfen: jede Gilde beginnt leer (GuildPrideDB.guilds) und
+        -- holt sich ihre Daten über den abgesicherten Kanal von den Mitgliedern.
+        GuildPrideDB.log, GuildPrideDB.levels, GuildPrideDB.events, GuildPrideDB.polls = nil, nil, nil, nil
+        GuildPrideDB.attendance, GuildPrideDB.chat, GuildPrideDB.infoSeen = nil, nil, nil
+        GuildPrideDB.logs, GuildPrideDB.guildLevels = nil, nil
         -- Eigene Regeln wurden durch die Blizzard-Gildeninfo ersetzt
         GuildPrideDB.rules, GuildPrideDB.rulesSeen = nil, nil
         -- BattleTag-Funktion wurde entfernt: alte gespeicherte Daten löschen

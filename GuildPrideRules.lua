@@ -110,7 +110,7 @@ function page:Refresh()
         text:SetText(L["|cff888888Die Gildeninfo ist gerade nicht verfügbar.|r"])
     else
         text:SetText(t ~= "" and t or L["|cff888888Es wurde noch keine Gildeninfo festgelegt.|r"])
-        GuildPrideDB.infoSeen = Hash(t)   -- gelesen
+        ns.GuildTable("info").seen = Hash(t)   -- gelesen
     end
     copyText = t or ""
     bCopy:SetShown(copyText ~= "")
@@ -135,17 +135,19 @@ local announced
 local function Changed()
     local t = InfoText()
     if not t or t == "" or not GuildPrideDB then return false end
-    return GuildPrideDB.infoSeen ~= Hash(t)
+    -- Neu in dieser Gilde (noch kein Stand gemerkt): nicht als geändert melden
+    local seen = ns.GuildTable("info").seen
+    return seen ~= nil and seen ~= Hash(t)
 end
 
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("GUILD_ROSTER_UPDATE")
 ev:SetScript("OnEvent", function()
     if not GuildPrideDB then return end
-    if GuildPrideDB.infoSeen == nil then
+    if ns.GuildTable("info").seen == nil then
         -- Erster Start mit dieser Version: aktuellen Stand als gelesen merken
         local t = InfoText()
-        if t then GuildPrideDB.infoSeen = Hash(t) end
+        if t then ns.GuildTable("info").seen = Hash(t) end
         return
     end
     if Changed() and not announced then
