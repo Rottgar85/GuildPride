@@ -1,5 +1,19 @@
 # GuildPride Changelog
 
+## 1.12.4
+
+**English**
+- Milestones, events, polls, attendance, the chat store and the guild info "read" state are now saved separately per guild – characters in different guilds no longer see each other's data
+- Old data that was shared across the whole account is removed once; each guild starts empty and fetches its data from online members over the secured channel
+- Milestones and the milestone history sync now go over the secured channel (guild chat only as fallback without a channel key)
+- History from older versions (mixed across guilds) is no longer taken over; synced entries only for current guild members
+
+**Deutsch**
+- Meilensteine, Events, Umfragen, Anwesenheit, Chat-Speicher und der Gildeninfo-Lesestand werden jetzt je Gilde getrennt gespeichert – Charaktere in verschiedenen Gilden sehen nicht mehr die Daten der anderen
+- Alte, für den ganzen Account gemischte Daten werden einmalig gelöscht; jede Gilde beginnt leer und holt sich ihre Daten über den abgesicherten Kanal von Mitgliedern, die online sind
+- Meilensteine und der Abgleich des Verlaufs laufen jetzt über den abgesicherten Kanal (Gildenkanal nur als Ersatz ohne Kanal-Schlüssel)
+- Verlauf älterer Versionen (über Gilden gemischt) wird nicht mehr übernommen; abgeglichene Einträge nur zu aktuellen Gildenmitgliedern
+
 ## 1.12.3
 
 **English**
