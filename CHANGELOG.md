@@ -1,5 +1,21 @@
 # GuildPride Changelog
 
+## 1.12.3
+
+**English**
+- Security: addon data is now only accepted from guild members, also via whisper and channel; incoming values (names, IDs, version and time stamps, milestones, votes) are checked and limited, so no colour/link codes can be injected and events or polls can no longer be locked by fake data
+- Requests from a single player are throttled and stored events/polls are capped, so nobody can flood the guild's addon traffic or your saved data
+- Secured channel: name and password now come from a random secret key created by the guild leadership and shared only with guild members (never over the channel itself); a new key is created when someone leaves the guild
+- Sync after login now runs over this secured channel, whisper is only the fallback
+- New command `/gp channel` (status), officers: `/gp channel new` (new key)
+
+**Deutsch**
+- Sicherheit: Addon-Daten werden nur noch von Gildenmitgliedern angenommen, auch per Flüstern und Kanal; eingehende Werte (Namen, IDs, Versions- und Zeitstempel, Meilensteine, Stimmen) werden geprüft und begrenzt – keine Farb-/Link-Codes mehr einschleusbar, Events und Umfragen lassen sich nicht mehr durch gefälschte Daten sperren
+- Anfragen pro Spieler werden gedrosselt, gespeicherte Events/Umfragen sind begrenzt – niemand kann den Addon-Verkehr der Gilde oder deine gespeicherten Daten fluten
+- Abgesicherter Kanal: Name und Passwort kommen jetzt aus einem geheimen Zufallsschlüssel der Gildenleitung, der nur an Gildenmitglieder geht (nie über den Kanal selbst); verlässt jemand die Gilde, entsteht ein neuer Schlüssel
+- Der Abgleich nach dem Login läuft jetzt über diesen abgesicherten Kanal, Flüstern nur noch als Ersatz
+- Neuer Befehl `/gp kanal` (Status), Offiziere: `/gp kanal neu` (neuer Schlüssel)
+
 ## 1.12.2
 
 **English**
