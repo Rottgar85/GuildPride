@@ -262,8 +262,15 @@ end
 -- Namen ohne Realm vergleichen: Server-Verlauf und Chat-Ereignis liefern den
 -- Realm in Classic nicht immer gleich ("Name" gegenüber "Name-Realm").
 local function BaseName(n) return (n:gsub("%-.*$", "")) end
+-- Text ohne Farbcodes und überzählige Leerzeichen: Chat-Ereignis und Server-Verlauf
+-- liefern denselben Text in Classic teils unterschiedlich (z. B. Leerzeichen am Ende)
+local function NormText(s)
+    if type(s) ~= "string" or Secret(s) then return s end
+    s = s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("%s+", " ")
+    return strtrim(s)
+end
 local function Same(a, b)
-    if a.text ~= b.text then return false end
+    if a.text ~= b.text and NormText(a.text) ~= NormText(b.text) then return false end
     local dt = math.abs((a.t or 0) - (b.t or 0))
     if a.who and b.who then return BaseName(a.who) == BaseName(b.who) and dt < 120 end
     return dt < 900
