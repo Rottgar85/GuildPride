@@ -1,5 +1,13 @@
 # GuildPride Changelog
 
+## 1.12.2
+
+**English**
+- Guild Info: when copying, you can now select just a part of the text with the mouse; new "Select all" button
+
+**Deutsch**
+- Gildeninfo: Beim Kopieren lässt sich jetzt auch nur ein Teil des Textes mit der Maus markieren; neuer Knopf „Alles markieren“
+
 ## 1.12.1
 
 **English**
