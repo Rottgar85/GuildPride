@@ -52,16 +52,14 @@ local function QuestLogList()
     return out
 end
 
--- Schwierigkeiten je Spielversion: Classic Era nur normal, ab TBC heroisch,
--- Retail/Forever auch mythisch, Retail zusätzlich M+ mit Stufe
+-- Dungeon-Auswahl nur außerhalb von Retail (dort gibt es den Dungeonbrowser/M+)
+local HAS_DUNGEON_PICK = not ns.IS_RETAIL
+
+-- Schwierigkeiten je Spielversion: Classic Era nur normal, ab TBC heroisch, Forever auch mythisch
 local DIFF_LABEL = { N = L["Normal"], H = L["Heroisch"], M = L["Mythisch"] }
 local DIFFS = { { key = "N", label = DIFF_LABEL.N } }
 if (select(4, GetBuildInfo()) or 0) >= 20000 or not ns.IS_CLASSIC then DIFFS[#DIFFS + 1] = { key = "H", label = DIFF_LABEL.H } end
 if not ns.IS_CLASSIC then DIFFS[#DIFFS + 1] = { key = "M", label = DIFF_LABEL.M } end
-if ns.IS_RETAIL then
-    DIFF_LABEL.K = "M+"
-    DIFFS[#DIFFS + 1] = { key = "K", label = DIFF_LABEL.K }
-end
 
 -- "Lvl 18–23" bzw. "Lvl 80+"
 local function LevelRange(lo, hi)
@@ -70,10 +68,9 @@ local function LevelRange(lo, hi)
     return ("Lvl %d+"):format(lo)
 end
 
--- "Todesminen (Heroisch)" bzw. "Ara-Kara (+12)"
+-- "Todesminen (Heroisch)"
 local function DungeonText(d)
-    local diff = d.diff == "K" and (d.keyLevel or 0) > 0 and ("+" .. d.keyLevel) or DIFF_LABEL[d.diff or ""]
-        or (d.diff == "K" and "M+") or nil
+    local diff = DIFF_LABEL[d.diff or ""]
     return d.name .. (diff and (" (" .. diff .. ")") or "")
 end
 
@@ -407,7 +404,7 @@ local function OpenQuestPicker()
     questPicker:Show()
 end
 
--- Dungeon: Suchfeld, darunter Schwierigkeit (und M+-Stufe in Retail)
+-- Dungeon: Suchfeld, darunter Schwierigkeit
 local hasDiff = #DIFFS > 1
 local dungeonPicker = MakePicker(bDungeonPick, hasDiff and 56 or 30)
 local search = CreateFrame("EditBox", nil, dungeonPicker, "InputBoxTemplate")
@@ -419,13 +416,12 @@ searchHint:SetPoint("LEFT", 2, 0)
 searchHint:SetText(L["Suchen …"])
 
 local diffSel = hasDiff and DIFFS[1].key or ""
-local diffBtns, keyBox = {}, nil
+local diffBtns = {}
 local function UpdateDiffButtons()
     for key, b in pairs(diffBtns) do
         if b.gpBg then b.gpBg:SetTexture(ns.MEDIA .. (key == diffSel and "nav_active" or "nav")) end
         if key == diffSel then b:LockHighlight() else b:UnlockHighlight() end
     end
-    if keyBox then keyBox:SetShown(diffSel == "K") end
 end
 if hasDiff then
     for i, d in ipairs(DIFFS) do
@@ -436,22 +432,13 @@ if hasDiff then
         b:SetScript("OnClick", function() diffSel = d.key; UpdateDiffButtons() end)
         diffBtns[d.key] = b
     end
-    if DIFF_LABEL.K and diffBtns.K then
-        keyBox = CreateFrame("EditBox", nil, dungeonPicker, "InputBoxTemplate")
-        keyBox:SetSize(26, 20)
-        keyBox:SetPoint("LEFT", diffBtns.K, "RIGHT", 8, 0)
-        keyBox:SetAutoFocus(false)
-        keyBox:SetNumeric(true)
-        keyBox:SetMaxLetters(2)
-    end
     UpdateDiffButtons()
 end
 
 local function FillDungeons()
     local filter = search:GetText():lower()
     local function Pick(d)
-        pickedDungeon = d and { name = d.name, min = d.min, max = d.max, diff = diffSel,
-            keyLevel = diffSel == "K" and keyBox and tonumber(keyBox:GetText()) or 0 } or nil
+        pickedDungeon = d and { name = d.name, min = d.min, max = d.max, diff = diffSel, keyLevel = 0 } or nil
         dungeonPicker:Hide()
         ApplyPicks()
     end
@@ -489,9 +476,14 @@ bDungeonPick:SetScript("OnClick", function()
     questPicker:Hide()
     if dungeonPicker:IsShown() then dungeonPicker:Hide() else OpenDungeonPicker() end
 end)
+-- Retail: ohne Dungeon-Knopf, das Titelfeld bekommt den Platz
+if not HAS_DUNGEON_PICK then
+    bDungeonPick:Hide()
+    noteBox:SetWidth(198)
+end
 
 local needLabel = page:CreateFontString(nil, "OVERLAY", "GPFont_Text")
-needLabel:SetPoint("LEFT", bDungeonPick, "RIGHT", 16, 0)
+needLabel:SetPoint("LEFT", HAS_DUNGEON_PICK and bDungeonPick or bQuestPick, "RIGHT", 16, 0)
 needLabel:SetText(L["Fehlt noch:"])
 
 local needBtns = {}
