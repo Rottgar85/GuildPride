@@ -1,5 +1,15 @@
 # GuildPride Changelog
 
+## 1.11.3
+
+**English**
+- Group Finder: the title you enter is now shown in large letters at the top of each listing
+- Group Finder: new "Quest" button to link a quest from your quest log; others see it as a link (tooltip on hover, Shift-click posts it in chat)
+
+**Deutsch**
+- Gruppensuche: Der oben eingegebene Titel steht jetzt groß oben im Listeneintrag
+- Gruppensuche: Neuer Knopf „Quest“, um eine Quest aus dem Questlog zu verlinken; die anderen sehen sie als Link (Tooltip beim Drüberfahren, Shift-Klick postet sie im Chat)
+
 ## 1.11.2
 
 **English**
