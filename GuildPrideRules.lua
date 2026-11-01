@@ -48,28 +48,39 @@ copyBg:SetAllPoints(); copyBg:SetColorTexture(0, 0, 0, 0.45)
 
 local bCopy = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 bCopy:SetSize(140, 24)
+-- Im Kopiermodus: wieder alles markieren
+local bAll = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bAll:SetSize(140, 24)
+bAll:SetPoint("RIGHT", bCopy, "LEFT", -6, 0)
+bAll:SetText(L["Alles markieren"])
+bAll:SetScript("OnClick", function() copyBox:SetFocus(); copyBox:HighlightText() end)
 
 local copyText = ""
 local function CopyMode(on)
     copyScroll:SetShown(on)
     scroll:SetShown(not on)
+    bAll:SetShown(on)
     bCopy:SetText(on and L["Fertig"] or L["Text kopieren"])
     if on then
         copyBox:SetText(copyText)
         copyBox:SetFocus()
         copyBox:HighlightText()
-        ns.Print(L["Text ist markiert – mit Strg+C kopieren."])
+        ns.Print(L["Text ist markiert – mit Strg+C kopieren. Mit der Maus kannst du auch nur einen Teil markieren."])
     else
         copyBox:ClearFocus()
     end
 end
 CopyMode(false)
--- Nur lesen: Eingaben sofort zurücksetzen, Markierung behalten
+-- Nur lesen: Eingaben sofort zurücksetzen. Markieren mit der Maus (ziehen,
+-- Shift+Klick) bleibt möglich, so lässt sich auch nur ein Teil kopieren.
 copyBox:SetScript("OnTextChanged", function(self, userInput)
-    if userInput then self:SetText(copyText); self:HighlightText() end
+    if userInput then
+        local pos = self:GetCursorPosition()
+        self:SetText(copyText)
+        self:SetCursorPosition(math.min(pos, #copyText))
+    end
 end)
 copyBox:SetScript("OnEscapePressed", function() CopyMode(false) end)
-copyBox:SetScript("OnMouseUp", function(self) self:HighlightText() end)
 bCopy:SetScript("OnClick", function() CopyMode(not copyScroll:IsShown()) end)
 page:HookScript("OnHide", function() CopyMode(false) end)
 
