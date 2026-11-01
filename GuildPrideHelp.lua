@@ -23,6 +23,34 @@ local function KeyLabel(map, level)
     local name = ns.KeyMapName and ns.KeyMapName(map) or nil
     return ("|cffa335ee+%d %s|r"):format(level, name or "")
 end
+
+-- Quest-Link selbst bauen: GetQuestLink erwartet in Classic den Questlog-Index
+local function QuestLink(id, level, name)
+    if not id or id == 0 or not name or name == "" then return "" end
+    return ("|cffffff00|Hquest:%d:%d|h[%s]|h|r"):format(id, level or 0, name)
+end
+
+-- Quests im eigenen Questlog: { id, level, name } (Retail/Forever: C_QuestLog, Classic: GetQuestLogTitle)
+local function QuestLogList()
+    local out = {}
+    local Q = C_QuestLog
+    local modern = Q and Q.GetInfo and Q.GetNumQuestLogEntries
+    local n = (modern and Q.GetNumQuestLogEntries()) or (GetNumQuestLogEntries and GetNumQuestLogEntries()) or 0
+    for i = 1, n do
+        local title, level, isHeader, hidden, id
+        if modern then
+            local q = Q.GetInfo(i)
+            if q then title, level, isHeader, hidden, id = q.title, q.level, q.isHeader, q.isHidden, q.questID end
+        elseif GetQuestLogTitle then
+            local _
+            title, level, _, isHeader, _, _, _, id = GetQuestLogTitle(i)
+        end
+        if title and not isHeader and not hidden and (id or 0) > 0 then
+            out[#out + 1] = { id = id, level = level or 0, name = title }
+        end
+    end
+    return out
+end
 local ROLES = {
     { key = "T", label = "Tank",        color = "|cff6fa8ff", spec = "TANK" },
     { key = "H", label = L["Heiler"],   color = "|cff40ff40", spec = "HEALER" },
@@ -33,6 +61,7 @@ local ROLE_BY_SPEC = { TANK = "T", HEALER = "H", DAMAGER = "D" }
 local entries = {}   -- [Name-Realm] = { kind, note, level, zone, size, max, needs, role, class, t, seen }
 local mine           -- eigener Eintrag
 local needs = {}     -- eigene Auswahl: { T = true, H = true }
+local picked         -- gewählte Quest aus dem Questlog: { id, level, name }
 local lastSent = 0
 -- Versionsnummer des eigenen Zustands (eingetragen/ausgetragen/Art). Sie steigt
 -- bei jeder Änderung; Empfänger ignorieren ältere Stände. Sonst konnte eine
@@ -98,8 +127,11 @@ local function SendMine(target)
         local size, max = GroupSize()
         local _, class = UnitClass("player")
         -- Felder 11/12: Schlüssel (ältere Versionen ignorieren sie und kennen "key" nicht)
+        -- Felder 13–15: verlinkte Quest (ID, Stufe, Name)
+        local q = mine.quest
         ns.Queue("LFG", target, mine.kind, mine.note, UnitLevel("player"), GetZoneText() or "",
-            size, max, mine.needs or "", MyRoleKey(), class or "", stateVer, mine.map or 0, mine.keyLevel or 0)
+            size, max, mine.needs or "", MyRoleKey(), class or "", stateVer, mine.map or 0, mine.keyLevel or 0,
+            q and q.id or 0, q and q.level or 0, q and Clean(q.name, 50) or "")
         if not target then lastSent = GetServerTime() end
     elseif not target then
         ns.Queue("LFG", nil, "none", "", 0, "", 0, 0, "", "", "", stateVer)
@@ -114,12 +146,14 @@ local function MyEntry()
     local _, class = UnitClass("player")
     return { kind = mine.kind, note = mine.note, level = UnitLevel("player"), zone = GetZoneText() or "",
              size = size, max = max, needs = mine.needs or "", role = MyRoleKey(), class = class or "",
-             map = mine.map, keyLevel = mine.keyLevel, t = mine.t, self = true }
+             map = mine.map, keyLevel = mine.keyLevel, t = mine.t, self = true,
+             questId = mine.quest and mine.quest.id or 0, questLevel = mine.quest and mine.quest.level or 0,
+             questName = mine.quest and mine.quest.name or "" }
 end
 
 ns.On("LFG", function(payload, sender)
     if sender == ns.Me() then return end
-    local kind, note, level, zone, size, max, need, role, class, ver, map, keyLevel = strsplit(SEP, payload)
+    local kind, note, level, zone, size, max, need, role, class, ver, map, keyLevel, questId, questLevel, questName = strsplit(SEP, payload)
     -- Älteren Stand als den schon bekannten ignorieren (ältere Versionen senden keine Nummer)
     ver = tonumber(ver) or 0
     if ver > 0 then
@@ -138,12 +172,14 @@ ns.On("LFG", function(payload, sender)
         local e = { kind = kind, note = Clean(note, 60), level = tonumber(level) or 0, zone = Clean(zone, 40),
                     size = tonumber(size) or 1, max = tonumber(max) or 5, needs = Clean(need, 3),
                     role = Clean(role, 1), class = Clean(class, 20), t = old and old.t or GetServerTime(),
-                    map = tonumber(map) or 0, keyLevel = tonumber(keyLevel) or 0, seen = GetServerTime() }
+                    map = tonumber(map) or 0, keyLevel = tonumber(keyLevel) or 0, seen = GetServerTime(),
+                    questId = tonumber(questId) or 0, questLevel = tonumber(questLevel) or 0, questName = Clean(questName, 50) }
         if isNew then e.t = GetServerTime() end
         entries[sender] = e
         if alert and GuildPrideDB.helpAlerts ~= false then
             local extra = (" · " .. L["Gruppe %d/%d"]):format(e.size, e.max)
             if kind == "key" then extra = " · " .. KeyLabel(e.map, e.keyLevel) .. extra end
+            if e.questId > 0 then extra = " · " .. QuestLink(e.questId, e.questLevel, e.questName) .. extra end
             if e.needs ~= "" then extra = extra .. " · " .. (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
             ns.Print(("%s%s|r: |cffffd100%s|r (Lvl %d, %s)%s%s"):format(TYPES[kind].color, KindLabel(kind, e.size),
                 Ambiguate(sender, "guild"), e.level, e.zone, extra, e.note ~= "" and (" – " .. e.note) or ""))
@@ -198,13 +234,97 @@ hint:SetPoint("TOPLEFT", 2, -2)
 hint:SetText(L["Titel (optional), Rollen wählen, dann eintragen. Die Gruppengröße wird automatisch übernommen."])
 
 local noteBox = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
-noteBox:SetSize(240, 22)
+noteBox:SetSize(170, 22)
 noteBox:SetPoint("TOPLEFT", 8, -22)
 noteBox:SetAutoFocus(false)
 noteBox:SetMaxLetters(60)
 
+-- Quest aus dem Questlog verlinken (eigene Liste, gleich in allen Spielversionen)
+local bQuestPick = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bQuestPick:SetSize(66, 22)
+bQuestPick:SetPoint("LEFT", noteBox, "RIGHT", 4, 0)
+bQuestPick:SetText(L["Quest"])
+bQuestPick:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText(L["Quest verlinken"], 1, 1, 1)
+    GameTooltip:AddLine(L["Quest aus deinem Questlog wählen"], 0.8, 0.8, 0.8)
+    GameTooltip:Show()
+end)
+bQuestPick:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
+local picker = CreateFrame("Frame", nil, page)
+picker:SetFrameStrata("DIALOG")
+picker:SetPoint("TOPLEFT", bQuestPick, "BOTTOMLEFT", 0, -2)
+picker:SetWidth(320)
+picker:EnableMouse(true)
+picker:Hide()
+local pickerBg = picker:CreateTexture(nil, "BACKGROUND")
+pickerBg:SetAllPoints()
+pickerBg:SetColorTexture(0.05, 0.04, 0.04, 0.97)
+local pickerEdge = picker:CreateTexture(nil, "BORDER")
+pickerEdge:SetPoint("TOPLEFT"); pickerEdge:SetPoint("TOPRIGHT"); pickerEdge:SetHeight(2)
+ns.Paint(pickerEdge, "accent")
+local pickScroll = ns.NewScroll(picker)
+pickScroll:SetPoint("TOPLEFT", 4, -6)
+pickScroll:SetPoint("BOTTOMRIGHT", -26, 4)
+local pickChild = CreateFrame("Frame", nil, pickScroll)
+pickChild:SetSize(290, 1)
+pickScroll:SetScrollChild(pickChild)
+local pickRows = {}
+local PICK_H = 20
+
+local function SetPicked(q)
+    picked = q
+    picker:Hide()
+    -- Schon eingetragen: Eintrag gleich mit der neuen Quest erneuern
+    if mine then
+        mine.quest = picked
+        BumpVer()
+        SendMine()
+    end
+    ns.RefreshUI()
+end
+
+local function OpenPicker()
+    local list = QuestLogList()
+    if #list == 0 then
+        ns.Print(L["Dein Questlog ist leer."])
+        return
+    end
+    table.insert(list, 1, { none = true })
+    for i, q in ipairs(list) do
+        local b = pickRows[i]
+        if not b then
+            b = CreateFrame("Button", nil, pickChild)
+            b:SetSize(290, PICK_H)
+            b:SetPoint("TOPLEFT", 0, -(i - 1) * PICK_H)
+            b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+            b.text = b:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
+            b.text:SetPoint("LEFT", 6, 0); b.text:SetPoint("RIGHT", -4, 0)
+            b.text:SetJustifyH("LEFT"); b.text:SetWordWrap(false)
+            pickRows[i] = b
+        end
+        if q.none then
+            b.text:SetText("|cff999999" .. L["Keine Quest"] .. "|r")
+            b:SetScript("OnClick", function() SetPicked(nil) end)
+        else
+            b.text:SetText(("|cff999999[%d]|r |cffffd100%s|r"):format(q.level, q.name))
+            b:SetScript("OnClick", function() SetPicked(q) end)
+        end
+        b:Show()
+    end
+    for i = #list + 1, #pickRows do pickRows[i]:Hide() end
+    pickChild:SetHeight(#list * PICK_H)
+    picker:SetHeight(math.min(#list, 14) * PICK_H + 10)
+    picker:Show()
+end
+bQuestPick:SetScript("OnClick", function()
+    if picker:IsShown() then picker:Hide() else OpenPicker() end
+end)
+page:HookScript("OnHide", function() picker:Hide() end)
+
 local needLabel = page:CreateFontString(nil, "OVERLAY", "GPFont_Text")
-needLabel:SetPoint("LEFT", noteBox, "RIGHT", 16, 0)
+needLabel:SetPoint("LEFT", bQuestPick, "RIGHT", 16, 0)
 needLabel:SetText(L["Fehlt noch:"])
 
 local needBtns = {}
@@ -241,7 +361,7 @@ local function Set(kind)
         return
     end
     if kind then
-        mine = { kind = kind, note = Clean(noteBox:GetText(), 60), needs = NeedsCode(), t = GetServerTime() }
+        mine = { kind = kind, note = Clean(noteBox:GetText(), 60), needs = NeedsCode(), quest = picked, t = GetServerTime() }
         UpdateMyKey()
         ns.Print(L["Du bist eingetragen: "] .. KindLabel(kind, (GroupSize())))
     else
@@ -321,6 +441,16 @@ local function GetRow(i)
     r.info = r:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall"); r.info:SetPoint("LEFT", r.name, "RIGHT", 10, 0)
     r.line2 = r:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall"); r.line2:SetPoint("BOTTOMLEFT", 50, 7)
     r.line2:SetWidth(420); r.line2:SetJustifyH("LEFT"); r.line2:SetWordWrap(false)
+    -- Quest-Link: Maus drüber zeigt die Quest, Klick öffnet sie, Shift-Klick postet sie im Chat
+    if r.SetHyperlinksEnabled then
+        r:SetHyperlinksEnabled(true)
+        r:SetScript("OnHyperlinkEnter", function(self, link)
+            GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+            if pcall(GameTooltip.SetHyperlink, GameTooltip, link) then GameTooltip:Show() else GameTooltip:Hide() end
+        end)
+        r:SetScript("OnHyperlinkLeave", function() GameTooltip:Hide() end)
+        r:SetScript("OnHyperlinkClick", function(_, link, text, button) pcall(SetItemRef, link, text, button) end)
+    end
     -- Gruppen-Füllstand als Punkte
     r.pips = {}
     for p = 1, 5 do
@@ -387,6 +517,7 @@ function page:Refresh()
     else
         status:SetText(L["|cff888888Du bist nicht eingetragen.|r"])
     end
+    if picked then status:SetText(status:GetText() .. "  ·  " .. QuestLink(picked.id, picked.level, picked.name)) end
 
     -- Schlüssel der Gilde statt der Suchliste
     bKeys:SetText(keysView and L["Gruppensuche"] or L["Schlüssel der Gilde"])
@@ -434,9 +565,13 @@ function page:Refresh()
             r.name:SetText(("|cff%s%s|r"):format(hex, Ambiguate(item.name, "guild"))
                 .. (e.self and (" |cff999999(" .. L["du"] .. ")|r") or ""))
             r.info:SetText(("Lvl %d · %s · |cff999999%s|r"):format(e.level, RoleLabel(e.role), e.zone))
-            r.title:SetText(e.note ~= "" and e.note or (t.color .. KindLabel(e.kind, e.size) .. "|r"))
+            -- Titel: eigener Text, sonst die verlinkte Quest, sonst die Art des Eintrags
+            local hasQuest = (e.questId or 0) > 0 and (e.questName or "") ~= ""
+            r.title:SetText(e.note ~= "" and e.note or (hasQuest and ("|cffffd100" .. e.questName .. "|r"))
+                or (t.color .. KindLabel(e.kind, e.size) .. "|r"))
 
             local parts = { t.color .. KindLabel(e.kind, e.size) .. "|r" }
+            if hasQuest then parts[#parts + 1] = QuestLink(e.questId, e.questLevel, e.questName) end
             if e.kind == "key" then parts[#parts + 1] = KeyLabel(e.map, e.keyLevel) end
             if e.needs ~= "" then parts[#parts + 1] = (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
             parts[#parts + 1] = "|cff777777" .. Ago(now, e.t) .. "|r"
