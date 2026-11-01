@@ -1,5 +1,13 @@
 # GuildPride Changelog
 
+## 1.12.1
+
+**English**
+- Group Finder: the dungeon picker is no longer shown in Retail (it stays in WoW Forever and all Classic versions); the Mythic+ option was removed
+
+**Deutsch**
+- Gruppensuche: Die Dungeon-Auswahl wird in Retail nicht mehr angezeigt (in WoW Forever und allen Classic-Versionen bleibt sie); die M+-Auswahl wurde entfernt
+
 ## 1.12.0
 
 **English**
