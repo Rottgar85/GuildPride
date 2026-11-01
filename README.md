@@ -2,7 +2,7 @@
 
 [English](#english) · [Deutsch](#deutsch) · [Screenshots](#screenshots)
 
-World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Rage Quitters Anonymous · CurseForge project 1771937
+World of Warcraft addon for Retail (Midnight 12.x), WoW Forever and all Classic versions · Author: Rottgar85 · CurseForge project 1771937
 
 ---
 
@@ -50,7 +50,7 @@ World of Warcraft addon for Retail (Midnight 12.x) and WoW Forever · Author: Ra
 - Guild data also travels over a hidden, password-protected background channel of your guild, so syncing does not depend on guild chat rank rights.
 
 ### Installation
-Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, or install it with the CurseForge app.
+Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns` (Classic: `_classic_`, `_classic_era_`, `_anniversary_`; WoW Forever: `_forever_`), or install it with the CurseForge app. Works in Retail, WoW Forever and all Classic versions.
 
 ---
 
@@ -98,7 +98,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns`, o
 - Gildendaten laufen zusätzlich über einen versteckten, passwortgeschützten Hintergrund-Kanal eurer Gilde, damit der Abgleich nicht von Rangrechten im Gildenchat abhängt.
 
 ### Installation
-Den Ordner `GuildPride` nach `World of Warcraft/_retail_/Interface/AddOns` kopieren oder über die CurseForge-App installieren.
+Den Ordner `GuildPride` nach `World of Warcraft/_retail_/Interface/AddOns` kopieren (Classic: `_classic_`, `_classic_era_`, `_anniversary_`; WoW Forever: `_forever_`) oder über die CurseForge-App installieren. Läuft in Retail, WoW Forever und allen Classic-Versionen.
 
 ---
 

@@ -31,5 +31,5 @@ Für Wago zusätzlich: `## X-Wago-ID: abcdef12` in die `.toc` und das Secret `WA
 ## Ohne GitHub: ZIP von Hand hochladen
 
 Auf curseforge.com → Projekt 1771937 → „Upload File“ die fertige ZIP wählen,
-als Spielversion Retail angeben, Release-Typ „Release“ und den Abschnitt der neuen
+als Spielversionen Retail, Classic Era, Anniversary, Wrath, Cata und MoP Classic angeben (stehen alle in `## Interface:` der `.toc`), Release-Typ „Release“ und den Abschnitt der neuen
 Version aus `CHANGELOG.md` als Changelog einfügen.

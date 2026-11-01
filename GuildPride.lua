@@ -35,6 +35,11 @@ end
 
 -- Retail (mit Mythisch+)? WoW Forever hat Interface 16001 und kein M+.
 ns.IS_RETAIL = (select(4, GetBuildInfo()) or 0) >= 100000 and C_MythicPlus ~= nil
+-- Classic-Clients (Era, Anniversary, Wrath, Cata, MoP) haben nicht alle Events:
+-- unbekannte Events werfen beim Registrieren einen Fehler, daher abgesichert.
+function ns.RegisterEvents(frame, ...)
+    for i = 1, select("#", ...) do pcall(frame.RegisterEvent, frame, (select(i, ...))) end
+end
 
 -- Beginn der laufenden Woche (Blizzard-Wochenreset, sonst die letzten 7 Tage)
 function ns.WeekStart()
@@ -350,10 +355,7 @@ f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("GUILD_ROSTER_UPDATE")
 f:RegisterEvent("PLAYER_LEVEL_UP")
 f:RegisterEvent("CHAT_MSG_ADDON")
-f:RegisterEvent("ACHIEVEMENT_EARNED")
-f:RegisterEvent("ENCOUNTER_END")
-f:RegisterEvent("CHALLENGE_MODE_COMPLETED")
-f:RegisterEvent("NEW_MOUNT_ADDED")
+ns.RegisterEvents(f, "ACHIEVEMENT_EARNED", "ENCOUNTER_END", "CHALLENGE_MODE_COMPLETED", "NEW_MOUNT_ADDED")
 
 -- Eigene weitere Meilensteine melden (abschaltbar in den Einstellungen)
 local function Share(kind, value)
@@ -377,6 +379,7 @@ local function OnExtraMilestone(event, ...)
         GuildPrideDB.bossKills[key] = true
         Share("BOSS", key)
     elseif event == "CHALLENGE_MODE_COMPLETED" then
+        if not C_ChallengeMode then return end
         local info = C_ChallengeMode.GetChallengeCompletionInfo and C_ChallengeMode.GetChallengeCompletionInfo()
         local level = info and info.level
         if not level then level = select(2, C_ChallengeMode.GetCompletionInfo()) end
@@ -493,6 +496,9 @@ SlashCmdList.GUILDPRIDE = function(arg)
     elseif arg == "optionen" or arg == "options" then
         if ns.SettingsCategory and Settings and Settings.OpenToCategory then
             Settings.OpenToCategory(ns.SettingsCategory:GetID())
+        elseif ns.SettingsPanel and InterfaceOptionsFrame_OpenToCategory then
+            InterfaceOptionsFrame_OpenToCategory(ns.SettingsPanel)
+            InterfaceOptionsFrame_OpenToCategory(ns.SettingsPanel)   -- zweimal: alter Blizzard-Fehler
         end
     else
         Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · kuerzel <XYZ> · einladen <Name> · werben · optionen · badge <Level> · version"])

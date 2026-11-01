@@ -614,12 +614,9 @@ if HAS_CLUB then
         if pendingRedraw then return end
         pendingRedraw = C_Timer.NewTimer(0.5, function() pendingRedraw = nil; if pane:IsVisible() then SafeRedraw() end end)
     end
-    f:RegisterEvent("CLUB_MESSAGE_ADDED")
-    f:RegisterEvent("CLUB_MESSAGE_HISTORY_RECEIVED")
-    f:RegisterEvent("CLUB_STREAMS_LOADED")
-    f:RegisterEvent("CLUB_MESSAGE_UPDATED")
-    f:RegisterEvent("CLUB_MEMBER_UPDATED")    -- Autorennamen kommen oft erst später
-    f:RegisterEvent("CLUB_MEMBERS_UPDATED")
+    -- CLUB_MEMBER(S)_UPDATED: Autorennamen kommen oft erst später
+    ns.RegisterEvents(f, "CLUB_MESSAGE_ADDED", "CLUB_MESSAGE_HISTORY_RECEIVED", "CLUB_STREAMS_LOADED",
+        "CLUB_MESSAGE_UPDATED", "CLUB_MEMBER_UPDATED", "CLUB_MEMBERS_UPDATED")
     f:SetScript("OnEvent", function(_, event, clubId, streamId, messageId)
         if event == "CLUB_MESSAGE_ADDED" then
             -- Auch bei geschlossenem Fenster merken, damit der Verlauf vollständig bleibt

@@ -1,4 +1,4 @@
-GuildPride 1.5.4 (Retail, Midnight, WoW Forever) - Autor: Rage Quitters Anonymous
+GuildPride 1.11.0 (Retail, Midnight, WoW Forever, alle Classic-Versionen) - Autor: Rottgar85
 CurseForge: Projekt 1771937
 
 DEUTSCH

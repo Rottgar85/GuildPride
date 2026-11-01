@@ -1157,8 +1157,10 @@ end
 ns.SettingsPage = settingsPage
 
 -- Dieselben Schalter im WoW-Menü (Optionen -> AddOns -> GuildPride)
-if Settings and Settings.RegisterCanvasLayoutCategory then
+-- Ältere Classic-Clients ohne neues Settings-Menü: alte Interface-Optionen
+if (Settings and Settings.RegisterCanvasLayoutCategory) or InterfaceOptions_AddCategory then
     local panel = CreateFrame("Frame")
+    panel.name = "GuildPride"
     local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 16, -16)
     title:SetText("GuildPride")
@@ -1178,15 +1180,21 @@ if Settings and Settings.RegisterCanvasLayoutCategory then
     open:SetText(L["Gildenfenster öffnen"])
     open:SetScript("OnClick", function()
         if SettingsPanel then HideUIPanel(SettingsPanel) end
+        if InterfaceOptionsFrame then HideUIPanel(InterfaceOptionsFrame) end
         if not frame:IsShown() then ns.ToggleUI() end
     end)
     panel:SetScript("OnShow", function()
         if not GuildPrideDB then return end
         for key, cb in pairs(panelChecks) do cb:SetChecked(GuildPrideDB[key]) end
     end)
-    local category = Settings.RegisterCanvasLayoutCategory(panel, "GuildPride")
-    Settings.RegisterAddOnCategory(category)
-    ns.SettingsCategory = category
+    if Settings and Settings.RegisterCanvasLayoutCategory then
+        local category = Settings.RegisterCanvasLayoutCategory(panel, "GuildPride")
+        Settings.RegisterAddOnCategory(category)
+        ns.SettingsCategory = category
+    else
+        InterfaceOptions_AddCategory(panel)
+        ns.SettingsPanel = panel
+    end
 end
 
 ---------------------------------------------------------------------
@@ -1221,29 +1229,41 @@ end
 ---------------------------------------------------------------------
 local bypass = false
 
+-- Blizzard-Gildenfenster je nach Client: Communities (Retail, MoP),
+-- GuildFrame (Cata/Wrath) oder der Gilden-Reiter im Freundesfenster (Era, Anniversary)
+local function HideBlizzardGuild(useHideUIPanel)
+    local hide = useHideUIPanel and HideUIPanel or function(f) f:Hide() end
+    local hidden = false
+    for _, f in ipairs({ CommunitiesFrame, GuildFrame }) do
+        if f and f:IsShown() then hide(f); hidden = true end
+    end
+    -- Freundesfenster nur, wenn ToggleGuildFrame kein eigenes Gildenfenster geöffnet hat
+    if not hidden and FriendsFrame and FriendsFrame:IsShown() then hide(FriendsFrame) end
+end
+
 function ns.OpenBlizzardGuild()
     frame:Hide()
     bypass = true
-    ToggleGuildFrame()
+    if ToggleGuildFrame then ToggleGuildFrame() end
     bypass = false
 end
 
 -- Wir überschreiben ToggleGuildFrame NICHT (würde Taint verursachen),
 -- sondern schließen das Blizzard-Fenster direkt nach dem Öffnen wieder.
-hooksecurefunc("ToggleGuildFrame", function()
-    -- Im Kampf: jedes Gildenfenster blocken (auch das von Blizzard)
-    if InCombatLockdown() then
-        if CommunitiesFrame and CommunitiesFrame:IsShown() then CommunitiesFrame:Hide() end
-        ns.Print(L["|cffff4040Im Kampf kann das Gildenfenster nicht geöffnet werden.|r"])
-        return
-    end
-    if bypass or not GuildPrideDB or not GuildPrideDB.replaceGuildFrame then return end
-    if not IsInGuild() then return end
-    if CommunitiesFrame and CommunitiesFrame:IsShown() then
-        HideUIPanel(CommunitiesFrame)
-    end
-    ns.ToggleUI()
-end)
+if ToggleGuildFrame then
+    hooksecurefunc("ToggleGuildFrame", function()
+        -- Im Kampf: jedes Gildenfenster blocken (auch das von Blizzard)
+        if InCombatLockdown() then
+            HideBlizzardGuild()
+            ns.Print(L["|cffff4040Im Kampf kann das Gildenfenster nicht geöffnet werden.|r"])
+            return
+        end
+        if bypass or not GuildPrideDB or not GuildPrideDB.replaceGuildFrame then return end
+        if not IsInGuild() then return end
+        HideBlizzardGuild(true)
+        ns.ToggleUI()
+    end)
+end
 
 -- Bei Kampfbeginn offene Fenster schließen
 local combat = CreateFrame("Frame")
