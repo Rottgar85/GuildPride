@@ -634,6 +634,7 @@ if HAS_CLUB then
         if pendingRedraw then return end
         pendingRedraw = C_Timer.NewTimer(0.5, function() pendingRedraw = nil; if pane:IsVisible() then SafeRedraw() end end)
     end
+    local recent = {}   -- zuletzt live gezeigte Nachrichten (gegen doppelte Ereignisse)
     -- CLUB_MEMBER(S)_UPDATED: Autorennamen kommen oft erst später
     ns.RegisterEvents(f, "CLUB_MESSAGE_ADDED", "CLUB_MESSAGE_HISTORY_RECEIVED", "CLUB_STREAMS_LOADED",
         "CLUB_MESSAGE_UPDATED", "CLUB_MEMBER_UPDATED", "CLUB_MEMBERS_UPDATED")
@@ -647,9 +648,18 @@ if HAS_CLUB then
             if not IsProtected(e.text) then
                 Remember(Cache(clubId, streamId), { e })
             end
+            -- Classic meldet neue Nachrichten teils zweimal: dieselbe nur einmal zeigen/zählen
+            local key = StreamKey(clubId, streamId)
+            if not IsProtected(e.text) then
+                for _, s in ipairs(recent) do
+                    if s.key == key and Same(s.e, e) then return end
+                end
+                table.insert(recent, { key = key, e = e })
+                if #recent > 20 then table.remove(recent, 1) end
+            end
             -- Ungelesen zählen (eigene Nachrichten nicht)
             if e.isSelf ~= true and not (e.full and e.full == ns.Me()) then
-                MarkUnread(StreamKey(clubId, streamId))
+                MarkUnread(key)
             end
             local myClub, myStream = Resolve(channel)
             if pane:IsVisible() and clubId == myClub and streamId == myStream then
