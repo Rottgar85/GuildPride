@@ -67,53 +67,27 @@ side:SetWidth(SIDEBAR)
 side:SetTexture(MEDIA .. "sidebar")
 Paint(side, "tex")
 
--- Gildenkürzel + Wappenrock der Gilde (aus dem Spiel)
-local tagText = frame:CreateFontString(nil, "OVERLAY", "GPFont_Huge")
-tagText:SetPoint("TOP", frame, "TOPLEFT", SIDEBAR / 2 + 2, -14)
-
+-- Fraktionslogo (Horde/Allianz) oben in der Seitenleiste
 local crestGlow = frame:CreateTexture(nil, "ARTWORK", nil, 0)
-crestGlow:SetSize(124, 124)
-crestGlow:SetPoint("TOP", tagText, "BOTTOM", 0, 4)
+crestGlow:SetSize(140, 140)
+crestGlow:SetPoint("TOP", frame, "TOPLEFT", SIDEBAR / 2 + 2, -10)
 crestGlow:SetTexture(MEDIA .. "crest_glow")
 Paint(crestGlow, "tex")
 
-local tabardBg = frame:CreateTexture(nil, "ARTWORK", nil, 1)
-local tabardBorder = frame:CreateTexture(nil, "ARTWORK", nil, 2)
-local tabardEmblem = frame:CreateTexture(nil, "ARTWORK", nil, 3)
-for _, t in ipairs({ tabardBg, tabardBorder, tabardEmblem }) do
-    t:SetSize(84, 84)
-    t:SetPoint("CENTER", crestGlow, "CENTER", 0, 0)
-end
+local factionLogo = frame:CreateTexture(nil, "ARTWORK", nil, 1)
+factionLogo:SetSize(104, 104)
+factionLogo:SetPoint("CENTER", crestGlow, "CENTER", 0, 0)
 
--- Kürzel: eigener Wert (/gp kuerzel XYZ) oder Anfangsbuchstaben des Gildennamens
-local function GuildTag(name)
-    if GuildPrideDB and GuildPrideDB.tag and GuildPrideDB.tag ~= "" then return GuildPrideDB.tag end
-    if not name then return "" end
-    local tag = ""
-    for word in name:gmatch("%S+") do
-        local c = word:match("^[%z\1-\127\194-\244][\128-\191]*")
-        if c then tag = tag .. c end
-    end
-    return tag:upper():sub(1, 6)
-end
+local FACTION_LOGO = {
+    Horde = "Interface\\Timer\\Horde-Logo",
+    Alliance = "Interface\\Timer\\Alliance-Logo",
+}
 
+-- Neutral (z. B. Pandaren vor der Fraktionswahl): eigenes GuildPride-Wappen
 local function UpdateCrest()
-    local ok = false
-    if IsInGuild() then
-        if SetLargeGuildTabardTextures then
-            ok = pcall(SetLargeGuildTabardTextures, "player", tabardEmblem, tabardBg, tabardBorder)
-        elseif SetSmallGuildTabardTextures then
-            ok = pcall(SetSmallGuildTabardTextures, "player", tabardEmblem, tabardBg, tabardBorder)
-        end
-    end
-    -- Ohne Gilde/Wappenrock: unser eigenes Wappen anzeigen
-    tabardBg:SetShown(ok); tabardBorder:SetShown(ok)
-    if not ok then
-        tabardEmblem:SetTexture(MEDIA .. "logo")
-        tabardEmblem:SetTexCoord(0, 1, 0, 1)
-        tabardEmblem:SetVertexColor(1, 1, 1)
-    end
-    tabardEmblem:SetShown(true)
+    local logo = FACTION_LOGO[UnitFactionGroup("player") or ""]
+    factionLogo:SetTexture(logo or (MEDIA .. "logo"))
+    factionLogo:SetSize(logo and 104 or 84, logo and 104 or 84)
 end
 
 local versionText = frame:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
@@ -149,7 +123,6 @@ close:SetScript("OnClick", function() ns.ToggleUI() end)
 local function UpdateHeader()
     local guildName = GetGuildInfo("player")
     title:SetText(guildName or L["Keine Gilde"])
-    tagText:SetText(GuildTag(guildName))
     UpdateCrest()
     local total, online = GetNumGuildMembers()
     subtitle:SetText((L["%s%d|r Mitglieder  ·  |cff40ff40%d|r online"]):format(GOLD_TEXT, total or 0, online or 0))

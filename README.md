@@ -8,10 +8,10 @@ World of Warcraft addon for Retail (Midnight 12.x), WoW Forever and all Classic 
 
 ## English
 
-**Your guild, front and center.** GuildPride replaces the default guild window with a fully styled guild hub: milestones, events, guild info, a group finder, guild chat and member management in one place. Works for any guild: the window automatically shows your guild name, tag and tabard. English and German.
+**Your guild, front and center.** GuildPride replaces the default guild window with a fully styled guild hub: milestones, events, guild info, a group finder, guild chat and member management in one place. Works for any guild: the window automatically shows your guild name and your faction logo (Horde or Alliance). English and German.
 
 ### Features
-- **New guild window**: opens with **J** or the guild button in the micro menu. Your guild name at the top, your guild tag and tabard on the left. `/gp blizzard` switches back to Blizzard's window
+- **New guild window**: opens with **J** or the guild button in the micro menu. Your guild name at the top, your faction logo on the left. `/gp blizzard` switches back to Blizzard's window
 - **Milestones with badges**: when a member reaches level 10, 20, 30 … 90, every guildmate with GuildPride sees an animated pop-up with a badge. Missed milestones are fetched from other members at login
 - **Join and leave alerts**: a clear notice when someone joins, leaves or is removed
 - **Event planner**: officers create events with title, date and time (separate fields), description and officer note. Members of every rank sign up as Attending, Maybe or Declined with their role. Reminder 15 minutes before the start
@@ -39,7 +39,6 @@ World of Warcraft addon for Retail (Midnight 12.x), WoW Forever and all Classic 
 - `/gp` or `/guildpride` open the window, `/gp help` all commands
 - `/gp sound`, `/gp popup` turn sounds and pop-ups on or off
 - `/gp blizzard` switch between GuildPride and the Blizzard guild window
-- `/gp tag XYZ` set the guild tag (without tag: automatic)
 - `/gp invite Name-Realm` invite a player to the guild
 - `/gp badge 30` preview a milestone pop-up, `/gp version` who uses which version
 
@@ -56,10 +55,10 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns` (C
 
 ## Deutsch
 
-**Deine Gilde im Mittelpunkt.** GuildPride ersetzt das normale Gildenfenster durch einen komplett gestalteten Gilden-Treffpunkt: Meilensteine, Events, Gildeninfo, Gruppensuche, Gildenchat und Mitgliederverwaltung an einem Ort. Funktioniert für jede Gilde: Das Fenster zeigt automatisch euren Gildennamen, euer Kürzel und euren Wappenrock. Deutsch und Englisch.
+**Deine Gilde im Mittelpunkt.** GuildPride ersetzt das normale Gildenfenster durch einen komplett gestalteten Gilden-Treffpunkt: Meilensteine, Events, Gildeninfo, Gruppensuche, Gildenchat und Mitgliederverwaltung an einem Ort. Funktioniert für jede Gilde: Das Fenster zeigt automatisch euren Gildennamen und das Logo eurer Fraktion (Horde oder Allianz). Deutsch und Englisch.
 
 ### Funktionen
-- **Neues Gildenfenster**: öffnet sich mit **J** oder über den Gildenknopf in der Mikroleiste. Oben euer Gildenname, links euer Kürzel und Wappenrock. `/gp blizzard` schaltet zurück zum Blizzard-Fenster
+- **Neues Gildenfenster**: öffnet sich mit **J** oder über den Gildenknopf in der Mikroleiste. Oben euer Gildenname, links das Logo eurer Fraktion. `/gp blizzard` schaltet zurück zum Blizzard-Fenster
 - **Meilensteine mit Abzeichen**: erreicht jemand Level 10, 20, 30 … 90, sehen alle mit GuildPride ein animiertes Popup mit Abzeichen. Verpasste Meilensteine werden beim Einloggen von anderen Mitgliedern nachgeladen
 - **Hinweis bei Beitritt und Austritt**: eine deutliche Meldung, wenn jemand beitritt, geht oder entfernt wird
 - **Event-Planer**: Offiziere legen Events mit Titel, Datum und Uhrzeit (getrennte Felder), Beschreibung und Offiziers-Notiz an. Mitglieder aller Ränge melden sich mit Zusagen, Vielleicht oder Absagen und ihrer Rolle an. Erinnerung 15 Minuten vor Beginn
@@ -87,7 +86,6 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns` (C
 - `/gp` oder `/guildpride` Fenster öffnen, `/gp hilfe` alle Befehle
 - `/gp sound`, `/gp popup` Sounds und Popups an oder aus
 - `/gp blizzard` zwischen GuildPride und dem Blizzard-Gildenfenster wechseln
-- `/gp kuerzel XYZ` Gildenkürzel festlegen (ohne Kürzel: automatisch)
 - `/gp einladen Name-Realm` Spieler in die Gilde einladen
 - `/gp badge 30` Meilenstein-Popup testen, `/gp version` wer welche Version nutzt
 

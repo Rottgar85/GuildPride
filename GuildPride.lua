@@ -489,11 +489,6 @@ SlashCmdList.GUILDPRIDE = function(arg)
     elseif arg == "blizzard" then
         GuildPrideDB.replaceGuildFrame = not GuildPrideDB.replaceGuildFrame
         Print(L["Eigenes Gildenfenster: "] .. (GuildPrideDB.replaceGuildFrame and L["an"] or L["aus"]))
-    elseif arg:match("^kuerzel") or arg:match("^kürzel") or arg:match("^tag%f[%A]") then
-        local tag = arg:match("^%S+%s+(.+)$")
-        GuildPrideDB.tag = tag and tag:upper() or nil
-        Print(L["Gildenkürzel: "] .. (GuildPrideDB.tag or L["automatisch"]))
-        if ns.RefreshUI then ns.RefreshUI() end
     elseif arg:match("^einladen%f[%A]") or arg:match("^invite%f[%A]") then
         local name = raw:match("^%S+%s+(%S+)")
         if name and ns.InviteToGuild then ns.InviteToGuild(name) else Print(L["Bitte einen Charakternamen eingeben."]) end
@@ -507,6 +502,6 @@ SlashCmdList.GUILDPRIDE = function(arg)
             InterfaceOptionsFrame_OpenToCategory(ns.SettingsPanel)   -- zweimal: alter Blizzard-Fehler
         end
     else
-        Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · kuerzel <XYZ> · einladen <Name> · werben · optionen · badge <Level> · version"])
+        Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · einladen <Name> · werben · optionen · badge <Level> · version"])
     end
 end
