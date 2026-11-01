@@ -1,6 +1,8 @@
 # GuildPride
 
-**Your guild, front and center.** GuildPride replaces the default guild window with a fully styled guild hub: milestones, events, guild info, a group finder, guild chat and member management in one place. Works for any guild – the window automatically shows *your* guild name, tag and tabard.
+**Your guild, front and center.** GuildPride replaces the default guild window with a fully styled guild hub: overview, guild & chat, events, group finder, polls, milestones and guild info in one place. Works for any guild and in **every game version** – Retail, WoW Forever, MoP Classic, Cata Classic, Wrath/Titan, Anniversary (TBC) and Classic Era (incl. Season of Discovery and Hardcore).
+
+**Source code & bug reports:** [github.com/Rottgar85/GuildPride](https://github.com/Rottgar85/GuildPride)
 
 *Deutsche Beschreibung weiter unten.*
 
@@ -10,23 +12,27 @@
 
 ### Features
 
-- **New guild window** – opens with **J** or the guild button in the micro menu. Your guild name at the top, your guild tag and tabard on the left. Prefer Blizzard's window? `/gp blizzard` switches back. The window can't be opened in combat.
-- **Milestones with badges** – when a member reaches level 10, 20, 30 … 90, every guildmate with GuildPride sees an animated pop-up with a badge for that level. Milestones you missed while offline are fetched from other members when you log in.
-- **Join / leave alerts** – a clear on-screen notice when someone joins, leaves or is removed from the guild. Greeting stays personal – you type "hello" yourself.
-- **Event planner** – officers create events with a title, date and time (separate fields), description and an officer note (e.g. meeting point). Members of every rank sign up as *Attending / Maybe / Declined* and pick their role (Tank / Healer / DPS). Reminder 15 minutes before the start.
-- **Group finder & quest help** – sign up as *Looking for group* (shown as *Looking for members* once you're in a group) or *Needs quest help*, with a note and the roles you still need. Everyone sees class, level, role, zone and how full the group is (e.g. *Group 3/5*); the group size updates automatically. One click on **Join** sends a join request to the group, or **Invite** invites a solo player. Right-click to whisper. Open to every guild rank.
-- **Guild info** – shows the info text from Blizzard's guild window, the same for everyone. You get a notice when it changes. Officers edit it in Blizzard's guild window, one click away (Blizzard does not allow addons to change it).
-- **Guild chat & communities** – guild chat, officer chat and all your Blizzard communities inside the window, with the server-side history. Messages are also kept locally, so old messages stay visible with the right author names.
-- **Members list** – your guild or any of your communities, online only or everyone including offline, with rank, notes and "last online".
-- **Invite players** – type a name to invite someone to the guild or the selected community, or right-click a member to whisper, invite to your group, add as friend or invite to the guild / a community.
-- **Guild management** – click a member to see their notes and to promote, demote, set a rank, remove them or transfer leadership (depending on your rights). Uses Blizzard's own guild commands.
-- **Community management** – right-click a community member to change their role, edit their note or remove them.
-- **Polls** – officers create polls with up to 6 answers and an optional duration (1 day to 2 weeks), everyone votes.
-- **More milestones** – achievements, first raid boss kills, new M+ bests and new mounts.
-- **Event lineup** – role check for group or raid and "Invite all attendees" for officers.
-- **Recruiting text and note templates**, plus a settings page in the WoW options (`/gp options`).
-- **Version check** – a reminder when a newer GuildPride version is in use in your guild.
+- **New guild window** – opens with **J** or the guild button. Your guild name at the top, your faction logo in the sidebar. Tabs: Overview, Guild & Chat, Events, Group Finder, Polls, Milestones, Guild Info and Settings. Prefer Blizzard's window? `/gp blizzard` switches back.
+- **Overview** – members online, the next event, the message of the day, the latest milestones and a **This week** recap (level-ups, raid kills, M+ bests, achievements, mounts, joins, departures and the busiest member).
+- **Guild & Chat** – chat on the left, members on the right, like Blizzard's community window. Guild chat, officer chat and your communities (Retail and WoW Forever) with server history. Unread counts on every channel, messages that mention you are highlighted.
+- **Member list** – search by name, rank, note or zone, sortable columns, online only or everyone with rank, notes and "last online". Officers get an **Inactive** filter (30+, 60+, 90+ days).
+- **Guild management** – click a member to promote, demote, set a rank, remove them or transfer leadership (depending on your rights). Right-click for whisper, group invite, friend, guild or community invite. Note templates and a recruiting text are built in.
+- **Milestones with badges** – animated pop-up with a badge when a guildmate reaches level 10, 20, 30 …, plus achievements, first raid boss kills, new M+ bests and new mounts. Joins and departures show a clear on-screen notice. Missed milestones are fetched when you log in.
+- **Event planner** – officers create events with date, time, description and officer note, optionally **repeating every week**. Members sign up as *Attending / Maybe / Declined* with their role. Reminder 15 minutes before the start, lineup check, "Invite all attendees" and **attendance tracking** per player.
+- **Group finder & quest help** – list yourself as *Looking for group*, *Looking for members* or *Needs quest help* with the roles you still need. Link a quest from your quest log or pick a **dungeon** (Classic versions and WoW Forever): searchable list with level ranges; the **Heroic** button only appears when your character can actually run heroics, and then only heroic dungeons are listed. **Join** sends a join request, **Invite** invites a solo player.
+- **Guild keystones** (Retail) – see everyone's keystone and M+ rating, offer your key with the roles you need.
+- **Polls** – officers create polls with up to 6 answers and an optional duration, everyone votes.
+- **Guild info** – Blizzard's guild info text for everyone, with a notice when it changes and a copy button.
+- **Six styles** – Forge, Frost, Emerald, Arcane, Night or your own colours; window size, opacity and chat font size are adjustable. Minimap button, optional automatic welcome for new members, version check.
 - **English & German** – switches automatically to your game client's language.
+
+### Security & sync
+
+- Data is only exchanged with members of **your** guild. Everything that arrives is checked and limited – no injected colour or link codes, no flooding.
+- Guild data runs over a **secured background channel**: its name and password come from a random secret key created by the guild leadership and shared only with guild members. A new key is created when someone leaves the guild.
+- Milestones, events, polls, attendance and chat are **stored per guild** – characters in different guilds never mix their data.
+- Blizzard blocks addon messages during *chat lockdown* in instances (e.g. Mythic+, rated PvP). GuildPride waits and sends afterwards.
+- Syncing works between guild members who **have GuildPride installed**.
 
 ### Commands
 
@@ -35,46 +41,48 @@
 | `/gp` | open the window (`/gp help` lists all commands) |
 | `/gp sound` · `/gp popup` | turn sounds or pop-ups on/off |
 | `/gp blizzard` | switch between GuildPride and Blizzard's guild window |
-| `/gp tag XYZ` | set your guild tag (without a tag: automatic) |
 | `/gp invite Name-Realm` | invite a player to the guild |
-| `/gp version` | who in the guild uses which version |
 | `/gp recruit` | put your saved recruiting text into the chat input |
 | `/gp options` | open the GuildPride page in the WoW options |
+| `/gp version` | who in the guild uses which version |
+| `/gp channel` | status of the secured channel (officers: `/gp channel new` creates a new key) |
 | `/gp badge 30` | preview a milestone pop-up |
 
-### Good to know
+### Feedback
 
-- Milestones, events and the group finder sync between guild members who **have GuildPride installed**.
-- Data is shared only with your guild, through addon messages. Members whose rank can't write in guild chat send through an online guildmate.
-- Guild data also travels over a hidden, password-protected background channel of your guild, so syncing does not depend on guild chat rank rights.
-- Blizzard blocks addon messages in instances during *chat lockdown* (e.g. Mythic+, rated PvP). GuildPride waits and sends afterwards.
-- Feedback and bug reports are very welcome – please include the Lua error and your game version.
+Bug reports and ideas are very welcome – on [GitHub](https://github.com/Rottgar85/GuildPride/issues) or in the comments here. Please include the Lua error and your game version.
 
 ---
 
 ## 🇩🇪 Deutsch
 
-**Deine Gilde im Mittelpunkt.** GuildPride ersetzt das normale Gildenfenster durch einen komplett gestalteten Gilden-Treffpunkt: Meilensteine, Events, Gildeninfo, Gruppensuche, Gildenchat und Mitgliederverwaltung an einem Ort. Funktioniert für jede Gilde – das Fenster zeigt automatisch *euren* Gildennamen, euer Kürzel und euren Wappenrock.
+**Deine Gilde im Mittelpunkt.** GuildPride ersetzt das normale Gildenfenster durch einen komplett gestalteten Gilden-Treffpunkt: Übersicht, Gilde & Chat, Events, Gruppensuche, Umfragen, Meilensteine und Gildeninfo an einem Ort. Funktioniert für jede Gilde und in **allen Spielversionen** – Retail, WoW Forever, MoP Classic, Cata Classic, Wrath/Titan, Jubiläum (TBC) und Classic Era (inkl. Season of Discovery und Hardcore).
+
+**Quellcode & Fehlermeldungen:** [github.com/Rottgar85/GuildPride](https://github.com/Rottgar85/GuildPride)
 
 ### Funktionen
 
-- **Neues Gildenfenster** – öffnet sich mit **J** oder über den Gildenknopf in der Mikroleiste. Oben euer Gildenname, links euer Kürzel und Wappenrock. Lieber das Blizzard-Fenster? `/gp blizzard` schaltet zurück. Im Kampf lässt sich das Fenster nicht öffnen.
-- **Meilensteine mit Abzeichen** – erreicht jemand Level 10, 20, 30 … 90, sehen alle mit GuildPride ein animiertes Popup mit dem Abzeichen für dieses Level. Was ihr offline verpasst habt, wird beim Einloggen von anderen Mitgliedern nachgeladen.
-- **Hinweis bei Beitritt / Austritt** – eine deutliche Bildschirmmeldung, wenn jemand beitritt, die Gilde verlässt oder entfernt wird. Begrüßt wird persönlich – „Hallo“ schreibt ihr selbst.
-- **Event-Planer** – Offiziere legen Events mit Titel, Datum und Uhrzeit (getrennte Felder), Beschreibung und Offiziers-Notiz (z. B. Treffpunkt) an. Mitglieder aller Ränge melden sich mit *Zusagen / Vielleicht / Absagen* an und wählen ihre Rolle (Tank / Heiler / DD). Erinnerung 15 Minuten vor Beginn.
-- **Gruppensuche & Quest-Hilfe** – als *Sucht Gruppe* (in einer Gruppe als *Sucht Mitspieler* angezeigt) oder *Braucht Quest-Hilfe* eintragen, mit Notiz und den Rollen, die noch fehlen. Alle sehen Klasse, Level, Rolle, Zone und wie voll die Gruppe ist (z. B. *Gruppe 3/5*); die Gruppengröße wird automatisch aktualisiert. Ein Klick auf **Beitreten** schickt eine Beitrittsanfrage an die Gruppe, **Einladen** lädt einen Einzelspieler ein. Rechtsklick zum Anflüstern. Für alle Gildenränge.
-- **Gildeninfo** – zeigt den Info-Text aus dem Blizzard-Gildenfenster, für alle gleich. Ändert er sich, bekommt ihr einen Hinweis. Offiziere bearbeiten ihn im Blizzard-Gildenfenster, einen Klick entfernt (Blizzard erlaubt Addons nicht, ihn zu ändern).
-- **Gildenchat & Communities** – Gildenchat, Offizierschat und alle Blizzard-Communities direkt im Fenster, mit dem Verlauf vom Server. Nachrichten werden zusätzlich lokal gespeichert, damit alte Nachrichten mit dem richtigen Namen sichtbar bleiben.
-- **Mitgliederliste** – eure Gilde oder jede eurer Communities, nur online oder alle inkl. offline, mit Rang, Notizen und „zuletzt online“.
-- **Spieler einladen** – Namen eingeben und in die Gilde oder die gewählte Community einladen, oder per Rechtsklick auf ein Mitglied anflüstern, in die Gruppe einladen, als Freund hinzufügen oder in Gilde / Community einladen.
-- **Gildenverwaltung** – Klick auf ein Mitglied zeigt die Notizen; dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten). Läuft über Blizzards eigene Gildenbefehle.
-- **Community-Verwaltung** – Rechtsklick auf ein Community-Mitglied, um die Rolle zu ändern, die Notiz zu bearbeiten oder es zu entfernen.
-- **Umfragen** – Offiziere legen Umfragen mit bis zu 6 Antworten und wahlweiser Laufzeit (1 Tag bis 2 Wochen) an, alle stimmen ab.
-- **Mehr Meilensteine** – Erfolge, erste Raidboss-Siege, neue M+-Bestleistungen und neue Reittiere.
-- **Event-Aufstellung** – Rollen-Check für Gruppe oder Schlachtzug und „Alle Zugesagten einladen“ für Offiziere.
-- **Werbetext und Notiz-Vorlagen**, dazu eine Einstellungsseite in den WoW-Optionen (`/gp optionen`).
-- **Versionscheck** – Erinnerung, wenn in der Gilde eine neuere GuildPride-Version genutzt wird.
+- **Neues Gildenfenster** – öffnet sich mit **J** oder über den Gildenknopf. Oben euer Gildenname, in der Seitenleiste euer Fraktionslogo. Reiter: Übersicht, Gilde & Chat, Events, Gruppensuche, Umfragen, Meilensteine, Gildeninfo und Einstellungen. Lieber das Blizzard-Fenster? `/gp blizzard` schaltet zurück.
+- **Übersicht** – wer online ist, das nächste Event, die Nachricht des Tages, die letzten Meilensteine und ein **Wochenrückblick** (Stufenaufstiege, Raid-Siege, M+-Bestleistungen, Erfolge, Reittiere, Beitritte, Austritte und das aktivste Mitglied).
+- **Gilde & Chat** – links der Chat, rechts die Mitglieder, wie im Blizzard-Community-Fenster. Gildenchat, Offizierschat und eure Communities (Retail und WoW Forever) mit Verlauf vom Server. Ungelesen-Zähler an jedem Kanal, Nachrichten mit deinem Namen werden hervorgehoben.
+- **Mitgliederliste** – Suche nach Name, Rang, Notiz oder Zone, sortierbare Spalten, nur online oder alle mit Rang, Notizen und „zuletzt online“. Offiziere bekommen einen **Inaktiv**-Filter (30+, 60+, 90+ Tage).
+- **Gildenverwaltung** – Klick auf ein Mitglied zum Befördern, Degradieren, Rang setzen, Entfernen oder Gildenleitung übergeben (je nach deinen Rechten). Rechtsklick zum Anflüstern, in Gruppe einladen, als Freund hinzufügen, in Gilde oder Community einladen. Notiz-Vorlagen und Werbetext sind eingebaut.
+- **Meilensteine mit Abzeichen** – animiertes Popup mit Abzeichen, wenn jemand Level 10, 20, 30 … erreicht, dazu Erfolge, erste Raidboss-Siege, neue M+-Bestleistungen und neue Reittiere. Beitritte und Austritte erscheinen als deutlicher Hinweis. Verpasste Meilensteine werden beim Einloggen nachgeladen.
+- **Event-Planer** – Offiziere legen Events mit Datum, Uhrzeit, Beschreibung und Offiziers-Notiz an, auf Wunsch **jede Woche wiederholt**. Mitglieder melden sich mit *Zusagen / Vielleicht / Absagen* und ihrer Rolle an. Erinnerung 15 Minuten vorher, Rollen-Check, „Alle Zugesagten einladen“ und **Anwesenheit** pro Spieler.
+- **Gruppensuche & Quest-Hilfe** – als *Sucht Gruppe*, *Sucht Mitspieler* oder *Braucht Quest-Hilfe* eintragen, mit den Rollen, die noch fehlen. Quest aus dem Questlog verlinken oder einen **Dungeon** wählen (Classic-Versionen und WoW Forever): durchsuchbare Liste mit Levelbereich; der Knopf **Heroisch** erscheint erst, wenn dein Charakter heroisch laufen kann, und zeigt dann nur heroische Dungeons. **Beitreten** schickt eine Beitrittsanfrage, **Einladen** lädt Einzelspieler ein.
+- **Gilden-Schlüssel** (Retail) – Schlüsselsteine und M+-Wertung aller Mitglieder, eigenen Schlüssel mit den fehlenden Rollen anbieten.
+- **Umfragen** – Offiziere legen Umfragen mit bis zu 6 Antworten und wahlweiser Laufzeit an, alle stimmen ab.
+- **Gildeninfo** – der Info-Text aus dem Blizzard-Gildenfenster für alle, mit Hinweis bei Änderungen und Kopier-Knopf.
+- **Sechs Styles** – Schmiede, Frost, Smaragd, Arkan, Nacht oder eigene Farben; Fenstergröße, Deckkraft und Chat-Schriftgröße einstellbar. Minimap-Knopf, wahlweise automatische Begrüßung neuer Mitglieder, Versionscheck.
 - **Deutsch & Englisch** – stellt sich automatisch auf die Sprache deines Clients ein.
+
+### Sicherheit & Abgleich
+
+- Daten werden nur mit Mitgliedern **eurer** Gilde ausgetauscht. Alles, was ankommt, wird geprüft und begrenzt – keine eingeschleusten Farb- oder Link-Codes, kein Fluten.
+- Gildendaten laufen über einen **abgesicherten Hintergrund-Kanal**: Name und Passwort entstehen aus einem zufälligen geheimen Schlüssel der Gildenleitung, der nur an Gildenmitglieder geht. Verlässt jemand die Gilde, wird ein neuer Schlüssel erzeugt.
+- Meilensteine, Events, Umfragen, Anwesenheit und Chat werden **je Gilde getrennt** gespeichert – Charaktere in verschiedenen Gilden vermischen nichts.
+- Während der *Chat-Sperre* in Instanzen (z. B. Mythisch+, gewertetes PvP) blockiert Blizzard Addon-Nachrichten. GuildPride wartet und sendet danach.
+- Abgeglichen wird zwischen Gildenmitgliedern, die **GuildPride installiert haben**.
 
 ### Befehle
 
@@ -83,20 +91,16 @@
 | `/gp` | Fenster öffnen (`/gp hilfe` zeigt alle Befehle) |
 | `/gp sound` · `/gp popup` | Sounds oder Popups an/aus |
 | `/gp blizzard` | zwischen GuildPride und dem Blizzard-Gildenfenster wechseln |
-| `/gp kuerzel XYZ` | Gildenkürzel festlegen (ohne Kürzel: automatisch) |
 | `/gp einladen Name-Realm` | Spieler in die Gilde einladen |
-| `/gp version` | wer in der Gilde welche Version nutzt |
 | `/gp werben` | gespeicherten Werbetext in die Chat-Eingabe legen |
 | `/gp optionen` | GuildPride-Seite in den WoW-Optionen öffnen |
+| `/gp version` | wer in der Gilde welche Version nutzt |
+| `/gp kanal` | Stand des abgesicherten Kanals (Offiziere: `/gp kanal neu` erzeugt einen neuen Schlüssel) |
 | `/gp badge 30` | Meilenstein-Popup testen |
 
-### Gut zu wissen
+### Feedback
 
-- Meilensteine, Events und Gruppensuche werden zwischen Gildenmitgliedern abgeglichen, die **GuildPride installiert haben**.
-- Daten gehen nur an eure Gilde, per Addon-Nachricht. Wer mit seinem Rang nicht im Gildenchat schreiben darf, sendet über ein Gildenmitglied, das gerade online ist.
-- Gildendaten laufen zusätzlich über einen versteckten, passwortgeschützten Hintergrund-Kanal eurer Gilde, damit der Abgleich nicht von Rangrechten im Gildenchat abhängt.
-- Während der *Chat-Sperre* in Instanzen (z. B. Mythisch+, gewertetes PvP) blockiert Blizzard Addon-Nachrichten. GuildPride wartet und sendet danach.
-- Feedback und Fehlermeldungen sind sehr willkommen – am besten mit Lua-Fehlermeldung und Spielversion.
+Fehlermeldungen und Ideen sind sehr willkommen – auf [GitHub](https://github.com/Rottgar85/GuildPride/issues) oder hier in den Kommentaren. Am besten mit Lua-Fehlermeldung und Spielversion.
 
 ---
 
