@@ -88,12 +88,22 @@ function Next()
     pop:SetAlpha(1)
     pop:Show()
     ag:Play(); badgeAg:Play(); shineAg:Play()
-    if GuildPrideDB.sound then PlaySound(SOUNDKIT.UI_LEGENDARY_LOOT_TOAST or SOUNDKIT.RAID_WARNING) end
     C_Timer.After(SHOW_TIME, function() if pop:IsShown() then fadeOutAg:Play() end end)
 end
 
 pop:EnableMouse(true)
 pop:SetScript("OnMouseUp", function() fadeOutAg:Play() end) -- Klick schließt
+
+-- Meilenstein-Sound, unabhängig vom Popup. Den Legendär-Sound gibt es in den
+-- Classic-Clients nicht (bliebe stumm), daher dort die Schlachtzugswarnung.
+-- "Master", damit er auch bei leisen Effekt-Sounds zu hören ist.
+function ns.PlayMilestoneSound()
+    if not GuildPrideDB.sound then return end
+    local first = (not ns.IS_CLASSIC and SOUNDKIT.UI_LEGENDARY_LOOT_TOAST) or SOUNDKIT.RAID_WARNING
+    if not PlaySound(first, "Master") and first ~= SOUNDKIT.RAID_WARNING then
+        PlaySound(SOUNDKIT.RAID_WARNING, "Master")
+    end
+end
 
 function ns.ShowMilestonePopup(who, text, kind, value)
     table.insert(queue, { who = who, text = text, badge = BadgeFor(kind, value) })
@@ -106,6 +116,7 @@ SlashCmdList.GUILDPRIDE = function(arg)
     local cmd, val = (arg or ""):match("^(%S*)%s*(%S*)")
     if cmd:lower() == "badge" then
         local lv = tonumber(val) or 30
+        ns.PlayMilestoneSound()
         ns.ShowMilestonePopup(UnitName("player"), (L["hat Level %d erreicht!"]):format(lv), "LEVEL", lv)
     else
         orig(arg)

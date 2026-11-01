@@ -201,6 +201,7 @@ local function ShowMilestone(sender, kind, value, silent)
     if not ns.AddLog(kind, who, tonumber(value) or value) or silent then return end
     local text = DescribeMilestone(kind, value)
     local line = ("%s |cff00ff00%s|r %s"):format(IconString(20), who, text)
+    if ns.PlayMilestoneSound then ns.PlayMilestoneSound() end
     if GuildPrideDB.popup then
         if ns.ShowMilestonePopup then
             ns.ShowMilestonePopup(who, text, kind, value)
