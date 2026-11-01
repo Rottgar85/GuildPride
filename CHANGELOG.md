@@ -1,5 +1,17 @@
 # GuildPride Changelog
 
+## 1.12.5
+
+**English**
+- Group finder: dungeons now know which difficulties they really have; "Heroic" only lists dungeons that can be run on heroic
+- The difficulty buttons only appear when your character can actually run more than one difficulty (e.g. heroic at max level); the list refreshes after a level up
+- Wings like Dire Maul (East/West/North) and Stratholme (Main Gate/Service Gate) are no longer merged into one entry
+
+**Deutsch**
+- Gruppensuche: Dungeons wissen jetzt, welche Schwierigkeiten es wirklich gibt; „Heroisch“ zeigt nur Dungeons, die heroisch gelaufen werden können
+- Die Schwierigkeitsknöpfe erscheinen erst, wenn dein Charakter mehr als eine Schwierigkeit laufen kann (z. B. heroisch mit Höchststufe); nach einem Stufenaufstieg wird die Liste neu geladen
+- Flügel wie Düsterbruch (Ost/West/Nord) und Stratholme (Haupttor/Dienstboteneingang) werden nicht mehr zu einem Eintrag zusammengelegt
+
 ## 1.12.4
 
 **English**
