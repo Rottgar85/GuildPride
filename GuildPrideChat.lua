@@ -212,7 +212,13 @@ local function ClubEntry(clubId, m, kind, allowSecret)
     local a = m.author or {}
     local full = AuthorName(clubId, a)
     local epoch = m.messageId and m.messageId.epoch
-    local t = (not Secret(epoch) and epoch or GetServerTime() * 1000000) / 1000000
+    local t = GetServerTime()
+    if type(epoch) == "number" and not Secret(epoch) then
+        -- Retail liefert Mikrosekunden, Classic-Clients teils Milli- oder ganze Sekunden
+        if epoch > 1e14 then t = epoch / 1000000
+        elseif epoch > 1e11 then t = epoch / 1000
+        elseif epoch > 1e8 then t = epoch end
+    end
     -- Battle.net-Communities: kein Charaktername -> kein Player-Link
     local link = full and (kind ~= "CLUB" or a.clubType ~= Enum.ClubType.BattleNet) and full or nil
     return { t = t, who = full and Ambiguate(full, "guild") or nil, full = link, hex = ClassHex(not Secret(a.classID) and a.classID or nil),
@@ -243,7 +249,8 @@ local function Cache(clubId, streamId)
     if not cleaned[key] then
         cleaned[key] = true
         for i = #cache, 1, -1 do
-            if IsProtected(cache[i].text) then table.remove(cache, i) end
+            -- t < 1e9: Zeitstempel in falscher Einheit gespeichert (frühe Classic-Tests)
+            if IsProtected(cache[i].text) or (cache[i].t or 0) < 1e9 then table.remove(cache, i) end
         end
     end
     return cache
@@ -252,10 +259,13 @@ end
 -- Dieselbe Nachricht? Gleicher Text und zeitlich nah beieinander (Chat-Ereignis
 -- und Server-Verlauf haben andere Zeitstempel). Fehlt einer Seite der Name,
 -- großzügiger vergleichen – sonst taucht sie doppelt als "Unbekannt" auf.
+-- Namen ohne Realm vergleichen: Server-Verlauf und Chat-Ereignis liefern den
+-- Realm in Classic nicht immer gleich ("Name" gegenüber "Name-Realm").
+local function BaseName(n) return (n:gsub("%-.*$", "")) end
 local function Same(a, b)
     if a.text ~= b.text then return false end
     local dt = math.abs((a.t or 0) - (b.t or 0))
-    if a.who and b.who then return a.who == b.who and dt < 120 end
+    if a.who and b.who then return BaseName(a.who) == BaseName(b.who) and dt < 120 end
     return dt < 900
 end
 
@@ -300,6 +310,15 @@ local function FixNames(clubId, cache)
             for j = 1, #cache do
                 if j ~= i and cache[j].who and Same(cache[j], e) then table.remove(cache, i); break end
             end
+        end
+    end
+    -- Schon gespeicherte Doppelte (älterer Classic-Vergleich) entfernen; die Liste
+    -- ist nach Zeit sortiert, daher nur die nahen Vorgänger prüfen
+    for i = #cache, 2, -1 do
+        local e = cache[i]
+        for j = i - 1, 1, -1 do
+            if (e.t or 0) - (cache[j].t or 0) > 900 then break end
+            if Same(cache[j], e) then table.remove(cache, i); break end
         end
     end
 end
