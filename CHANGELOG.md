@@ -1,5 +1,13 @@
 # GuildPride Changelog
 
+## 1.11.2
+
+**English**
+- Milestone sound now also plays with popups turned off, uses a sound that exists in the Classic clients and plays on the Master channel
+
+**Deutsch**
+- Der Meilenstein-Sound kommt jetzt auch bei abgeschalteten Popups, nutzt in den Classic-Clients einen dort vorhandenen Sound und läuft über die Gesamtlautstärke
+
 ## 1.11.1
 
 **English**
