@@ -430,9 +430,23 @@ local function Redraw()
         local cache = Cache(clubId, streamId)
         Remember(cache, plain)
         FixNames(clubId, cache)
-        local show = {}
+        local show, claimed = {}, {}
         for _, e in ipairs(cache) do show[#show + 1] = e end
-        for _, e in ipairs(protected) do show[#show + 1] = e end
+        -- Classic liefert den Server-Verlauf der Gilde komplett geschützt, dieselbe
+        -- Nachricht steht aber schon im Klartext (Chat-Ereignis) im Speicher. Da sich
+        -- der Text nicht vergleichen lässt: gleicher Autor zur gleichen Zeit = doppelt.
+        for _, e in ipairs(protected) do
+            local dup = false
+            if e.who then
+                for i, c in ipairs(cache) do
+                    if not claimed[i] and c.who and BaseName(c.who) == BaseName(e.who)
+                       and math.abs((c.t or 0) - (e.t or 0)) < 120 then
+                        claimed[i] = true; dup = true; break
+                    end
+                end
+            end
+            if not dup then show[#show + 1] = e end
+        end
         for i, e in ipairs(show) do e.order = i end
         table.sort(show, function(a, b)
             if a.t ~= b.t then return a.t < b.t end
