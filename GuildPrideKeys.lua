@@ -43,8 +43,9 @@ end
 ns.On("KEY", function(payload, sender)
     if sender == ns.Me() or not keys then return end
     local map, level, rating = strsplit(SEP, payload)
-    keys[sender] = { map = tonumber(map) or 0, level = tonumber(level) or 0,
-                     rating = tonumber(rating) or 0, t = GetServerTime() }
+    -- Fremde Zahlen begrenzen (keine Riesenwerte oder Kommazahlen)
+    keys[sender] = { map = ns.Num(map, 0, 99999) or 0, level = ns.Num(level, 0, 999) or 0,
+                     rating = ns.Num(rating, 0, 99999) or 0, t = GetServerTime() }
     if ns.RefreshUI then ns.RefreshUI() end
 end)
 

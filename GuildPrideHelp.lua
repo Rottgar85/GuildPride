@@ -217,7 +217,7 @@ ns.On("LFG", function(payload, sender)
     local kind, note, level, zone, size, max, need, role, class, ver, map, keyLevel, questId, questLevel, questName,
           dName, dMin, dMax, dDiff, dKey = strsplit(SEP, payload)
     -- Älteren Stand als den schon bekannten ignorieren (ältere Versionen senden keine Nummer)
-    ver = tonumber(ver) or 0
+    ver = ns.Stamp(ver)   -- nicht in der Zukunft, sonst wären spätere Einträge gesperrt
     if ver > 0 then
         if verBy[sender] and ver < verBy[sender] then return end
         verBy[sender] = ver
@@ -231,15 +231,18 @@ ns.On("LFG", function(payload, sender)
         local now = GetServerTime()
         local alert = isNew and now - (alertedAt[sender] or 0) >= ALERT_GAP
         if alert then alertedAt[sender] = now end
-        local e = { kind = kind, note = Clean(note, 60), level = tonumber(level) or 0, zone = Clean(zone, 40),
-                    size = tonumber(size) or 1, max = tonumber(max) or 5, needs = Clean(need, 3),
+        -- Zahlen begrenzen (fremde Nachricht: keine Riesenwerte oder Kommazahlen)
+        local N = ns.Num
+        local e = { kind = kind, note = Clean(note, 60), level = N(level, 0, 999) or 0, zone = Clean(zone, 40),
+                    size = N(size, 1, 40) or 1, max = N(max, 1, 40) or 5, needs = Clean(need, 3),
                     role = Clean(role, 1), class = Clean(class, 20), t = old and old.t or GetServerTime(),
-                    map = tonumber(map) or 0, keyLevel = tonumber(keyLevel) or 0, seen = GetServerTime(),
-                    questId = tonumber(questId) or 0, questLevel = tonumber(questLevel) or 0, questName = Clean(questName, 50) }
+                    map = N(map, 0, 99999) or 0, keyLevel = N(keyLevel, 0, 999) or 0, seen = GetServerTime(),
+                    questId = N(questId, 0, 9999999) or 0, questLevel = N(questLevel, 0, 999) or 0,
+                    questName = Clean(questName, 50) }
         dName = Clean(dName, 40)
         if dName ~= "" then
-            e.dungeon = { name = dName, min = tonumber(dMin) or 0, max = tonumber(dMax) or 0,
-                          diff = Clean(dDiff, 1), keyLevel = tonumber(dKey) or 0 }
+            e.dungeon = { name = dName, min = N(dMin, 0, 999) or 0, max = N(dMax, 0, 999) or 0,
+                          diff = Clean(dDiff, 1), keyLevel = N(dKey, 0, 999) or 0 }
         end
         if isNew then e.t = GetServerTime() end
         entries[sender] = e

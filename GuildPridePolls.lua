@@ -17,8 +17,24 @@ local function CanManage() return CanEditMOTD and CanEditMOTD() end
 local function Now() return GetServerTime() end
 local function Clean(s, max) return (tostring(s or ""):gsub("[%c|]", "")):sub(1, max) end
 
+local STORE_MAX = 200   -- Obergrenze für gespeicherte Umfragen (gegen Speicherfluten)
+
+local function StoreCount()
+    local n = 0
+    for _ in pairs(DB()) do n = n + 1 end
+    return n
+end
+
+-- Voll? Dann zuerst Umfragen wegräumen, die seit 60 Tagen unverändert sind
 local function GetOrStub(id)
     local p = DB()[id]
+    if not p and StoreCount() >= STORE_MAX then
+        local old = Now() - 60 * 86400
+        for k, x in pairs(DB()) do
+            if (x.ver or 0) < old then DB()[k] = nil end
+        end
+        if StoreCount() >= STORE_MAX then return nil end
+    end
     if not p then p = { id = id, ver = 0, votes = {} }; DB()[id] = p end
     p.votes = p.votes or {}
     return p
@@ -55,7 +71,7 @@ local function SendVote(id, name, v, target) ns.Queue("VOT", target, id, name, v
 
 local function ApplyPoll(id, ver, t, creator, closed, ends, question, opts, fromOther)
     local p = GetOrStub(id)
-    if ver <= p.ver then return end
+    if not p or ver <= p.ver then return end
     local isNew = not p.question
     p.ver, p.t, p.creator, p.closed, p.ends, p.question, p.opts = ver, t, creator, closed, ends, question, opts
     if isNew and fromOther and not IsClosed(p) then
@@ -65,6 +81,7 @@ end
 
 local function ApplyVote(id, name, choice, ver)
     local p = GetOrStub(id)
+    if not p then return end
     local cur = p.votes[name]
     if not cur or ver > cur.v then p.votes[name] = { c = choice, v = ver } end
 end
@@ -98,15 +115,17 @@ ns.On("POL", function(payload, sender)
         local o = Clean(a[i], 40)
         if o ~= "" then opts[#opts + 1] = o end
     end
-    if not a[1] or #opts < 2 then return end
+    -- Fremde Werte prüfen: ID und Ersteller ohne Codes, Versionen nicht in der Zukunft
+    local id = Clean(a[1], 80)
+    if id == "" or #opts < 2 then return end
     if a[5] == "2" then
-        local p = GetOrStub(a[1])
-        local ver = tonumber(a[2]) or 0
-        if ver >= p.ver then p.deleted, p.ver = true, ver end
+        local p = GetOrStub(id)
+        local ver = ns.Stamp(a[2])
+        if p and ver >= p.ver then p.deleted, p.ver = true, ver end
         if ns.RefreshUI then ns.RefreshUI() end
         return
     end
-    ApplyPoll(a[1], tonumber(a[2]) or 0, tonumber(a[3]) or 0, a[4], a[5] == "1", tonumber(a[6]) or 0,
+    ApplyPoll(id, ns.Stamp(a[2]), ns.Stamp(a[3]), Clean(a[4], 60), a[5] == "1", ns.Num(a[6], 0, 2 ^ 31) or 0,
         Clean(a[7], 80), opts, true)
     if ns.RefreshUI then ns.RefreshUI() end
 end)
@@ -114,8 +133,10 @@ end)
 ns.On("VOT", function(payload, sender)
     if sender == Me() then return end
     local id, name, c, v = strsplit(ns.SEP, payload)
-    c, v = tonumber(c), tonumber(v)
-    if not (id and name and c and v) then return end
+    id, name, c, v = Clean(id, 80), Clean(name, 60), ns.Num(c, 0, MAX_OPTS + 1), ns.Stamp(v)
+    -- Nur gültige Antwortnummern und nur Stimmen von Gildenmitgliedern
+    if id == "" or name == "" or not c or c < 1 or c > MAX_OPTS or v == 0 then return end
+    if not ns.IsGuildMember(name) then return end
     ApplyVote(id, name, c, v)
     if ns.RefreshUI then ns.RefreshUI() end
 end)
@@ -131,6 +152,7 @@ end)
 local function CreatePoll(question, opts, duration)
     local id = Me() .. "-" .. Now() .. "-" .. math.random(1000, 9999)
     ApplyPoll(id, Now(), Now(), Me(), false, duration > 0 and Now() + duration or 0, Clean(question, 80), opts)
+    if not DB()[id] then return end
     SendPoll(DB()[id])
     ns.RefreshUI()
 end

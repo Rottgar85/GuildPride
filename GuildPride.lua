@@ -101,10 +101,27 @@ local function Normalize(name)
     return name
 end
 
+-- Fremde Eingaben entschärfen: Steuerzeichen und "|" (Farb-, Link- und
+-- Bildcodes) entfernen, Länge begrenzen
+local function Clean(s, max) return (tostring(s or ""):gsub("[%c|]", "")):sub(1, max) end
+ns.Clean = Clean
+-- Zahl aus einer fremden Nachricht: nil bei Unsinn, sonst ganzzahlig auf [lo, hi]
+function ns.Num(v, lo, hi)
+    v = tonumber(v)
+    if not v or v ~= v then return nil end
+    return math.min(math.max(math.floor(v), lo), hi)
+end
+-- Zeit- und Versionsstempel aus fremden Nachrichten nicht weit in die Zukunft
+-- lassen: ein manipulierter Riesenwert würde sonst alle späteren echten
+-- Änderungen für immer überstimmen
+function ns.Stamp(v) return ns.Num(v, 0, GetServerTime() + 300) or 0 end
+
 ---------------------------------------------------------------------
 -- Gildenliste
 ---------------------------------------------------------------------
+local rosterAt = 0
 local function RefreshRoster()
+    rosterAt = GetTime()
     wipe(guildMembers)
     if not IsInGuild() then return end
     for i = 1, GetNumGuildMembers() do
@@ -113,6 +130,15 @@ local function RefreshRoster()
         if name then guildMembers[Normalize(name)] = (rankIndex or 0) + 1 end
     end
 end
+
+-- Gehört der Name zur Gilde? Bei Unbekannten die Liste neu lesen (höchstens
+-- alle 5 s, damit fremde Absender das nicht in einer Schleife auslösen)
+local function IsMember(name)
+    if guildMembers[name] then return true end
+    if GetTime() - rosterAt > 5 then RefreshRoster() end
+    return guildMembers[name] ~= nil
+end
+function ns.IsGuildMember(name) return name ~= nil and IsMember(Normalize(name)) end
 
 ns.IconString = IconString
 ns.Print = Print
@@ -143,6 +169,16 @@ local function DescribeMilestone(kind, value)
         return (L["hat ein neues Reittier: %s!"]):format(name or tostring(value))
     end
     return (L["hat einen Meilenstein erreicht (%s %s)"]):format(kind, value)
+end
+
+-- Meilenstein-Wert aus einer fremden Nachricht prüfen (nil = unbrauchbar):
+-- BOSS ist Text ("Schwierigkeit,Bossname"), alle anderen sind Zahlen
+local function SafeMilestoneValue(kind, value)
+    if kind == "BOSS" then
+        local v = Clean(value, 80)
+        return v ~= "" and v or nil
+    end
+    return ns.Num(value, 1, 99999999)
 end
 
 ---------------------------------------------------------------------
@@ -280,9 +316,15 @@ ns.On("MSL", function(payload, sender)
     if requester then answered[requester] = true end
     if sender == ns.Me() then return end
     if kind ~= "LEVEL" and kind ~= "JOIN" and kind ~= "LEAVE" and kind ~= "KICK" and not EXTRA_KINDS[kind] then return end
-    t = tonumber(t)
-    if not t or not who or who == "" then return end
-    ns.AddLog(kind, who, tonumber(value) or (value ~= "" and value or nil), t)
+    t, who = ns.Stamp(t), Clean(who, 60)
+    if t == 0 or who == "" then return end
+    if kind == "LEVEL" or EXTRA_KINDS[kind] then
+        value = SafeMilestoneValue(kind, value)
+        if not value then return end
+    else
+        value = nil   -- Beitritt/Austritt haben keinen Wert
+    end
+    ns.AddLog(kind, who, value, t)
 end)
 
 local function RequestHistory()
@@ -306,10 +348,27 @@ local function IsSecret(v) return issecretvalue and issecretvalue(v) or false en
 local multipart = {}   -- ["Sender:id"] = { n, got, parts, t }
 local recent, recentSweep = {}, 0   -- zuletzt empfangene Nachrichten (gegen Doppelte)
 local forwarded = {}   -- ["Name:id"] = Zeit, gegen doppelte Weiterleitungen
+local MP_MAX = 100
+
+-- Anfragen, auf die alle antworten: pro Absender höchstens eine alle 10 s,
+-- sonst könnte einer mit Dauer-Anfragen die Addon-Nachrichten der Gilde lahmlegen
+local ASKS = { REQ = true, EVQ = true, PLQ = true, LFGQ = true, KEYQ = true, MSQ = true }
+local askedAt, askSweep = {}, 0
+local function TooManyAsks(kind, sender)
+    local now, key = GetTime(), kind .. ":" .. sender
+    if askedAt[key] and now - askedAt[key] < 10 then return true end
+    askedAt[key] = now
+    if now - askSweep > 60 then
+        askSweep = now
+        for k, t in pairs(askedAt) do if now - t >= 10 then askedAt[k] = nil end end
+    end
+    return false
+end
 
 local function Dispatch(message, sender)
     local kind, value = message:match("^(%u+):(.+)$")
     if not kind then return end
+    if ASKS[kind] and TooManyAsks(kind, sender) then return end
     if kind == "RLY" then
         -- Ein Mitglied ohne Gildenchat-Recht bittet uns, an die Gilde weiterzugeben
         local id, msg = value:match("^([^\031]+)\031(.+)$")
@@ -332,12 +391,21 @@ local function Dispatch(message, sender)
     if kind == "MP" then
         local id, i, n, part = value:match("^([^\031]+)\031(%d+)\031(%d+)\031(.*)$")
         i, n = tonumber(i), tonumber(n)
-        if not id or not i or not n or n > 20 then return end
+        if not id or not i or not n or n < 1 or n > 20 or i < 1 or i > n then return end
         local now = GetTime()
-        for k, b in pairs(multipart) do if now - b.t > 60 then multipart[k] = nil end end
+        local count = 0
+        for k, b in pairs(multipart) do
+            if now - b.t > 60 then multipart[k] = nil else count = count + 1 end
+        end
         local key = sender .. ":" .. id
-        local buf = multipart[key] or { n = n, got = 0, parts = {}, t = now }
-        multipart[key] = buf
+        local buf = multipart[key]
+        if not buf then
+            -- Gegen Speicherfluten: nur begrenzt viele halbfertige Nachrichten
+            if count >= MP_MAX then return end
+            buf = { n = n, got = 0, parts = {}, t = now }
+            multipart[key] = buf
+        end
+        if n ~= buf.n then return end
         if not buf.parts[i] then buf.parts[i] = part; buf.got = buf.got + 1 end
         if buf.got < buf.n then return end
         multipart[key] = nil
@@ -348,7 +416,8 @@ local function Dispatch(message, sender)
     if ns.Handlers[kind] then
         for _, fn in ipairs(ns.Handlers[kind]) do fn(value, sender) end
     elseif kind == "LEVEL" or EXTRA_KINDS[kind] then
-        ShowMilestone(sender, kind, value)
+        value = SafeMilestoneValue(kind, value)
+        if value then ShowMilestone(sender, kind, value) end
     end
 end
 
@@ -413,6 +482,11 @@ f:SetScript("OnEvent", function(_, event, ...)
             GuildPrideDB.chat = nil
             GuildPrideDB.cleanStart = 1
         end
+        -- Verlauf aus älteren Versionen (damals ungeprüft gespeichert) entschärfen
+        for _, e in ipairs(GuildPrideDB.log or {}) do
+            e.who = Clean(e.who, 60)
+            if type(e.value) == "string" then e.value = Clean(e.value, 80) end
+        end
         -- Eigene Regeln wurden durch die Blizzard-Gildeninfo ersetzt
         GuildPrideDB.rules, GuildPrideDB.rulesSeen = nil, nil
         -- BattleTag-Funktion wurde entfernt: alte gespeicherte Daten löschen
@@ -456,8 +530,9 @@ f:SetScript("OnEvent", function(_, event, ...)
         -- Absender immer als "Name-Realm": manchmal kommt er ohne Realm an, dann
         -- wurden eigene Nachrichten für fremde gehalten (z. B. doppelte Hinweise)
         sender = Normalize(sender)
-        -- Hintergrund-Kanal: nur Gildenmitglieder (der Kanal ist nicht abgeschlossen)
-        if channel == "CHANNEL" and not guildMembers[sender] then return end
+        -- Flüstern und Hintergrund-Kanal kann jeder auf dem Server benutzen:
+        -- nur Nachrichten von Gildenmitgliedern annehmen
+        if (channel == "CHANNEL" or channel == "WHISPER") and not IsMember(sender) then return end
         -- Rundsendungen kommen über Gilde UND Kanal: zweites Exemplar verwerfen
         local now, key = GetTime(), sender .. "\030" .. message
         if recent[key] and now - recent[key] < 30 then return end

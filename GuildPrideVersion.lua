@@ -24,6 +24,9 @@ local warned = false
 ns.On("VER", function(payload, sender)
     if sender == ns.Me() then return end
     local theirs, isReply = strsplit(ns.SEP, payload)
+    -- Nur echte Versionsnummern ("1.12.3") annehmen: der Text landet im Chat
+    -- und in der Bildschirmwarnung, darf also keine Farb- oder Link-Codes enthalten
+    if not theirs or #theirs > 20 or not theirs:match("^%d+%.%d+[%.%d]*$") then return end
     ns.Versions[sender] = theirs
     local cmp = Compare(theirs, MY_VERSION)
     if cmp > 0 and not warned then

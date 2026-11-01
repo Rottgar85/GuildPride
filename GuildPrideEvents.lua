@@ -287,9 +287,25 @@ end
 ---------------------------------------------------------------------
 -- Daten anwenden (neuere Version gewinnt)
 ---------------------------------------------------------------------
+local STORE_MAX = 300   -- Obergrenze für gespeicherte Events (gegen Speicherfluten)
+
+local function StoreCount()
+    local n = 0
+    for _ in pairs(DB()) do n = n + 1 end
+    return n
+end
+
+-- Voll? Dann zuerst Einträge wegräumen, die seit 30 Tagen vorbei bzw. unverändert sind
 local function GetOrStub(id)
     local e = DB()[id]
     if not e then
+        if StoreCount() >= STORE_MAX then
+            local old = Now() - 30 * 86400
+            for k, x in pairs(DB()) do
+                if (x.t or 0) < old and (x.ver or 0) < old then DB()[k] = nil end
+            end
+            if StoreCount() >= STORE_MAX then return nil end
+        end
         e = { id = id, ver = 0, signups = {} }
         DB()[id] = e
     end
@@ -299,7 +315,7 @@ end
 
 local function ApplyEvent(id, t, title, desc, creator, ver, note, fromOther, rep)
     local e = GetOrStub(id)
-    if ver <= e.ver then return end
+    if not e or ver <= e.ver then return end
     local isNew = not e.title
     -- Wiederholtes Event: hier schon weitergerückt? Dann nicht zurücksetzen
     if not (rep and rep > 0 and e.rep == rep and e.t and e.t > t) then e.t = t end
@@ -313,7 +329,7 @@ end
 
 local function ApplyDelete(id, ver)
     local e = GetOrStub(id)
-    if ver < e.ver then return end
+    if not e or ver < e.ver then return end
     e.deleted, e.ver = true, ver
 end
 
@@ -321,6 +337,7 @@ local function ApplySign(id, name, status, ver, role)
     if not STATUS[status] then return end
     if not ROLES[role or ""] then role = nil end
     local e = GetOrStub(id)
+    if not e then return end
     local cur = e.signups[name]
     if not cur or ver > cur.v then e.signups[name] = { s = status, v = ver, r = role } end
 end
@@ -355,14 +372,20 @@ end)
 local function OnEventMessage(kind, payload, sender)
     if sender == Me() then return end
     local a = { strsplit(SEP, payload) }
+    -- Fremde Werte prüfen: IDs und Namen ohne Codes und begrenzt lang,
+    -- Versionen nicht in der Zukunft (sonst ließe sich ein Event sperren)
+    local id = Clean(a[1], 80)
+    if id == "" and (kind == "EVT" or kind == "DEL" or kind == "SGN") then return end
     if kind == "EVT" then
         local rep = tonumber(a[8]) or 0
-        ApplyEvent(a[1], tonumber(a[2]) or 0, Clean(a[3], 40), Clean(a[4], 120), a[5], tonumber(a[6]) or 0,
-            Clean(a[7], 100), true, (rep == 7) and 7 or 0)
+        ApplyEvent(id, ns.Num(a[2], 0, 2 ^ 31) or 0, Clean(a[3], 40), Clean(a[4], 120), Clean(a[5], 60),
+            ns.Stamp(a[6]), Clean(a[7], 100), true, (rep == 7) and 7 or 0)
     elseif kind == "DEL" then
-        ApplyDelete(a[1], tonumber(a[2]) or 0)
+        ApplyDelete(id, ns.Stamp(a[2]))
     elseif kind == "SGN" then
-        ApplySign(a[1], a[2], a[3], tonumber(a[4]) or 0, a[5])
+        local name = Clean(a[2], 60)
+        if name == "" or not ns.IsGuildMember(name) then return end
+        ApplySign(id, name, a[3], ns.Stamp(a[4]), a[5])
     elseif kind == "REQ" or kind == "EVQ" then
         -- Jemand hat sich eingeloggt bzw. den Reiter Events geöffnet:
         -- kurz zufällig warten, damit nicht alle gleichzeitig antworten
@@ -380,6 +403,7 @@ end
 ---------------------------------------------------------------------
 local function CreateEvent(title, t, desc, rep)
     local e = GetOrStub(Me() .. "-" .. Now() .. "-" .. math.random(1000, 9999))
+    if not e then return end
     ApplyEvent(e.id, t, Clean(title, 40), Clean(desc, 120), Me(), Now(), nil, nil, rep)
     SendEvent(e)
     ns.RefreshUI()
