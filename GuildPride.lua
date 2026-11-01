@@ -143,10 +143,21 @@ function ns.IsGuildMember(name) return name ~= nil and IsMember(Normalize(name))
 ns.IconString = IconString
 ns.Print = Print
 
--- Über die Warteschlange (Drosselung, Weiterleitung für Ränge ohne Gildenchat)
+-- Kennung der aktuellen Gilde ("Gilde@Realm"), nil ohne Gilde
+function ns.GuildId()
+    local guild, _, _, realm = GetGuildInfo("player")
+    if not guild then return nil end
+    return guild .. "@" .. (realm or GetNormalizedRealmName() or "")
+end
+
+-- Meilensteine über den abgesicherten Kanal (ohne Kanal-Schlüssel über die
+-- Gilde). Der eigene kommt sofort in den Verlauf: ob der Kanal die eigene
+-- Nachricht zurückliefert, ist nicht sicher; ein Echo wird ohnehin aussortiert.
+local ShowMilestone
 local function Broadcast(kind, value)
     if not IsInGuild() or not ns.Queue then return end
-    ns.Queue(kind, nil, value)
+    ns.Queue(kind, "@CHANNEL", value)
+    if ShowMilestone then ShowMilestone(ns.Me(), kind, value) end
 end
 
 local function DescribeMilestone(kind, value)
@@ -204,10 +215,15 @@ local function LogKey(e)
     return (e.kind or "?") .. ":" .. tostring(e.who) .. ":" .. tostring(v)
 end
 
+-- Verlauf je Gilde getrennt: ein Account kann Charaktere in mehreren Gilden haben
 local function Log()
-    GuildPrideDB.log = GuildPrideDB.log or {}
-    return GuildPrideDB.log
+    local id = ns.GuildId()
+    if not id or not GuildPrideDB then return {} end
+    GuildPrideDB.logs = GuildPrideDB.logs or {}
+    GuildPrideDB.logs[id] = GuildPrideDB.logs[id] or {}
+    return GuildPrideDB.logs[id]
 end
+ns.GuildLog = Log
 
 -- Neuen Eintrag aufnehmen; true, wenn er neu war
 function ns.AddLog(kind, who, value, t)
@@ -232,7 +248,7 @@ function ns.AddLog(kind, who, value, t)
 end
 
 -- Meilenstein anzeigen (Popup + Chat), aber nur beim ersten Mal
-local function ShowMilestone(sender, kind, value, silent)
+function ShowMilestone(sender, kind, value, silent)
     local who = Ambiguate(sender, "guild")
     if not ns.AddLog(kind, who, tonumber(value) or value) or silent then return end
     local text = DescribeMilestone(kind, value)
@@ -253,9 +269,11 @@ end
 -- sind, kommen nach dem Login nur still in den Verlauf (kein Popup-Schwall).
 local rosterSeen = false
 local function CheckRosterLevels()
-    if not IsInGuild() or GetNumGuildMembers() == 0 then return end
-    GuildPrideDB.levels = GuildPrideDB.levels or {}
-    local known = GuildPrideDB.levels
+    local id = ns.GuildId()
+    if not IsInGuild() or not id or GetNumGuildMembers() == 0 then return end
+    GuildPrideDB.guildLevels = GuildPrideDB.guildLevels or {}
+    GuildPrideDB.guildLevels[id] = GuildPrideDB.guildLevels[id] or {}
+    local known = GuildPrideDB.guildLevels[id]
     local silent = not rosterSeen
     for i = 1, GetNumGuildMembers() do
         local name, _, _, level = GetGuildRosterInfo(i)
@@ -278,26 +296,30 @@ end
 -- Antwort sieht, schickt keine zweite.
 local answered = {}
 
+-- Abgleich ab 1.12.4: MHQ (Anfrage) / MHL (Eintrag), über den abgesicherten
+-- Kanal. Ältere Versionen fragen mit MSQ und bekommen weiter MSL; deren MSL
+-- werden aber nicht übernommen – ihr Verlauf mischt noch alle Gilden des Accounts.
 -- whisper: Anfragender kann den Gildenchat nicht lesen -> Antwort per Flüstern
-local function SendHistory(requester, since, whisper)
+local function SendHistory(requester, since, whisper, kind)
     local list = {}
     for _, e in ipairs(Log()) do
         if e.kind and e.t and e.t > since then list[#list + 1] = e end
         if #list >= 25 then break end
     end
+    local target = whisper and requester or (kind == "MHL" and "@CHANNEL" or nil)
     for i = #list, 1, -1 do
         local e = list[i]
-        ns.Queue("MSL", whisper and requester or nil, requester, e.t, e.who, e.kind, e.value or "")
+        ns.Queue(kind, target, requester, e.t, e.who, e.kind, e.value or "")
     end
 end
 
-ns.On("MSQ", function(payload, sender)
+local function OnHistoryQuery(payload, sender, reply)
     if sender == ns.Me() then return end
     local sinceStr, listen = strsplit(ns.SEP, payload)
-    local since = tonumber(sinceStr) or 0
+    local since = ns.Stamp(sinceStr)
     if listen == "0" then
         -- Antworten anderer sieht er nicht; jeder antwortet direkt, aber versetzt
-        C_Timer.After(math.random() * 5, function() SendHistory(sender, since, true) end)
+        C_Timer.After(math.random() * 5, function() SendHistory(sender, since, true, reply) end)
         return
     end
     local newest = Log()[1]
@@ -306,12 +328,19 @@ ns.On("MSQ", function(payload, sender)
     C_Timer.After(1 + math.random() * 5, function()
         if not answered[sender] then
             answered[sender] = true
-            SendHistory(sender, since)
+            SendHistory(sender, since, false, reply)
         end
     end)
+end
+ns.On("MSQ", function(payload, sender) OnHistoryQuery(payload, sender, "MSL") end)
+ns.On("MHQ", function(payload, sender) OnHistoryQuery(payload, sender, "MHL") end)
+
+ns.On("MSL", function(payload)
+    local requester = strsplit(ns.SEP, payload)
+    if requester then answered[requester] = true end
 end)
 
-ns.On("MSL", function(payload, sender)
+ns.On("MHL", function(payload, sender)
     local requester, t, who, kind, value = strsplit(ns.SEP, payload)
     if requester then answered[requester] = true end
     if sender == ns.Me() then return end
@@ -324,13 +353,17 @@ ns.On("MSL", function(payload, sender)
     else
         value = nil   -- Beitritt/Austritt haben keinen Wert
     end
+    -- Meilensteine und Beitritte nur von aktuellen Mitgliedern dieser Gilde
+    if kind ~= "LEAVE" and kind ~= "KICK" and not ns.IsGuildMember(who) then return end
     ns.AddLog(kind, who, value, t)
 end)
 
 local function RequestHistory()
     local newest = Log()[1]
-    local listen = (not ns.CanListenGuild or ns.CanListenGuild()) and 1 or 0
-    if ns.Queue then ns.Queue("MSQ", nil, newest and newest.t or 0, listen) end
+    -- Wer im Kanal ist, hört die Antworten dort, auch ohne Leserecht im Gildenchat
+    local inChannel = ns.DataChannelId and ns.DataChannelId()
+    local listen = (inChannel or not ns.CanListenGuild or ns.CanListenGuild()) and 1 or 0
+    if ns.Queue then ns.Queue("MHQ", "@CHANNEL", newest and newest.t or 0, listen) end
 end
 ns.RequestHistory = RequestHistory
 
@@ -352,7 +385,7 @@ local MP_MAX = 100
 
 -- Anfragen, auf die alle antworten: pro Absender höchstens eine alle 10 s,
 -- sonst könnte einer mit Dauer-Anfragen die Addon-Nachrichten der Gilde lahmlegen
-local ASKS = { REQ = true, EVQ = true, PLQ = true, LFGQ = true, KEYQ = true, MSQ = true, CKQ = true }
+local ASKS = { REQ = true, EVQ = true, PLQ = true, LFGQ = true, KEYQ = true, MSQ = true, MHQ = true, CKQ = true }
 local askedAt, askSweep = {}, 0
 local function TooManyAsks(kind, sender)
     local now, key = GetTime(), kind .. ":" .. sender
@@ -480,15 +513,13 @@ f:SetScript("OnEvent", function(_, event, ...)
         -- entfernt alle Testdaten (Events, Verlauf, Warteschlangen).
         if GuildPrideDB.cleanStart ~= 1 then
             GuildPrideDB.events = {}
-            GuildPrideDB.log = {}
             GuildPrideDB.chat = nil
             GuildPrideDB.cleanStart = 1
         end
-        -- Verlauf aus älteren Versionen (damals ungeprüft gespeichert) entschärfen
-        for _, e in ipairs(GuildPrideDB.log or {}) do
-            e.who = Clean(e.who, 60)
-            if type(e.value) == "string" then e.value = Clean(e.value, 80) end
-        end
+        -- Bis 1.12.3 gab es einen Verlauf für den ganzen Account, Gilden gemischt.
+        -- Er wird verworfen: jede Gilde beginnt leer und holt sich ihren Verlauf
+        -- über den abgesicherten Kanal von den anderen Mitgliedern.
+        GuildPrideDB.log, GuildPrideDB.levels = nil, nil
         -- Eigene Regeln wurden durch die Blizzard-Gildeninfo ersetzt
         GuildPrideDB.rules, GuildPrideDB.rulesSeen = nil, nil
         -- BattleTag-Funktion wurde entfernt: alte gespeicherte Daten löschen

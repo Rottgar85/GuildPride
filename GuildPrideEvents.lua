@@ -354,6 +354,14 @@ C_Timer.NewTicker(0.3, function()
     local res
     if item.target == "@OFFICER" then
         if IsInGuild() then res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "OFFICER") end
+    elseif item.target == "@CHANNEL" then
+        -- Nur über den abgesicherten Kanal; ohne Kanal-Schlüssel über die Gilde
+        local chan = ns.DataChannelId()
+        if chan then
+            res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan)
+        elseif IsInGuild() then
+            res = SendToGuild(item.msg)
+        end
     elseif item.target then
         -- Abgleich: ist der Empfänger im abgesicherten Kanal, dort senden
         -- (alle im Kanal bleiben so auf demselben Stand), sonst flüstern

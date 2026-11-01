@@ -323,7 +323,7 @@ local WEEK_KINDS = {
 }
 local function WeekSummary()
     local since, counts, byWho = ns.WeekStart(), {}, {}
-    for _, e in ipairs(GuildPrideDB.log or {}) do
+    for _, e in ipairs(ns.GuildLog()) do
         if (e.t or 0) >= since then
             for i, w in ipairs(WEEK_KINDS) do
                 if w.kinds[e.kind] then counts[i] = (counts[i] or 0) + 1 end
@@ -366,15 +366,16 @@ function overview:Refresh()
     tiles[2].label:SetText(nextEvent and (L["NÄCHSTES EVENT: "] .. nextEvent.title:upper()) or L["NÄCHSTES EVENT"])
 
     local week, cutoff = 0, ns.WeekStart()
-    for _, e in ipairs(GuildPrideDB.log or {}) do if e.t >= cutoff then week = week + 1 end end
+    for _, e in ipairs(ns.GuildLog()) do if e.t >= cutoff then week = week + 1 end end
     tiles[3].value:SetText(week)
 
     local text = GetGuildRosterMOTD and GetGuildRosterMOTD() or ""
     motd:SetText(text ~= "" and text or L["|cff888888Keine Nachricht gesetzt.|r"])
     weekText:SetText(WeekSummary())
     local lines = {}
-    for i = 1, math.min(5, #(GuildPrideDB.log or {})) do
-        local e = GuildPrideDB.log[i]
+    local log = ns.GuildLog()
+    for i = 1, math.min(5, #log) do
+        local e = log[i]
         local icon = (e.kind == "LEVEL" and ns.BadgeFor) and ("|T%s:18|t"):format(ns.BadgeFor(e.kind, e.value)) or "|cffff8c40•|r"
         lines[#lines + 1] = ("%s |cfff0c88c%s|r %s  |cff777777%s|r"):format(icon, e.who, ns.LogText(e), ns.FormatDay(e.t))
     end
@@ -894,7 +895,7 @@ local milestones = AddTab(L["Meilensteine"], 60)
 local msList = CreateList(milestones, 24)
 
 function milestones:Refresh()
-    local log = GuildPrideDB.log or {}
+    local log = ns.GuildLog()
     for i, e in ipairs(log) do
         local row = msList:GetRow(i)
         if not row.badge then
