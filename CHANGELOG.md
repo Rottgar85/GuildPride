@@ -1,5 +1,19 @@
 # GuildPride Changelog
 
+## 1.12.0
+
+**English**
+- Group Finder: new "Dungeon" button with a searchable list of all dungeons of your game version, sorted by level
+- The recommended level range is shown automatically (e.g. Lvl 18–23)
+- Pick the difficulty: Normal/Heroic (from TBC), Mythic (Retail, Forever) and Mythic+ with keystone level (Retail)
+- The dungeon is shared with the guild, shown as the title of the listing and in the chat notice
+
+**Deutsch**
+- Gruppensuche: Neuer Knopf „Dungeon“ mit durchsuchbarer Liste aller Dungeons der jeweiligen Spielversion, nach Level sortiert
+- Der empfohlene Levelbereich wird automatisch angezeigt (z. B. Lvl 18–23)
+- Schwierigkeit wählbar: Normal/Heroisch (ab TBC), Mythisch (Retail, Forever) und M+ mit Schlüsselstufe (Retail)
+- Der Dungeon wird an die Gilde gesendet und als Titel des Eintrags sowie im Chat-Hinweis angezeigt
+
 ## 1.11.4
 
 **English**
