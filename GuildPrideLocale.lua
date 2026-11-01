@@ -29,6 +29,7 @@ local enUS = {
     ["Dungeon, Schwierigkeit und Stufe für deinen Eintrag"] = "Dungeon, difficulty and level for your listing",
     ["Kein Dungeon"] = "No dungeon",
     ["Keine Dungeonliste verfügbar."] = "No dungeon list available.",
+    ["Für deine Stufe gibt es keine Dungeons in dieser Schwierigkeit."] = "No dungeons of this difficulty for your level.",
     ["Heroisch"] = "Heroic",
     ["Mythisch"] = "Mythic",
     ["vor %d Min."] = "%d min ago",

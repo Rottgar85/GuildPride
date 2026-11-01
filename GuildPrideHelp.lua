@@ -74,6 +74,16 @@ local function DungeonText(d)
     return d.name .. (diff and (" (" .. diff .. ")") or "")
 end
 
+-- Schwierigkeit aus dem Namenszusatz ("Heroisch" in "… (Heroisch)"), sonst nil
+local function SuffixDiff(suffix)
+    suffix = suffix and suffix:lower() or ""
+    if suffix == "" then return nil end
+    local function Has(s) return s and s ~= "" and suffix:find(s:lower(), 1, true) end
+    if Has(PLAYER_DIFFICULTY6) or Has("mythic") or Has(DIFF_LABEL.M) then return "M" end
+    if Has(PLAYER_DIFFICULTY2) or Has("heroic") or Has(DIFF_LABEL.H) then return "H" end
+    if Has(PLAYER_DIFFICULTY1) or Has("normal") or Has(DIFF_LABEL.N) then return "N" end
+end
+
 -- Schwierigkeit einer Aktivität aus dem Gruppenbrowser: N, H oder M
 local function ActivityDiff(info, suffix)
     if info.isMythicActivity then return "M" end
@@ -83,14 +93,8 @@ local function ActivityDiff(info, suffix)
         if displayMythic then return "M" end
         if isHeroic or displayHeroic then return "H" end
     end
-    -- Ältere Clients: nur der Zusatz im Namen ("… (Heroisch)")
-    suffix = suffix and suffix:lower() or ""
-    if suffix ~= "" then
-        local function Has(s) return s and s ~= "" and suffix:find(s:lower(), 1, true) end
-        if Has(PLAYER_DIFFICULTY6) or Has("mythic") or Has(DIFF_LABEL.M) then return "M" end
-        if Has(PLAYER_DIFFICULTY2) or Has("heroic") or Has(DIFF_LABEL.H) then return "H" end
-    end
-    return "N"
+    -- Ältere Clients: nur der Zusatz im Namen
+    return SuffixDiff(suffix) or "N"
 end
 
 -- Dungeons der jeweiligen Spielversion aus dem Gruppenbrowser:
@@ -107,9 +111,12 @@ local function DungeonList()
     for _, aid in ipairs(ok and acts or {}) do
         local info = G.GetActivityInfoTable(aid)
         local full = info and info.fullName
-        local name = full and (full:gsub("%s*%(.-%)%s*$", ""))
+        local suffix = full and full:match("%(([^%(%)]*)%)%s*$")
+        -- Nur den Schwierigkeitszusatz abschneiden: "Düsterbruch (Ost)" bleibt so
+        local name = full
+        if SuffixDiff(suffix) then name = full:gsub("%s*%([^%(%)]*%)%s*$", "") end
         if name and name ~= "" and not info.isMythicPlusActivity then
-            local diff = ActivityDiff(info, full:match("%(([^%(%)]*)%)%s*$"))
+            local diff = ActivityDiff(info, suffix)
             local lo = info.minLevelSuggestion or 0
             if lo == 0 then lo = info.minLevel or 0 end
             local hi = info.maxLevelSuggestion or 0
@@ -139,6 +146,10 @@ local function DungeonList()
     if #out > 0 then dungeonCache = out end
     return out
 end
+-- Mit neuer Stufe kommen neue Dungeons dazu (z. B. heroisch mit Höchststufe)
+local levelWatch = CreateFrame("Frame")
+levelWatch:RegisterEvent("PLAYER_LEVEL_UP")
+levelWatch:SetScript("OnEvent", function() dungeonCache = nil end)
 local ROLES = {
     { key = "T", label = "Tank",        color = "|cff6fa8ff", spec = "TANK" },
     { key = "H", label = L["Heiler"],   color = "|cff40ff40", spec = "HEALER" },
@@ -467,25 +478,16 @@ if hasDiff then
     end
 end
 
--- Nur Schwierigkeiten anbieten, die mindestens ein Dungeon wirklich hat
+-- Knöpfe für alle Schwierigkeiten dieser Spielversion. Der Gruppenbrowser
+-- liefert nur Dungeons, für die der Charakter die Stufe hat (heroisch erst
+-- ab Höchststufe) – dann bleibt die Liste leer und zeigt einen Hinweis.
 local function LayoutDiffButtons()
     if not hasDiff then return end
-    local have = {}
-    for _, d in ipairs(DungeonList()) do
-        for key in pairs(d.diffs) do have[key] = true end
-    end
-    local x, first = 8, nil
-    for _, d in ipairs(DIFFS) do
+    for i, d in ipairs(DIFFS) do
         local b = diffBtns[d.key]
-        b:SetShown(have[d.key] or false)
-        if have[d.key] then
-            b:ClearAllPoints()
-            b:SetPoint("TOPLEFT", x, -32)
-            x = x + 68
-            first = first or d.key
-        end
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT", 8 + (i - 1) * 68, -32)
     end
-    if not have[diffSel] then diffSel = first or "N" end
     UpdateDiffButtons()
 end
 
@@ -499,13 +501,21 @@ function FillDungeons()
     end
     local items = { { text = "|cff999999" .. L["Kein Dungeon"] .. "|r", onClick = function() Pick(nil) end } }
     -- Nur Dungeons, die es in der gewählten Schwierigkeit gibt
+    local any
     for _, d in ipairs(DungeonList()) do
         local v = d.diffs[diffSel]
-        if v and (filter == "" or d.name:lower():find(filter, 1, true)) then
-            local lv = LevelRange(v.min, v.max)
-            items[#items + 1] = { text = (lv ~= "" and ("|cff999999[%s]|r "):format(lv) or "") .. "|cff66ccff" .. d.name .. "|r",
-                                  onClick = function() Pick(d) end }
+        if v then
+            any = true
+            if filter == "" or d.name:lower():find(filter, 1, true) then
+                local lv = LevelRange(v.min, v.max)
+                items[#items + 1] = { text = (lv ~= "" and ("|cff999999[%s]|r "):format(lv) or "") .. "|cff66ccff" .. d.name .. "|r",
+                                      onClick = function() Pick(d) end }
+            end
         end
+    end
+    if not any then
+        items[#items + 1] = { text = "|cff888888" .. L["Für deine Stufe gibt es keine Dungeons in dieser Schwierigkeit."] .. "|r",
+                              onClick = function() end }
     end
     dungeonPicker:Fill(items)
 end
