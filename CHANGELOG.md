@@ -1,5 +1,13 @@
 # GuildPride Changelog
 
+## 1.11.1
+
+**English**
+- Member tooltip: the online marker before the zone showed as a strange symbol in all game versions; it is now Blizzard's green online icon
+
+**Deutsch**
+- Mitglieder-Tooltip: Das Online-Zeichen vor der Zone wurde in allen Spielversionen als komisches Symbol angezeigt; jetzt steht dort Blizzards grünes Online-Symbol
+
 ## 1.11.0
 
 **English**
