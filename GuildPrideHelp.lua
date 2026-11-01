@@ -51,6 +51,67 @@ local function QuestLogList()
     end
     return out
 end
+
+-- Schwierigkeiten je Spielversion: Classic Era nur normal, ab TBC heroisch,
+-- Retail/Forever auch mythisch, Retail zusätzlich M+ mit Stufe
+local DIFF_LABEL = { N = L["Normal"], H = L["Heroisch"], M = L["Mythisch"] }
+local DIFFS = { { key = "N", label = DIFF_LABEL.N } }
+if (select(4, GetBuildInfo()) or 0) >= 20000 or not ns.IS_CLASSIC then DIFFS[#DIFFS + 1] = { key = "H", label = DIFF_LABEL.H } end
+if not ns.IS_CLASSIC then DIFFS[#DIFFS + 1] = { key = "M", label = DIFF_LABEL.M } end
+if ns.IS_RETAIL then
+    DIFF_LABEL.K = "M+"
+    DIFFS[#DIFFS + 1] = { key = "K", label = DIFF_LABEL.K }
+end
+
+-- "Lvl 18–23" bzw. "Lvl 80+"
+local function LevelRange(lo, hi)
+    if (lo or 0) <= 0 then return "" end
+    if (hi or 0) > lo then return ("Lvl %d–%d"):format(lo, hi) end
+    return ("Lvl %d+"):format(lo)
+end
+
+-- "Todesminen (Heroisch)" bzw. "Ara-Kara (+12)"
+local function DungeonText(d)
+    local diff = d.diff == "K" and (d.keyLevel or 0) > 0 and ("+" .. d.keyLevel) or DIFF_LABEL[d.diff or ""]
+        or (d.diff == "K" and "M+") or nil
+    return d.name .. (diff and (" (" .. diff .. ")") or "")
+end
+
+-- Dungeons der jeweiligen Spielversion aus dem Gruppenbrowser: { name, min, max }.
+-- Varianten je Schwierigkeit ("… (Heroisch)") werden zu einem Eintrag zusammengefasst.
+local dungeonCache
+local function DungeonList()
+    if dungeonCache then return dungeonCache end
+    local out, seen = {}, {}
+    local G = C_LFGList
+    if not (G and G.GetAvailableActivities and G.GetActivityInfoTable) then return out end
+    local ok, acts = pcall(G.GetAvailableActivities, GROUP_FINDER_CATEGORY_ID_DUNGEONS or 2)
+    for _, aid in ipairs(ok and acts or {}) do
+        local info = G.GetActivityInfoTable(aid)
+        local name = info and info.fullName and (info.fullName:gsub("%s*%(.-%)%s*$", ""))
+        if name and name ~= "" then
+            local lo = info.minLevelSuggestion or 0
+            if lo == 0 then lo = info.minLevel or 0 end
+            local hi = info.maxLevelSuggestion or 0
+            local d = seen[name]
+            if not d then
+                d = { name = name, min = lo, max = hi }
+                seen[name] = d
+                out[#out + 1] = d
+            else
+                if lo > 0 and (d.min == 0 or lo < d.min) then d.min = lo end
+                if hi > d.max then d.max = hi end
+            end
+        end
+    end
+    table.sort(out, function(a, b)
+        if a.min ~= b.min then return a.min < b.min end
+        return a.name < b.name
+    end)
+    -- Leere Liste nicht merken (Daten evtl. noch nicht geladen)
+    if #out > 0 then dungeonCache = out end
+    return out
+end
 local ROLES = {
     { key = "T", label = "Tank",        color = "|cff6fa8ff", spec = "TANK" },
     { key = "H", label = L["Heiler"],   color = "|cff40ff40", spec = "HEALER" },
@@ -62,6 +123,7 @@ local entries = {}   -- [Name-Realm] = { kind, note, level, zone, size, max, nee
 local mine           -- eigener Eintrag
 local needs = {}     -- eigene Auswahl: { T = true, H = true }
 local picked         -- gewählte Quest aus dem Questlog: { id, level, name }
+local pickedDungeon  -- gewählter Dungeon: { name, min, max, diff, keyLevel }
 local lastSent = 0
 -- Versionsnummer des eigenen Zustands (eingetragen/ausgetragen/Art). Sie steigt
 -- bei jeder Änderung; Empfänger ignorieren ältere Stände. Sonst konnte eine
@@ -128,10 +190,12 @@ local function SendMine(target)
         local _, class = UnitClass("player")
         -- Felder 11/12: Schlüssel (ältere Versionen ignorieren sie und kennen "key" nicht)
         -- Felder 13–15: verlinkte Quest (ID, Stufe, Name)
-        local q = mine.quest
+        -- Felder 16–20: Dungeon (Name, Levelbereich, Schwierigkeit N/H/M/K, M+-Stufe)
+        local q, d = mine.quest, mine.dungeon
         ns.Queue("LFG", target, mine.kind, mine.note, UnitLevel("player"), GetZoneText() or "",
             size, max, mine.needs or "", MyRoleKey(), class or "", stateVer, mine.map or 0, mine.keyLevel or 0,
-            q and q.id or 0, q and q.level or 0, q and Clean(q.name, 50) or "")
+            q and q.id or 0, q and q.level or 0, q and Clean(q.name, 50) or "",
+            d and Clean(d.name, 40) or "", d and d.min or 0, d and d.max or 0, d and d.diff or "", d and d.keyLevel or 0)
         if not target then lastSent = GetServerTime() end
     elseif not target then
         ns.Queue("LFG", nil, "none", "", 0, "", 0, 0, "", "", "", stateVer)
@@ -148,12 +212,13 @@ local function MyEntry()
              size = size, max = max, needs = mine.needs or "", role = MyRoleKey(), class = class or "",
              map = mine.map, keyLevel = mine.keyLevel, t = mine.t, self = true,
              questId = mine.quest and mine.quest.id or 0, questLevel = mine.quest and mine.quest.level or 0,
-             questName = mine.quest and mine.quest.name or "" }
+             questName = mine.quest and mine.quest.name or "", dungeon = mine.dungeon }
 end
 
 ns.On("LFG", function(payload, sender)
     if sender == ns.Me() then return end
-    local kind, note, level, zone, size, max, need, role, class, ver, map, keyLevel, questId, questLevel, questName = strsplit(SEP, payload)
+    local kind, note, level, zone, size, max, need, role, class, ver, map, keyLevel, questId, questLevel, questName,
+          dName, dMin, dMax, dDiff, dKey = strsplit(SEP, payload)
     -- Älteren Stand als den schon bekannten ignorieren (ältere Versionen senden keine Nummer)
     ver = tonumber(ver) or 0
     if ver > 0 then
@@ -174,12 +239,18 @@ ns.On("LFG", function(payload, sender)
                     role = Clean(role, 1), class = Clean(class, 20), t = old and old.t or GetServerTime(),
                     map = tonumber(map) or 0, keyLevel = tonumber(keyLevel) or 0, seen = GetServerTime(),
                     questId = tonumber(questId) or 0, questLevel = tonumber(questLevel) or 0, questName = Clean(questName, 50) }
+        dName = Clean(dName, 40)
+        if dName ~= "" then
+            e.dungeon = { name = dName, min = tonumber(dMin) or 0, max = tonumber(dMax) or 0,
+                          diff = Clean(dDiff, 1), keyLevel = tonumber(dKey) or 0 }
+        end
         if isNew then e.t = GetServerTime() end
         entries[sender] = e
         if alert and GuildPrideDB.helpAlerts ~= false then
             local extra = (" · " .. L["Gruppe %d/%d"]):format(e.size, e.max)
             if kind == "key" then extra = " · " .. KeyLabel(e.map, e.keyLevel) .. extra end
             if e.questId > 0 then extra = " · " .. QuestLink(e.questId, e.questLevel, e.questName) .. extra end
+            if e.dungeon then extra = " · |cff66ccff" .. DungeonText(e.dungeon) .. "|r" .. extra end
             if e.needs ~= "" then extra = extra .. " · " .. (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
             ns.Print(("%s%s|r: |cffffd100%s|r (Lvl %d, %s)%s%s"):format(TYPES[kind].color, KindLabel(kind, e.size),
                 Ambiguate(sender, "guild"), e.level, e.zone, extra, e.note ~= "" and (" – " .. e.note) or ""))
@@ -234,97 +305,193 @@ hint:SetPoint("TOPLEFT", 2, -2)
 hint:SetText(L["Titel (optional), Rollen wählen, dann eintragen. Die Gruppengröße wird automatisch übernommen."])
 
 local noteBox = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
-noteBox:SetSize(170, 22)
+noteBox:SetSize(120, 22)
 noteBox:SetPoint("TOPLEFT", 8, -22)
 noteBox:SetAutoFocus(false)
 noteBox:SetMaxLetters(60)
 
--- Quest aus dem Questlog verlinken (eigene Liste, gleich in allen Spielversionen)
-local bQuestPick = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bQuestPick:SetSize(66, 22)
-bQuestPick:SetPoint("LEFT", noteBox, "RIGHT", 4, 0)
-bQuestPick:SetText(L["Quest"])
-bQuestPick:HookScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:SetText(L["Quest verlinken"], 1, 1, 1)
-    GameTooltip:AddLine(L["Quest aus deinem Questlog wählen"], 0.8, 0.8, 0.8)
-    GameTooltip:Show()
-end)
-bQuestPick:HookScript("OnLeave", function() GameTooltip:Hide() end)
+-- Knöpfe neben dem Titelfeld: Quest aus dem Questlog, Dungeon aus der Dungeonliste
+local function PickButton(anchor, width, text, tipTitle, tipText)
+    local b = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    b:SetSize(width, 22)
+    b:SetPoint("LEFT", anchor, "RIGHT", 4, 0)
+    b:SetText(text)
+    b:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(tipTitle, 1, 1, 1)
+        GameTooltip:AddLine(tipText, 0.8, 0.8, 0.8)
+        GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    return b
+end
+local bQuestPick = PickButton(noteBox, 66, L["Quest"], L["Quest verlinken"], L["Quest aus deinem Questlog wählen"])
+local bDungeonPick = PickButton(bQuestPick, 74, L["Dungeon"], L["Dungeon wählen"],
+    L["Dungeon, Schwierigkeit und Stufe für deinen Eintrag"])
 
-local picker = CreateFrame("Frame", nil, page)
-picker:SetFrameStrata("DIALOG")
-picker:SetPoint("TOPLEFT", bQuestPick, "BOTTOMLEFT", 0, -2)
-picker:SetWidth(320)
-picker:EnableMouse(true)
-picker:Hide()
-local pickerBg = picker:CreateTexture(nil, "BACKGROUND")
-pickerBg:SetAllPoints()
-pickerBg:SetColorTexture(0.05, 0.04, 0.04, 0.97)
-local pickerEdge = picker:CreateTexture(nil, "BORDER")
-pickerEdge:SetPoint("TOPLEFT"); pickerEdge:SetPoint("TOPRIGHT"); pickerEdge:SetHeight(2)
-ns.Paint(pickerEdge, "accent")
-local pickScroll = ns.NewScroll(picker)
-pickScroll:SetPoint("TOPLEFT", 4, -6)
-pickScroll:SetPoint("BOTTOMRIGHT", -26, 4)
-local pickChild = CreateFrame("Frame", nil, pickScroll)
-pickChild:SetSize(290, 1)
-pickScroll:SetScrollChild(pickChild)
-local pickRows = {}
-local PICK_H = 20
+-- Auswahlliste unter einem Knopf (eigene Liste, gleich in allen Spielversionen);
+-- top: Platz für eine Kopfzeile (z. B. Suchfeld)
+local PICK_H, PICK_W = 20, 290
+local function MakePicker(anchor, top)
+    local p = CreateFrame("Frame", nil, page)
+    p:SetFrameStrata("DIALOG")
+    p:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+    p:SetWidth(PICK_W + 30)
+    p:EnableMouse(true)
+    p:Hide()
+    local bg = p:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.05, 0.04, 0.04, 0.97)
+    local edge = p:CreateTexture(nil, "BORDER")
+    edge:SetPoint("TOPLEFT"); edge:SetPoint("TOPRIGHT"); edge:SetHeight(2)
+    ns.Paint(edge, "accent")
+    local scroll = ns.NewScroll(p)
+    scroll:SetPoint("TOPLEFT", 4, -6 - top)
+    scroll:SetPoint("BOTTOMRIGHT", -26, 4)
+    local child = CreateFrame("Frame", nil, scroll)
+    child:SetSize(PICK_W, 1)
+    scroll:SetScrollChild(child)
+    local rows = {}
+    -- items: { text, onClick }
+    function p:Fill(items)
+        for i, it in ipairs(items) do
+            local b = rows[i]
+            if not b then
+                b = CreateFrame("Button", nil, child)
+                b:SetSize(PICK_W, PICK_H)
+                b:SetPoint("TOPLEFT", 0, -(i - 1) * PICK_H)
+                b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+                b.text = b:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
+                b.text:SetPoint("LEFT", 6, 0); b.text:SetPoint("RIGHT", -4, 0)
+                b.text:SetJustifyH("LEFT"); b.text:SetWordWrap(false)
+                rows[i] = b
+            end
+            b.text:SetText(it.text)
+            b:SetScript("OnClick", it.onClick)
+            b:Show()
+        end
+        for i = #items + 1, #rows do rows[i]:Hide() end
+        child:SetHeight(math.max(1, #items * PICK_H))
+        p:SetHeight(top + math.max(1, math.min(#items, 14)) * PICK_H + 10)
+        scroll:SetVerticalScroll(0)
+    end
+    page:HookScript("OnHide", function() p:Hide() end)
+    return p
+end
 
-local function SetPicked(q)
-    picked = q
-    picker:Hide()
-    -- Schon eingetragen: Eintrag gleich mit der neuen Quest erneuern
+-- Nach einer Auswahl: schon eingetragen -> Eintrag gleich erneuern
+local function ApplyPicks()
     if mine then
-        mine.quest = picked
+        mine.quest, mine.dungeon = picked, pickedDungeon
         BumpVer()
         SendMine()
     end
     ns.RefreshUI()
 end
 
-local function OpenPicker()
+-- Quest
+local questPicker = MakePicker(bQuestPick, 0)
+local function OpenQuestPicker()
     local list = QuestLogList()
     if #list == 0 then
         ns.Print(L["Dein Questlog ist leer."])
         return
     end
-    table.insert(list, 1, { none = true })
-    for i, q in ipairs(list) do
-        local b = pickRows[i]
-        if not b then
-            b = CreateFrame("Button", nil, pickChild)
-            b:SetSize(290, PICK_H)
-            b:SetPoint("TOPLEFT", 0, -(i - 1) * PICK_H)
-            b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-            b.text = b:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
-            b.text:SetPoint("LEFT", 6, 0); b.text:SetPoint("RIGHT", -4, 0)
-            b.text:SetJustifyH("LEFT"); b.text:SetWordWrap(false)
-            pickRows[i] = b
-        end
-        if q.none then
-            b.text:SetText("|cff999999" .. L["Keine Quest"] .. "|r")
-            b:SetScript("OnClick", function() SetPicked(nil) end)
-        else
-            b.text:SetText(("|cff999999[%d]|r |cffffd100%s|r"):format(q.level, q.name))
-            b:SetScript("OnClick", function() SetPicked(q) end)
-        end
-        b:Show()
+    local function Pick(q) picked = q; questPicker:Hide(); ApplyPicks() end
+    local items = { { text = "|cff999999" .. L["Keine Quest"] .. "|r", onClick = function() Pick(nil) end } }
+    for _, q in ipairs(list) do
+        items[#items + 1] = { text = ("|cff999999[%d]|r |cffffd100%s|r"):format(q.level, q.name),
+                              onClick = function() Pick(q) end }
     end
-    for i = #list + 1, #pickRows do pickRows[i]:Hide() end
-    pickChild:SetHeight(#list * PICK_H)
-    picker:SetHeight(math.min(#list, 14) * PICK_H + 10)
-    picker:Show()
+    questPicker:Fill(items)
+    questPicker:Show()
 end
-bQuestPick:SetScript("OnClick", function()
-    if picker:IsShown() then picker:Hide() else OpenPicker() end
+
+-- Dungeon: Suchfeld, darunter Schwierigkeit (und M+-Stufe in Retail)
+local hasDiff = #DIFFS > 1
+local dungeonPicker = MakePicker(bDungeonPick, hasDiff and 56 or 30)
+local search = CreateFrame("EditBox", nil, dungeonPicker, "InputBoxTemplate")
+search:SetSize(200, 20)
+search:SetPoint("TOPLEFT", 12, -8)
+search:SetAutoFocus(false)
+local searchHint = search:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
+searchHint:SetPoint("LEFT", 2, 0)
+searchHint:SetText(L["Suchen …"])
+
+local diffSel = hasDiff and DIFFS[1].key or ""
+local diffBtns, keyBox = {}, nil
+local function UpdateDiffButtons()
+    for key, b in pairs(diffBtns) do
+        if b.gpBg then b.gpBg:SetTexture(ns.MEDIA .. (key == diffSel and "nav_active" or "nav")) end
+        if key == diffSel then b:LockHighlight() else b:UnlockHighlight() end
+    end
+    if keyBox then keyBox:SetShown(diffSel == "K") end
+end
+if hasDiff then
+    for i, d in ipairs(DIFFS) do
+        local b = CreateFrame("Button", nil, dungeonPicker, "UIPanelButtonTemplate")
+        b:SetSize(64, 20)
+        b:SetPoint("TOPLEFT", 8 + (i - 1) * 68, -32)
+        b:SetText(d.label)
+        b:SetScript("OnClick", function() diffSel = d.key; UpdateDiffButtons() end)
+        diffBtns[d.key] = b
+    end
+    if DIFF_LABEL.K and diffBtns.K then
+        keyBox = CreateFrame("EditBox", nil, dungeonPicker, "InputBoxTemplate")
+        keyBox:SetSize(26, 20)
+        keyBox:SetPoint("LEFT", diffBtns.K, "RIGHT", 8, 0)
+        keyBox:SetAutoFocus(false)
+        keyBox:SetNumeric(true)
+        keyBox:SetMaxLetters(2)
+    end
+    UpdateDiffButtons()
+end
+
+local function FillDungeons()
+    local filter = search:GetText():lower()
+    local function Pick(d)
+        pickedDungeon = d and { name = d.name, min = d.min, max = d.max, diff = diffSel,
+            keyLevel = diffSel == "K" and keyBox and tonumber(keyBox:GetText()) or 0 } or nil
+        dungeonPicker:Hide()
+        ApplyPicks()
+    end
+    local items = { { text = "|cff999999" .. L["Kein Dungeon"] .. "|r", onClick = function() Pick(nil) end } }
+    for _, d in ipairs(DungeonList()) do
+        if filter == "" or d.name:lower():find(filter, 1, true) then
+            local lv = LevelRange(d.min, d.max)
+            items[#items + 1] = { text = (lv ~= "" and ("|cff999999[%s]|r "):format(lv) or "") .. "|cff66ccff" .. d.name .. "|r",
+                                  onClick = function() Pick(d) end }
+        end
+    end
+    dungeonPicker:Fill(items)
+end
+search:SetScript("OnTextChanged", function(self)
+    searchHint:SetShown(self:GetText() == "")
+    if dungeonPicker:IsShown() then FillDungeons() end
 end)
-page:HookScript("OnHide", function() picker:Hide() end)
+search:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
+local function OpenDungeonPicker()
+    if #DungeonList() == 0 then
+        ns.Print(L["Keine Dungeonliste verfügbar."])
+        return
+    end
+    dungeonPicker:Show()
+    search:SetText("")
+    FillDungeons()
+end
+
+bQuestPick:SetScript("OnClick", function()
+    dungeonPicker:Hide()
+    if questPicker:IsShown() then questPicker:Hide() else OpenQuestPicker() end
+end)
+bDungeonPick:SetScript("OnClick", function()
+    questPicker:Hide()
+    if dungeonPicker:IsShown() then dungeonPicker:Hide() else OpenDungeonPicker() end
+end)
 
 local needLabel = page:CreateFontString(nil, "OVERLAY", "GPFont_Text")
-needLabel:SetPoint("LEFT", bQuestPick, "RIGHT", 16, 0)
+needLabel:SetPoint("LEFT", bDungeonPick, "RIGHT", 16, 0)
 needLabel:SetText(L["Fehlt noch:"])
 
 local needBtns = {}
@@ -361,7 +528,8 @@ local function Set(kind)
         return
     end
     if kind then
-        mine = { kind = kind, note = Clean(noteBox:GetText(), 60), needs = NeedsCode(), quest = picked, t = GetServerTime() }
+        mine = { kind = kind, note = Clean(noteBox:GetText(), 60), needs = NeedsCode(), quest = picked, dungeon = pickedDungeon,
+                 t = GetServerTime() }
         UpdateMyKey()
         ns.Print(L["Du bist eingetragen: "] .. KindLabel(kind, (GroupSize())))
     else
@@ -517,6 +685,7 @@ function page:Refresh()
     else
         status:SetText(L["|cff888888Du bist nicht eingetragen.|r"])
     end
+    if pickedDungeon then status:SetText(status:GetText() .. "  ·  |cff66ccff" .. DungeonText(pickedDungeon) .. "|r") end
     if picked then status:SetText(status:GetText() .. "  ·  " .. QuestLink(picked.id, picked.level, picked.name)) end
 
     -- Schlüssel der Gilde statt der Suchliste
@@ -565,12 +734,18 @@ function page:Refresh()
             r.name:SetText(("|cff%s%s|r"):format(hex, Ambiguate(item.name, "guild"))
                 .. (e.self and (" |cff999999(" .. L["du"] .. ")|r") or ""))
             r.info:SetText(("Lvl %d · %s · |cff999999%s|r"):format(e.level, RoleLabel(e.role), e.zone))
-            -- Titel: eigener Text, sonst die verlinkte Quest, sonst die Art des Eintrags
+            -- Titel: eigener Text, sonst Dungeon, sonst die verlinkte Quest, sonst die Art des Eintrags
             local hasQuest = (e.questId or 0) > 0 and (e.questName or "") ~= ""
-            r.title:SetText(e.note ~= "" and e.note or (hasQuest and ("|cffffd100" .. e.questName .. "|r"))
+            local d = e.dungeon
+            r.title:SetText(e.note ~= "" and e.note or (d and ("|cff66ccff" .. DungeonText(d) .. "|r"))
+                or (hasQuest and ("|cffffd100" .. e.questName .. "|r"))
                 or (t.color .. KindLabel(e.kind, e.size) .. "|r"))
 
             local parts = { t.color .. KindLabel(e.kind, e.size) .. "|r" }
+            if d then
+                local lv = LevelRange(d.min, d.max)
+                parts[#parts + 1] = "|cff66ccff" .. DungeonText(d) .. "|r" .. (lv ~= "" and (" |cff999999" .. lv .. "|r") or "")
+            end
             if hasQuest then parts[#parts + 1] = QuestLink(e.questId, e.questLevel, e.questName) end
             if e.kind == "key" then parts[#parts + 1] = KeyLabel(e.map, e.keyLevel) end
             if e.needs ~= "" then parts[#parts + 1] = (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
