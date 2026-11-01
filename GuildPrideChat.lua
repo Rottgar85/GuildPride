@@ -485,7 +485,7 @@ bOfficer:SetScript("OnClick", function() SetChannel({ kind = "OFFICER", label = 
 ---------------------------------------------------------------------
 local function Communities()
     local out = {}
-    if not (HAS_CLUB and C_Club.GetSubscribedClubs) then return out end
+    if not (HAS_CLUB and ns.HAS_COMMUNITIES and C_Club.GetSubscribedClubs) then return out end
     for _, club in ipairs(C_Club.GetSubscribedClubs() or {}) do
         -- Geschützte Werte (Schlachtfeld) nicht vergleichen
         if not Secret(club.clubType) and not Secret(club.clubId) and club.clubType ~= Enum.ClubType.Guild then
@@ -586,7 +586,8 @@ function ns.ChatRefresh()
     bOfficer:SetShown(canOfficer and true or false)
     bClub:ClearAllPoints()
     bClub:SetPoint("LEFT", canOfficer and bOfficer or bGuild, "RIGHT", 6, 0)
-    bClub:SetShown(HAS_CLUB and C_Club.GetSubscribedClubs and true or false)
+    -- Communities gibt es in den Classic-Clients nicht
+    bClub:SetShown(HAS_CLUB and ns.HAS_COMMUNITIES and C_Club.GetSubscribedClubs and true or false)
     if not canOfficer and channel.kind == "OFFICER" then channel = { kind = "GUILD", label = L["Gilde"] } end
     SetChannel(channel)
 end

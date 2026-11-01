@@ -451,7 +451,7 @@ end
 -- Communities (ohne Gilde), nach Name sortiert
 local function Communities()
     local out = {}
-    if not HAS_CLUB then return out end
+    if not (HAS_CLUB and ns.HAS_COMMUNITIES) then return out end
     for _, club in ipairs(C_Club.GetSubscribedClubs() or {}) do
         if club.clubType ~= Enum.ClubType.Guild then
             out[#out + 1] = { id = club.clubId, name = club.name, bnet = club.clubType == Enum.ClubType.BattleNet }

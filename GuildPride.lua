@@ -35,7 +35,12 @@ end
 
 -- Retail (mit Mythisch+)? WoW Forever hat Interface 16001 und kein M+.
 ns.IS_RETAIL = (select(4, GetBuildInfo()) or 0) >= 100000 and C_MythicPlus ~= nil
--- Classic-Clients (Era, Anniversary, Wrath, Cata, MoP) haben nicht alle Events:
+-- Classic-Clients (Era 115xx, Anniversary, Wrath, Cata, MoP) haben keine Communities.
+-- WoW Forever (160xx) schon, obwohl die Interface-Nummer auch unter 100000 liegt.
+local toc = select(4, GetBuildInfo()) or 0
+ns.IS_CLASSIC = toc < 100000 and not (toc >= 16000 and toc < 20000)
+ns.HAS_COMMUNITIES = not ns.IS_CLASSIC
+-- Classic-Clients haben außerdem nicht alle Events:
 -- unbekannte Events werfen beim Registrieren einen Fehler, daher abgesichert.
 function ns.RegisterEvents(frame, ...)
     for i = 1, select("#", ...) do pcall(frame.RegisterEvent, frame, (select(i, ...))) end

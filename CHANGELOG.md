@@ -6,11 +6,13 @@
 - **All game versions**: GuildPride now also runs in Classic Era (incl. Season of Discovery and Hardcore), Anniversary (TBC), Wrath/Titan Reforged, Cata Classic and MoP Classic, besides Retail and WoW Forever
 - Features a client doesn't have stay hidden automatically (e.g. keystones and M+ outside Retail)
 - Classic: the guild key opens GuildPride instead of the guild tab in the friends window; the settings appear in the old interface options when the new settings menu is missing
+- Classic: communities don't exist there, so the Communities button and "Invite to community" are hidden (WoW Forever keeps them)
 
 **Deutsch**
 - **Alle Spielversionen**: GuildPride läuft jetzt auch in Classic Era (inkl. Season of Discovery und Hardcore), Anniversary (TBC), Wrath/Titan Reforged, Cata Classic und MoP Classic, zusätzlich zu Retail und WoW Forever
 - Was ein Client nicht kennt, wird automatisch ausgeblendet (z. B. Schlüsselsteine und M+ außerhalb von Retail)
 - Classic: Die Gildentaste öffnet GuildPride statt des Gilden-Reiters im Freundesfenster; die Einstellungen stehen in den alten Interface-Optionen, wenn es das neue Einstellungsmenü nicht gibt
+- Classic: Dort gibt es keine Communities, daher sind der Knopf „Communities“ und „In Community einladen“ ausgeblendet (in WoW Forever bleiben sie)
 
 ## 1.10.0
 
