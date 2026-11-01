@@ -1,4 +1,4 @@
-GuildPride 1.11.3 (Retail, Midnight, WoW Forever, alle Classic-Versionen) - Autor: Rottgar85
+GuildPride 1.11.4 (Retail, Midnight, WoW Forever, alle Classic-Versionen) - Autor: Rottgar85
 CurseForge: Projekt 1771937
 
 DEUTSCH

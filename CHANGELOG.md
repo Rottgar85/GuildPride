@@ -1,5 +1,15 @@
 # GuildPride Changelog
 
+## 1.11.4
+
+**English**
+- The sidebar now shows your faction logo (Horde or Alliance) instead of the guild tabard and guild tag
+- Removed the `/gp tag` command, the tag is no longer shown
+
+**Deutsch**
+- In der Seitenleiste steht jetzt das Logo deiner Fraktion (Horde oder Allianz) statt Gildenwappen und Gildenkürzel
+- Den Befehl `/gp kuerzel` gibt es nicht mehr, das Kürzel wird nicht mehr angezeigt
+
 ## 1.11.3
 
 **English**
