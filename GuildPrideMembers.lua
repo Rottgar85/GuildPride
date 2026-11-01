@@ -67,6 +67,8 @@ local function ShowToast(kind, name)
 
     -- Im Verlauf (Reiter Meilensteine) festhalten
     ns.AddLog(kind == "join" and "JOIN" or (kind == "kick" and "KICK" or "LEAVE"), short)
+    -- Wer geht, kennt den Kanal-Schlüssel: Gildenleitung erzeugt einen neuen
+    if kind ~= "join" and ns.RotateChannelKey then ns.RotateChannelKey() end
     if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
 end
 

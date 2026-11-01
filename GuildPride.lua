@@ -352,7 +352,7 @@ local MP_MAX = 100
 
 -- Anfragen, auf die alle antworten: pro Absender höchstens eine alle 10 s,
 -- sonst könnte einer mit Dauer-Anfragen die Addon-Nachrichten der Gilde lahmlegen
-local ASKS = { REQ = true, EVQ = true, PLQ = true, LFGQ = true, KEYQ = true, MSQ = true }
+local ASKS = { REQ = true, EVQ = true, PLQ = true, LFGQ = true, KEYQ = true, MSQ = true, CKQ = true }
 local askedAt, askSweep = {}, 0
 local function TooManyAsks(kind, sender)
     local now, key = GetTime(), kind .. ":" .. sender
@@ -372,7 +372,9 @@ local function Dispatch(message, sender)
     if kind == "RLY" then
         -- Ein Mitglied ohne Gildenchat-Recht bittet uns, an die Gilde weiterzugeben
         local id, msg = value:match("^([^\031]+)\031(.+)$")
-        if id and guildMembers[Normalize(sender)] and ns.Queue and (not ns.CanSpeakGuild or ns.CanSpeakGuild()) then
+        -- Kanal-Schlüssel nie weiterleiten: die Weiterleitung ginge auch in den Kanal
+        if id and not msg:match("^CKY:") and guildMembers[Normalize(sender)] and ns.Queue
+           and (not ns.CanSpeakGuild or ns.CanSpeakGuild()) then
             ns.Queue("FWD", nil, Normalize(sender), id, msg)
         end
         return
@@ -505,7 +507,8 @@ f:SetScript("OnEvent", function(_, event, ...)
             local ok, err = pcall(slash, arg)
             if not ok then Print("|cffff4040" .. (IsSecret(err) and "?" or tostring(err)) .. "|r") end
         end
-        C_Timer.After(15, RequestHistory)   -- verpasste Meilensteine von anderen holen
+        -- verpasste Meilensteine von anderen holen (nach dem Kanalbeitritt nach 15 s)
+        C_Timer.After(22, RequestHistory)
 
     elseif event == "GUILD_ROSTER_UPDATE" then
         RefreshRoster()
@@ -530,9 +533,25 @@ f:SetScript("OnEvent", function(_, event, ...)
         -- Absender immer als "Name-Realm": manchmal kommt er ohne Realm an, dann
         -- wurden eigene Nachrichten für fremde gehalten (z. B. doppelte Hinweise)
         sender = Normalize(sender)
-        -- Flüstern und Hintergrund-Kanal kann jeder auf dem Server benutzen:
+        -- Kanal: nur unser abgesicherter Gildenkanal zählt, keine anderen Kanäle
+        if channel == "CHANNEL" then
+            local _, _, _, _, _, _, localID, chanName = ...
+            local ourId, ourName = ns.DataChannelId and ns.DataChannelId()
+            if not ourId or IsSecret(localID) or IsSecret(chanName) then return end
+            local nameOk = type(chanName) == "string" and chanName ~= ""
+                and chanName:lower():find(ourName:lower(), 1, true) ~= nil
+            if not nameOk and localID ~= ourId then return end
+        end
+        -- Flüstern und Kanäle kann jeder auf dem Server benutzen:
         -- nur Nachrichten von Gildenmitgliedern annehmen
         if (channel == "CHANNEL" or channel == "WHISPER") and not IsMember(sender) then return end
+        -- Kanal-Schlüssel: nur über Gilde oder Flüstern, nie über den Kanal selbst
+        if message:sub(1, 4) == "CKY:" then
+            if channel ~= "CHANNEL" and ns.OnChannelKey then ns.OnChannelKey(message:sub(5), sender) end
+            return
+        end
+        -- Im Kanal gehört: Antworten an ihn dürfen über den Kanal gehen
+        if channel == "CHANNEL" and ns.ChannelSeen then ns.ChannelSeen(sender) end
         -- Rundsendungen kommen über Gilde UND Kanal: zweites Exemplar verwerfen
         local now, key = GetTime(), sender .. "\030" .. message
         if recent[key] and now - recent[key] < 30 then return end
@@ -577,6 +596,6 @@ SlashCmdList.GUILDPRIDE = function(arg)
             InterfaceOptionsFrame_OpenToCategory(ns.SettingsPanel)   -- zweimal: alter Blizzard-Fehler
         end
     else
-        Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · einladen <Name> · werben · optionen · badge <Level> · version"])
+        Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · einladen <Name> · werben · optionen · badge <Level> · version · kanal"])
     end
 end

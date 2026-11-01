@@ -131,10 +131,16 @@ local function SendToGuild(msg)
 end
 
 ---------------------------------------------------------------------
--- Hintergrund-Kanal der Gilde
--- Alle Rundsendungen gehen zusätzlich über einen eigenen Chat-Kanal, damit sie
--- nicht von Rangrechten im Gildenkanal abhängen. Name und Passwort leiten sich
--- vom Gildennamen ab; Nachrichten zählen nur von Gildenmitgliedern (GuildPride.lua).
+-- Abgesicherter Kanal der Gilde
+-- Rundsendungen gehen zusätzlich über einen eigenen Chat-Kanal, damit sie nicht
+-- von Rangrechten im Gildenkanal abhängen; auch der Abgleich (Antworten auf
+-- Anfragen) läuft darüber, sobald der Empfänger im Kanal ist.
+-- Name und Passwort kommen aus einem geheimen Zufallsschlüssel, den die
+-- Gildenleitung erzeugt. Er wird NIE über den Kanal selbst verschickt, nur über
+-- den Gildenkanal (Server liefert nur an Mitglieder) oder per Flüstern an
+-- Gildenmitglieder ("CKY", Empfang in GuildPride.lua). Wer ihn nicht hat, fragt
+-- nach ("CKQ"). Verlässt jemand die Gilde, erzeugt die Gildenleitung einen neuen.
+-- Nachrichten zählen zusätzlich nur von Gildenmitgliedern (GuildPride.lua).
 -- Der Kanal wird nicht in Chatfenster eingetragen (Addon-Nachrichten sind dort
 -- ohnehin unsichtbar) – Blizzards Chatcode wird nicht angefasst.
 ---------------------------------------------------------------------
@@ -144,12 +150,35 @@ local function Hash(s)
     return h
 end
 
-local function DataChannel()
+local function GuildKey()
     local guild = GetGuildInfo("player")
     if not guild then return end
     local realm = select(4, GetGuildInfo("player")) or GetNormalizedRealmName() or ""
-    local h = Hash(guild .. "@" .. realm)
-    return ("GPd%x"):format(h), ("p%x"):format(Hash(realm .. guild .. h))
+    return guild, realm
+end
+
+-- Alter Kanal (bis 1.12.2): aus dem Gildennamen berechnet, also für jeden
+-- mit dem Addon-Code ausrechenbar. Wird nur noch verlassen.
+local function LegacyChannel()
+    local guild, realm = GuildKey()
+    if not guild then return end
+    return ("GPd%x"):format(Hash(guild .. "@" .. realm))
+end
+
+local function KeyStore()
+    local guild, realm = GuildKey()
+    if not guild or not GuildPrideDB then return end
+    GuildPrideDB.chanKeys = GuildPrideDB.chanKeys or {}
+    local id = guild .. "@" .. realm
+    GuildPrideDB.chanKeys[id] = GuildPrideDB.chanKeys[id] or {}
+    return GuildPrideDB.chanKeys[id]
+end
+
+local function DataChannel()
+    local s = KeyStore()
+    local k = s and s.k
+    if not k then return end
+    return ("GPs%x%x"):format(Hash(k), Hash(k:reverse())), ("%x%x"):format(Hash("pw" .. k), Hash(k .. "pw"))
 end
 
 function ns.DataChannelId()
@@ -158,9 +187,21 @@ function ns.DataChannelId()
     local id = GetChannelName(name)
     return id and id > 0 and id or nil, name
 end
+function ns.DataChannelName() return (DataChannel()) end
 
+-- Wer wurde zuletzt im Kanal gehört? Dorthin gehen Antworten über den Kanal
+local chanSeen = {}
+function ns.ChannelSeen(who) chanSeen[who] = GetTime() end
+local function InChannel(who) return chanSeen[who] and GetTime() - chanSeen[who] < 300 end
+
+local joinReady, joinedName = false, nil
 local function JoinDataChannel()
+    if not joinReady then return end
+    local legacy = LegacyChannel()
+    if legacy and LeaveChannelByName and GetChannelName(legacy) > 0 then LeaveChannelByName(legacy) end
     local name, pw = DataChannel()
+    if joinedName and joinedName ~= name and LeaveChannelByName then LeaveChannelByName(joinedName) end
+    joinedName = name
     if not name or ns.DataChannelId() then return end
     if JoinTemporaryChannel then JoinTemporaryChannel(name, pw) end
 end
@@ -170,8 +211,139 @@ chanFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 chanFrame:RegisterEvent("PLAYER_GUILD_UPDATE")
 chanFrame:SetScript("OnEvent", function()
     -- spät beitreten, damit Allgemein/Handel ihre gewohnten Nummern behalten
-    C_Timer.After(15, JoinDataChannel)
+    C_Timer.After(15, function() joinReady = true; JoinDataChannel() end)
 end)
+
+-- Schlüssel: Hex-Text + Version (Zeit). Neuere Version gewinnt, bei
+-- Gleichstand der größere Text – so landen alle beim selben Schlüssel.
+local function NewKey()
+    local t = {}
+    for i = 1, 24 do t[i] = ("%x"):format(math.random(0, 15)) end
+    return table.concat(t)
+end
+
+local function Newer(k, v, s)
+    if not s.k then return true end
+    return v > (s.v or 0) or (v == (s.v or 0) and k > s.k)
+end
+
+local function SendKey(target)
+    local s = KeyStore()
+    if not (s and s.k) then return end
+    local msg = "CKY:" .. s.k .. SEP .. s.v
+    if target then
+        C_ChatInfo.SendAddonMessage(PREFIX, msg, "WHISPER", target)
+    elseif IsInGuild() then
+        C_ChatInfo.SendAddonMessage(PREFIX, msg, "GUILD")
+    end
+end
+
+-- Empfang (nur über Gilde oder Flüstern von Mitgliedern, siehe GuildPride.lua)
+function ns.OnChannelKey(payload, sender)
+    local k, v = strsplit(SEP, payload)
+    v = ns.Stamp(v)
+    if not k or not k:match("^%x+$") or #k < 16 or #k > 64 or v == 0 then return end
+    local s = KeyStore()
+    if not s or not Newer(k, v, s) then return end
+    s.k, s.v = k, v
+    JoinDataChannel()
+end
+
+-- Neuen Schlüssel erzeugen (nur Gildenleitung), höchstens einmal pro Minute;
+-- kommt eine weitere Anfrage zu früh, wird sie nach Ablauf der Minute nachgeholt
+local rotatedAt, rotatePending = -999, false
+function ns.RotateChannelKey(force)
+    if not CanManage() or not IsInGuild() then return false end
+    local wait = 60 - (GetTime() - rotatedAt)
+    if not force and wait > 0 then
+        if not rotatePending then
+            rotatePending = true
+            C_Timer.After(wait, function() rotatePending = false; ns.RotateChannelKey() end)
+        end
+        return false
+    end
+    local s = KeyStore()
+    if not s then return false end
+    rotatedAt = GetTime()
+    s.k, s.v = NewKey(), math.max(Now(), (s.v or 0) + 1)
+    SendKey()
+    JoinDataChannel()
+    return true
+end
+
+local keyAskedAt = -999
+local function AskKey()
+    local s = KeyStore()
+    if not s or GetTime() - keyAskedAt < 25 then return end
+    keyAskedAt = GetTime()
+    ns.Queue("CKQ", nil, s.v or 0)
+end
+
+-- Anfrage: wer einen neueren Schlüssel hat, flüstert ihn zu. Damit nicht die
+-- halbe Gilde antwortet, antwortet jeder nur mit einer Wahrscheinlichkeit,
+-- die im Schnitt etwa drei Antworten ergibt (wer leer ausgeht, fragt erneut).
+ns.On("CKQ", function(payload, sender)
+    if sender == Me() then return end
+    local s = KeyStore()
+    if not s then return end
+    local theirs = ns.Stamp(payload)
+    if s.k and theirs < (s.v or 0) then
+        local n = 0
+        for i = 1, GetNumGuildMembers() do
+            local name, _, _, _, _, _, _, _, online = GetGuildRosterInfo(i)
+            if name and online and ns.AddonUsers[ns.FullName and ns.FullName(name) or name] then n = n + 1 end
+        end
+        if math.random() * math.max(n, 1) < 3 then
+            C_Timer.After(0.5 + math.random() * 3, function() SendKey(sender) end)
+        end
+    elseif theirs > (s.v or 0) then
+        AskKey()   -- der andere hat einen neueren: selbst nachfragen
+    end
+end)
+
+-- Nach dem Login nachfragen; ohne Schlüssel weiter fragen. Ist nach einer Weile
+-- immer noch keiner da, erzeugt die Gildenleitung einen. Wer den Gildenkanal
+-- nicht lesen darf, verpasst neue Schlüssel und fragt deshalb alle 10 Min.
+local keyFrame = CreateFrame("Frame")
+keyFrame:RegisterEvent("PLAYER_LOGIN")
+keyFrame:SetScript("OnEvent", function()
+    C_Timer.After(5, AskKey)
+    local tries = 0
+    C_Timer.NewTicker(30, function()
+        if not IsInGuild() then return end
+        local s = KeyStore()
+        if not s then return end
+        tries = tries + 1
+        if not s.k then
+            -- Gildenleitung erst nach zwei Nachfragen (1 Min.), damit sie keinen
+            -- vorhandenen Schlüssel überschreibt, nur weil zufällig keiner antwortete
+            if CanManage() and tries >= 2 then ns.RotateChannelKey(true) elseif tries <= 10 then AskKey() end
+        elseif tries % 20 == 0 and ns.CanListenGuild and not ns.CanListenGuild() then
+            AskKey()
+        end
+    end)
+end)
+
+local origSlash = SlashCmdList.GUILDPRIDE
+SlashCmdList.GUILDPRIDE = function(arg)
+    local cmd = strtrim(arg or ""):lower()
+    if cmd == "kanal" or cmd == "channel" then
+        local s = KeyStore()
+        if s and s.k then
+            ns.Print((L["Abgesicherter Kanal aktiv (Schlüssel vom %s)."]):format(ns.FormatDay(s.v, true)))
+        else
+            ns.Print(L["Noch kein Kanal-Schlüssel – er kommt von der Gildenleitung."])
+        end
+    elseif cmd == "kanal neu" or cmd == "channel new" then
+        if ns.RotateChannelKey(true) then
+            ns.Print(L["Neuer Kanal-Schlüssel erzeugt und an die Gilde verteilt."])
+        else
+            ns.Print(L["Nur die Gildenleitung kann einen neuen Kanal-Schlüssel erzeugen."])
+        end
+    else
+        origSlash(arg)
+    end
+end
 
 C_Timer.NewTicker(0.3, function()
     if GetTime() < pauseUntil then return end
@@ -183,7 +355,14 @@ C_Timer.NewTicker(0.3, function()
     if item.target == "@OFFICER" then
         if IsInGuild() then res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "OFFICER") end
     elseif item.target then
-        res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.target)
+        -- Abgleich: ist der Empfänger im abgesicherten Kanal, dort senden
+        -- (alle im Kanal bleiben so auf demselben Stand), sonst flüstern
+        local chan = ns.DataChannelId()
+        if chan and InChannel(item.target) then
+            res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan)
+        else
+            res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.target)
+        end
     elseif IsInGuild() then
         res = SendToGuild(item.msg)
         local chan = ns.DataChannelId()
@@ -939,7 +1118,8 @@ function ns.CloseEventDialogs() dlg:Hide() end
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("PLAYER_LOGIN")
 ev:SetScript("OnEvent", function()
-    C_Timer.After(8, function() Queue("REQ", nil, "1") end)
+    -- nach dem Kanalbeitritt (15 s), damit die Antworten über den Kanal kommen
+    C_Timer.After(20, function() Queue("REQ", nil, "1") end)
 end)
 
 C_Timer.NewTicker(30, function()
