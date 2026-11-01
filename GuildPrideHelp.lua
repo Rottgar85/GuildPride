@@ -416,6 +416,11 @@ local function MakePicker(anchor, top)
         p:SetHeight(top + math.max(1, math.min(#items, 14)) * PICK_H + 10)
         scroll:SetVerticalScroll(0)
     end
+    -- Platz oberhalb der Liste ändern (z. B. wenn Knöpfe ausgeblendet sind)
+    function p:SetTop(t)
+        top = t
+        scroll:SetPoint("TOPLEFT", 4, -6 - top)
+    end
     page:HookScript("OnHide", function() p:Hide() end)
     return p
 end
@@ -478,16 +483,31 @@ if hasDiff then
     end
 end
 
--- Knöpfe für alle Schwierigkeiten dieser Spielversion. Der Gruppenbrowser
--- liefert nur Dungeons, für die der Charakter die Stufe hat (heroisch erst
--- ab Höchststufe) – dann bleibt die Liste leer und zeigt einen Hinweis.
+-- Nur Schwierigkeiten anbieten, die der Charakter gerade laufen kann: Der
+-- Gruppenbrowser liefert nur Dungeons passend zur Stufe (heroisch erst ab
+-- Höchststufe). Bleibt nur eine übrig, entfallen die Knöpfe ganz.
 local function LayoutDiffButtons()
     if not hasDiff then return end
-    for i, d in ipairs(DIFFS) do
-        local b = diffBtns[d.key]
-        b:ClearAllPoints()
-        b:SetPoint("TOPLEFT", 8 + (i - 1) * 68, -32)
+    local have = {}
+    for _, d in ipairs(DungeonList()) do
+        for key in pairs(d.diffs) do have[key] = true end
     end
+    local avail = {}
+    for _, d in ipairs(DIFFS) do
+        if have[d.key] then avail[#avail + 1] = d.key end
+    end
+    local show = #avail > 1
+    for _, b in pairs(diffBtns) do b:Hide() end
+    if show then
+        for i, key in ipairs(avail) do
+            local b = diffBtns[key]
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", 8 + (i - 1) * 68, -32)
+            b:Show()
+        end
+    end
+    dungeonPicker:SetTop(show and 56 or 30)
+    if not have[diffSel] then diffSel = avail[1] or "N" end
     UpdateDiffButtons()
 end
 
