@@ -21,7 +21,7 @@ World of Warcraft addon for Retail (Midnight 12.x), WoW Forever and all Classic 
 - **Guild & Chat**: guild chat, officer chat and your Blizzard communities with the members right next to the chat, like Blizzard's community window. Server-side history plus a local copy so old messages keep their author names
 - **Members list**: one click from the chat to the full list of your guild or community, online only or everyone, with rank, notes and "last online"
 - **Styles**: Forge, Frost, Emerald, Arcane, Night and Custom, switchable any time in the settings
-- **Invite players** to the guild or a community: type a name, or right-click a member
+- **Invite players** to the guild or a community: type a name, or right-click a member. Right-click any player in the game (target, group, chat name, friends list) and pick **Invite to guild** (needs invite rights)
 - **Guild management**: click a member to see notes and to promote, demote, set a rank, remove or transfer leadership (depending on your rights)
 - **Community management**: right-click a member to change their role, edit their note or remove them
 - **Polls**: officers create polls with up to 6 answers and an optional duration, everyone votes
@@ -70,7 +70,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns` (C
 - **Gilde & Chat**: Gildenchat, Offizierschat und eure Blizzard-Communities, die Mitglieder direkt neben dem Chat wie im Blizzard-Community-Fenster. Verlauf vom Server und lokale Kopie, damit alte Nachrichten ihren Namen behalten
 - **Mitgliederliste**: ein Klick vom Chat zur großen Liste eurer Gilde oder Community, nur online oder alle, mit Rang, Notizen und „zuletzt online“
 - **Styles**: Schmiede, Frost, Smaragd, Arkan, Nacht und Eigene, jederzeit in den Einstellungen umschaltbar
-- **Spieler einladen** in die Gilde oder eine Community: Namen eingeben oder Rechtsklick auf ein Mitglied
+- **Spieler einladen** in die Gilde oder eine Community: Namen eingeben oder Rechtsklick auf ein Mitglied. Rechtsklick auf einen beliebigen Spieler im Spiel (Ziel, Gruppe, Chatname, Freundesliste) und **In Gilde einladen** wählen (mit Einladerecht)
 - **Gildenverwaltung**: Klick auf ein Mitglied zeigt die Notizen, dort befördern, degradieren, Rang setzen, entfernen oder Gildenleitung übergeben (je nach deinen Rechten)
 - **Community-Verwaltung**: Rechtsklick auf ein Mitglied, um die Rolle zu ändern, die Notiz zu bearbeiten oder es zu entfernen
 - **Umfragen**: Offiziere legen Umfragen mit bis zu 6 Antworten und wahlweiser Laufzeit an, alle stimmen ab

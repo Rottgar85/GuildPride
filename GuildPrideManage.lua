@@ -428,6 +428,58 @@ function ns.MemberMenu(owner, m)
     end)
 end
 
+---------------------------------------------------------------------
+-- Rechtsklick auf Spieler in Blizzards Menüs (Ziel, Fokus, Gruppe, Chatname,
+-- Freunde, Communities): „In Gilde einladen“, nur mit Einladerecht
+---------------------------------------------------------------------
+local function Plain(v) return type(v) == "string" and v ~= "" and not (issecretvalue and issecretvalue(v)) end
+
+local function FullName(name, realm)
+    if not Plain(name) then return nil end
+    if name:find("-", 1, true) or not Plain(realm) then return name end
+    return name .. "-" .. (realm:gsub("[%s%-]", ""))
+end
+
+-- Wen das Menü meint, als Name(-Realm); nil, wenn kein Eintrag passt
+local function MenuInviteName(ctx)
+    if not (ctx and IsInGuild()) then return nil end
+    if CanGuildInvite and not CanGuildInvite() then return nil end
+    local name
+    if Plain(ctx.unit) and UnitExists(ctx.unit) then
+        local unit = ctx.unit
+        if not UnitIsPlayer(unit) or UnitIsUnit(unit, "player") then return nil end
+        if UnitIsInMyGuild and UnitIsInMyGuild(unit) then return nil end
+        local theirs = UnitFactionGroup(unit)
+        if Plain(theirs) and theirs ~= UnitFactionGroup("player") then return nil end
+        name = FullName(UnitName(unit))
+    elseif ctx.bnetIDAccount and C_BattleNet and C_BattleNet.GetAccountInfoByID then
+        -- Battle.net-Freund: nur, wenn er gerade in derselben Spielversion spielt
+        local info = C_BattleNet.GetAccountInfoByID(ctx.bnetIDAccount)
+        local game = info and info.gameAccountInfo
+        if not (game and game.isOnline and game.clientProgram == BNET_CLIENT_WOW
+                and game.wowProjectID == WOW_PROJECT_ID) then return nil end
+        name = FullName(game.characterName, game.realmName)
+    else
+        name = FullName(ctx.chatTarget) or FullName(ctx.name, ctx.server)
+    end
+    if not name or ns.IsGuildMember(name) then return nil end
+    return name
+end
+
+if Menu and Menu.ModifyMenu then
+    local function AddGuildInvite(_, root, ctx)
+        local ok, name = pcall(MenuInviteName, ctx)
+        if not (ok and name) then return end
+        root:CreateDivider()
+        root:CreateTitle("GuildPride")
+        root:CreateButton(L["In Gilde einladen"], function() ns.InviteToGuild(name) end)
+    end
+    for _, which in ipairs({ "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "TARGET", "FOCUS", "FRIEND",
+                             "BN_FRIEND", "CHAT_ROSTER", "COMMUNITIES_MEMBER", "COMMUNITIES_WOW_MEMBER" }) do
+        Menu.ModifyMenu("MENU_UNIT_" .. which, AddGuildInvite)
+    end
+end
+
 -- Linksklick: Gildenmitglied -> Detailfenster, Community-Mitglied -> Menü
 function ns.ShowMemberPanel(m, owner)
     if InCombatLockdown() then return end
