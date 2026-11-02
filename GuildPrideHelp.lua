@@ -234,7 +234,6 @@ local PUBLIC_MAX = 300
 -- daher dort erst nach Ablauf (EXPIRE) ausblenden statt nach STALE
 local function PublicStale() return ns.PUBLIC_VIA_CHAT and EXPIRE or STALE end
 local FACTION = { Alliance = "A", Horde = "H" }
-local FACTION_ICON = { A = "|TInterface\\FriendsFrame\\PlusManz-Alliance:14:14|t", H = "|TInterface\\FriendsFrame\\PlusManz-Horde:14:14|t" }
 local publicLive = false   -- steht gerade ein eigener Eintrag im offenen Kanal?
 local lastPublicSent = 0
 local pubVerBy = {}        -- wie verBy, nur für den offenen Kanal
@@ -430,9 +429,8 @@ local function OnPublicEntry(payload, sender)
         pubVerBy[sender] = ver
     end
     faction = Clean(faction, 1)
-    -- Nur Retail spielt fraktionsübergreifend; in Classic und WoW Forever
-    -- kann man die andere Fraktion weder einladen noch anfragen
-    if kind == "none" or not TYPES[kind] or (not ns.IS_RETAIL and faction ~= "" and faction ~= MyFaction()) then
+    -- Die andere Fraktion kann man weder einladen noch anfragen
+    if kind == "none" or not TYPES[kind] or (faction ~= "" and faction ~= MyFaction()) then
         publicEntries[sender] = nil
     else
         if TooSoon(sender .. ":E", 3) then return end
@@ -1036,7 +1034,7 @@ function page:Refresh()
     end
     if pickedDungeon then status:SetText(status:GetText() .. "  ·  |cff66ccff" .. DungeonText(pickedDungeon) .. "|r") end
     if picked then status:SetText(status:GetText() .. "  ·  " .. QuestLink(picked.id, picked.level, picked.name)) end
-    if mine and mine.public then status:SetText(status:GetText() .. "  ·  |cff8fb3ff" .. L["Serverweit"] .. "|r") end
+    if mine and mine.public and ns.PublicLFGOn() then status:SetText(status:GetText() .. "  ·  |cff8fb3ff" .. L["Serverweit"] .. "|r") end
 
     local publicOn = ns.PublicLFGOn()
     pubCheck:SetShown(publicOn); pubLabel:SetShown(publicOn)
@@ -1097,12 +1095,11 @@ function page:Refresh()
             if item.e.kind == "quest" then r.edge:SetColorTexture(1, 0.82, 0, 1)
             elseif item.e.kind == "key" then r.edge:SetColorTexture(0.64, 0.21, 0.93, 1)
             else r.edge:SetColorTexture(0.44, 0.66, 1, 1) end
-            -- Vom Server: Realm zeigen, wenn es ein anderer ist, Fraktion (Retail) und Kennzeichen
+            -- Vom Server: Realm zeigen, wenn es ein anderer ist, und Kennzeichen
             local shown, mark = Ambiguate(item.name, "guild"), ""
             if e.public then
                 shown = Ambiguate(item.name, "none")
                 mark = " |cff8fb3ff[" .. L["Server"] .. "]|r"
-                if ns.IS_RETAIL and FACTION_ICON[e.faction or ""] then mark = mark .. " " .. FACTION_ICON[e.faction] end
             end
             r.name:SetText(("|cff%s%s|r"):format(hex, shown) .. mark
                 .. (e.self and (" |cff999999(" .. L["du"] .. ")|r") or ""))
@@ -1182,18 +1179,16 @@ local origSlash = SlashCmdList.GUILDPRIDE
 SlashCmdList.GUILDPRIDE = function(arg)
     local cmd = strtrim(arg or ""):lower()
     if (cmd == "server" or cmd == "server status") and not ns.HAS_PUBLIC_LFG then
-        ns.Print(L["Serverweite Gruppensuche: in dieser Spielversion nicht möglich (Blizzard sperrt Addon-Nachrichten in Chatkanälen)."])
+        ns.Print(ns.IS_RETAIL and L["Serverweite Gruppensuche: in Retail nicht verfügbar – nutze dafür den Gruppenfinder."]
+            or L["Serverweite Gruppensuche: in dieser Spielversion nicht möglich (Blizzard sperrt Addon-Nachrichten in Chatkanälen)."])
     elseif cmd == "server" then
         GuildPrideDB.publicLFG = not GuildPrideDB.publicLFG
         ByClick(ns.PublicLFGChanged)   -- Befehl per Eingabetaste: Abmeldung darf in den Kanal
         ns.Print(L["Serverweite Gruppensuche: "] .. (GuildPrideDB.publicLFG and L["an"] or L["aus"]))
     elseif cmd == "server status" then
         -- Fehlersuche: Option, Kanal, eigener Eintrag, Gesendetes und Empfangenes
-        local st, id, n, byFaction = ns.publicStats, ns.PublicChannelId(), 0, { A = 0, H = 0 }
-        for _, e in pairs(publicEntries) do
-            n = n + 1
-            if byFaction[e.faction or ""] then byFaction[e.faction] = byFaction[e.faction] + 1 end
-        end
+        local st, id, n = ns.publicStats, ns.PublicChannelId(), 0
+        for _ in pairs(publicEntries) do n = n + 1 end
         ns.Print(L["Serverweite Gruppensuche: "] .. (ns.PublicLFGOn() and L["an"] or L["aus"])
             .. "  ·  " .. (L["Kanal %s: %s"]):format(ns.PublicChannelName(), id and ("#" .. id) or L["nicht beigetreten"])
             .. "  ·  " .. L["Eigener Eintrag serverweit: "] .. (mine and mine.public and L["ja"] or L["nein"])
@@ -1201,14 +1196,9 @@ SlashCmdList.GUILDPRIDE = function(arg)
         ns.Print((L["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"]):format(
             st.sent, st.lastRes == nil and "-" or tostring(st.lastRes), st.received, n))
         ns.Print((L["Eigene Nachrichten aus dem Kanal zurück: %d"]):format(st.echo))
-        -- Retail: zeigt, ob die andere Fraktion ankommt (Blizzard trennt Chatkanäle nach Fraktion)
-        if ns.IS_RETAIL then ns.Print((L["Davon Allianz: %d · Horde: %d"]):format(byFaction.A, byFaction.H)) end
     elseif cmd == "server entsperren" or cmd == "server unblock" then
         GuildPrideDB.lfgBlocked = nil
         ns.Print(L["Ausgeblendete Spieler in der Gruppensuche werden wieder angezeigt."])
-    elseif cmd == "test" or cmd:sub(1, 5) == "test " then
-        -- /gp test [Name-Realm]: Flüstern an den Namen, dazu alle Community-Kanäle
-        ns.CommTest((strtrim(arg):sub(5):gsub("%s", "")))
     else
         origSlash(arg)
     end

@@ -407,6 +407,44 @@ roster:SetPoint("TOPRIGHT", 0, -32)
 roster:SetPoint("BOTTOMRIGHT", 0, 0)
 roster:SetWidth(ROSTER_W)
 
+-- Sicherer Knopf, der beim Klick einen Makrotext ausführt (/gremove, /gpromote …):
+-- Befördern, Degradieren und Entfernen sind für Addons gesperrt, ein Makro nicht.
+-- Nur die sichere Vorlage: eine zweite Vorlage (z. B. UIPanelButtonTemplate)
+-- kann den sicheren Klick-Handler ersetzen – dann passiert beim Klick nichts.
+-- Aussehen deshalb selbst gebaut, im Stil der übrigen Knöpfe.
+function ns.SecureMacroButton(parent, w, label)
+    local b = CreateFrame("Button", nil, parent, "SecureActionButtonTemplate")
+    b:SetSize(w, 24)
+    local bg = b:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(); bg:SetTexture(MEDIA .. "nav")
+    ns.Paint(bg, "tex")
+    b.gpBg = bg
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetPoint("TOPLEFT", 3, -3); hl:SetPoint("BOTTOMRIGHT", -3, 3)
+    ns.Paint(hl, "glow", 0.15)
+    b:SetNormalFontObject(GPFont_Button)
+    b:SetHighlightFontObject(GPFont_Button)
+    b:SetDisabledFontObject(GPFont_ButtonOff)
+    b:SetText(label)
+    hooksecurefunc(b, "SetEnabled", function(_, on) ns.PaintEnabled(bg, on) end)
+
+    -- Genau eine Klick-Phase: ohne festes useOnKeyDown hängt es an der
+    -- Einstellung ActionButtonUseKeyDown und der Knopf kann "tot" sein.
+    b:RegisterForClicks("AnyDown")
+    b:SetAttribute("useOnKeyDown", true)
+    b:SetAttribute("type", "macro")
+
+    b:HookScript("OnClick", function(self)
+        local text = self:GetAttribute("macrotext")
+        if text and text ~= "" then
+            ns.Print((L["Befehl gesendet: |cffffd100%s|r"]):format((text:gsub("\n", " · "))))
+        end
+        -- Nach der Aktion die Gildenliste neu laden
+        C_Timer.After(1, function() if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end end)
+    end)
+    return b
+end
+
 -- Große Mitgliederliste (statt Chat)
 local members = CreateFrame("Frame", nil, community)
 members:SetPoint("TOPLEFT", 0, -32)
@@ -481,9 +519,11 @@ searchHint:SetPoint("LEFT", 2, 0); searchHint:SetText(L["Suchen …"])
 searchBox:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
 searchBox:SetScript("OnEnterPressed", searchBox.ClearFocus)
 
--- Inaktive Mitglieder (nur Gilde, nur wer entfernen darf): aus -> 30 -> 60 -> 90 Tage
-local INACTIVE_STEPS = { 0, 30, 60, 90 }
+-- Inaktive Mitglieder (nur Gilde, nur wer entfernen darf): Tage im Menü wählbar,
+-- Ränge ausnehmbar – die Liste zeigt dann genau die, die entfernt würden
+local INACTIVE_STEPS = { 0, 14, 30, 60, 90, 180 }
 local inactiveDays = 0
+local promoteMode = false   -- Liste zeigt fällige Beförderungen
 local bInactive = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
 bInactive:SetSize(150, 24); bInactive:SetPoint("TOPRIGHT", 0, 0)
 
@@ -551,6 +591,80 @@ inviteBtn:SetSize(210, 24); inviteBtn:SetPoint("LEFT", inviteBox, "RIGHT", 8, 0)
 local countText = members:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
 countText:SetPoint("BOTTOMRIGHT", -4, 12)
 
+-- Inaktive entfernen / fällige Beförderungen (statt Einladen, solange der Filter
+-- an ist): erst fragen, dann sicherer Knopf mit /gremove bzw. /gpromote. Ein
+-- Makro fasst nur 255 Zeichen, daher je Klick ein Paket; danach zeigt der Knopf den Rest.
+local REMOVE_CMD, PROMOTE_CMD = ns.SlashCmd("GUILD_UNINVITE", "/gremove"), ns.SlashCmd("GUILD_PROMOTE", "/gpromote")
+local MACRO_MAX = 255
+local bActAsk = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
+bActAsk:SetSize(260, 24); bActAsk:SetPoint("BOTTOMLEFT", 8, 6); bActAsk:Hide()
+local bActYes = ns.SecureMacroButton(members, 260, "")
+bActYes:SetPoint("BOTTOMLEFT", 8, 6); bActYes:Hide()
+local actNames, actKind = {}, "kick"
+
+bActAsk:SetScript("OnClick", function() if not InCombatLockdown() then bActAsk:Hide(); bActYes:Show() end end)
+bActYes:HookScript("OnClick", function()
+    -- verzögert, damit der Befehl beim Klick noch läuft
+    C_Timer.After(0.3, function() if not InCombatLockdown() then bActYes:Hide(); members:Refresh() end end)
+end)
+bActYes:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine(actKind == "kick" and L["Wird jetzt entfernt:"] or L["Wird jetzt befördert:"])
+    for _, n in ipairs(actNames) do GameTooltip:AddLine(n, 1, 1, 1) end
+    GameTooltip:Show()
+end)
+bActYes:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
+-- kind: "kick" oder "promote"; list: die gerade gezeigten Mitglieder,
+-- nil = Filter aus (dann Einladen zeigen)
+local function UpdateAction(kind, list)
+    if InCombatLockdown() then return end
+    inviteBox:SetShown(not list); inviteBtn:SetShown(not list)
+    if not list then bActAsk:Hide(); bActYes:Hide(); return end
+    if kind ~= actKind then bActYes:Hide(); actKind = kind end
+    local _, _, my = GetGuildInfo("player")
+    local lines, len, total = {}, 0, 0
+    wipe(actNames)
+    for _, m in ipairs(list) do
+        -- nur Ränge unter mir, nie ich selbst
+        local target = kind == "promote" and ns.PromoteTarget and ns.PromoteTarget(m)
+        if not m.isSelf and (m.rankIndex or -1) > (my or 99) and (kind == "kick" and not m.online or target) then
+            total = total + 1
+            local part = {}
+            if kind == "kick" then part[1] = REMOVE_CMD .. " " .. Ambiguate(m.full, "none")
+            -- /gpromote braucht in Retail den vollen Namen mit Server (wie Guild Roster Manager)
+            else for _ = 1, m.rankIndex - target do part[#part + 1] = PROMOTE_CMD .. " " .. m.full end end
+            local text = table.concat(part, "\n")
+            if len + #text + 1 <= MACRO_MAX then
+                lines[#lines + 1] = text; len = len + #text + 1
+                actNames[#actNames + 1] = kind == "kick" and m.name
+                    or (m.name .. "  »  " .. (GuildControlGetRankName(target + 1) or ""))
+            end
+        end
+    end
+    local allowed = kind == "kick" and CanGuildRemove and CanGuildRemove() or kind == "promote" and CanGuildPromote and CanGuildPromote()
+    local can = total > 0 and allowed
+    if kind == "kick" then
+        bActAsk:SetText(total > 0 and (L["Inaktive entfernen (%d) …"]):format(total) or L["Niemand zum Entfernen"])
+        bActYes:SetText((L["|cffff4040Wirklich %d entfernen|r"]):format(#actNames))
+    else
+        bActAsk:SetText(total > 0 and (L["Fällige befördern (%d) …"]):format(total) or L["Keine Beförderung fällig"])
+        bActYes:SetText((L["|cff40ff40Jetzt %d befördern|r"]):format(#actNames))
+    end
+    bActAsk:SetEnabled(can and true or false)
+    bActYes:SetAttribute("macrotext", table.concat(lines, "\n"))
+    if not can then bActYes:Hide() end
+    bActAsk:SetShown(not bActYes:IsShown())
+end
+
+-- Ausgenommene Ränge (Rangname -> true), je Gilde gespeichert
+local function SkippedRanks()
+    local guild = GetGuildInfo("player") or ""
+    GuildPrideDB.kickSkip = GuildPrideDB.kickSkip or {}
+    GuildPrideDB.kickSkip[guild] = GuildPrideDB.kickSkip[guild] or {}
+    return GuildPrideDB.kickSkip[guild]
+end
+
 local function DoInvite()
     local name = strtrim(inviteBox:GetText() or "")
     if name == "" then ns.Print(L["Bitte einen Charakternamen eingeben."]); return end
@@ -582,14 +696,137 @@ searchBox:SetScript("OnTextChanged", function(self)
     searchHint:SetShown(self:GetText() == "")
     if members:IsShown() then members:Refresh() end
 end)
-bInactive:SetScript("OnClick", function()
-    for i, d in ipairs(INACTIVE_STEPS) do
-        if d == inactiveDays then inactiveDays = INACTIVE_STEPS[i % #INACTIVE_STEPS + 1]; break end
-    end
+local function SetInactive(days, promote)
+    inactiveDays, promoteMode = days, promote and true or false
     -- Offline-Mitglieder vom Server holen
-    if inactiveDays > 0 and SetGuildRosterShowOffline then SetGuildRosterShowOffline(true) end
+    if (days > 0 or promote) and SetGuildRosterShowOffline then SetGuildRosterShowOffline(true) end
+    if promote and ns.QueryRankLog then ns.QueryRankLog() end   -- Ereignisprotokoll für die Zeit im Rang
     if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
     members:Refresh()
+end
+-- Beförderungsregel anlegen: je Ausgangsrang höchstens eine Regel
+local function AddPromoteRule(from, to, days)
+    local rules = ns.PromoteRules()
+    for i = #rules, 1, -1 do if rules[i].from == from then table.remove(rules, i) end end
+    rules[#rules + 1] = { from = from, to = to, days = days }
+    ns.Print((L["Regel: %s » %s nach %d Tagen im Rang."]):format(from, to, days))
+    members:Refresh()
+end
+StaticPopupDialogs["GUILDPRIDE_PROMOTE_DAYS"] = {
+    text = L["Befördern nach wie vielen Tagen im Rang? (1–3650)"],
+    button1 = OKAY, button2 = CANCEL,
+    hasEditBox = true,
+    OnShow = function(self)
+        local eb = self.editBox or self.EditBox
+        eb:SetText("30"); eb:SetFocus(); eb:HighlightText()
+    end,
+    OnAccept = function(self, data)
+        local n = tonumber((self.editBox or self.EditBox):GetText())
+        if n and n >= 1 and n <= 3650 and data then
+            AddPromoteRule(data.from, data.to, math.floor(n))
+        else
+            ns.Print(L["Bitte eine Zahl von 1 bis 3650 eingeben."])
+        end
+    end,
+    EditBoxOnEnterPressed = function(self)
+        local p = self:GetParent()
+        StaticPopupDialogs["GUILDPRIDE_PROMOTE_DAYS"].OnAccept(p, p.data); p:Hide()
+    end,
+    EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
+    timeout = 0, whileDead = true, hideOnEscape = true,
+}
+local PROMOTE_DAYS = { 7, 14, 30, 60, 90 }
+StaticPopupDialogs["GUILDPRIDE_INACTIVE_DAYS"] = {
+    text = L["Inaktiv seit wie vielen Tagen? (1–3650)"],
+    button1 = OKAY, button2 = CANCEL,
+    hasEditBox = true,
+    OnShow = function(self)
+        local eb = self.editBox or self.EditBox
+        eb:SetText(tostring(GuildPrideDB.inactiveCustom or 45)); eb:SetFocus(); eb:HighlightText()
+    end,
+    OnAccept = function(self)
+        local n = tonumber((self.editBox or self.EditBox):GetText())
+        if n and n >= 1 and n <= 3650 then
+            GuildPrideDB.inactiveCustom = math.floor(n)
+            SetInactive(GuildPrideDB.inactiveCustom)
+        else
+            ns.Print(L["Bitte eine Zahl von 1 bis 3650 eingeben."])
+        end
+    end,
+    EditBoxOnEnterPressed = function(self)
+        local p = self:GetParent()
+        StaticPopupDialogs["GUILDPRIDE_INACTIVE_DAYS"].OnAccept(p); p:Hide()
+    end,
+    EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
+    timeout = 0, whileDead = true, hideOnEscape = true,
+}
+local function DaysLabel(d) return d == 0 and L["Aus"] or (L["%d Tage"]):format(d) end
+bInactive:SetScript("OnClick", function(self)
+    -- ohne Blizzards Menüsystem: Klick schaltet weiter (aus -> 14 -> … -> 180)
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then
+        local nextDays = 0
+        for i, d in ipairs(INACTIVE_STEPS) do
+            if d == inactiveDays then nextDays = INACTIVE_STEPS[i % #INACTIVE_STEPS + 1]; break end
+        end
+        SetInactive(nextDays)
+        return
+    end
+    MenuUtil.CreateContextMenu(self, function(_, root)
+        root:CreateTitle(L["Inaktiv seit"])
+        local steps = { unpack(INACTIVE_STEPS) }
+        local custom = GuildPrideDB.inactiveCustom
+        if custom and not tContains(steps, custom) then steps[#steps + 1] = custom end
+        for _, d in ipairs(steps) do
+            root:CreateRadio(DaysLabel(d), function() return not promoteMode and inactiveDays == d end, function() SetInactive(d) end)
+        end
+        root:CreateButton(L["Eigene Tage …"], function() StaticPopup_Show("GUILDPRIDE_INACTIVE_DAYS") end)
+        -- Ränge unter mir, die nie angezeigt und entfernt werden (z. B. Twinks)
+        local _, _, my = GetGuildInfo("player")
+        local num = GuildControlGetNumRanks and GuildControlGetNumRanks() or 0
+        if my and num > my + 1 then
+            root:CreateDivider()
+            local sub = root:CreateButton(L["Ränge ausnehmen"])
+            local skip = SkippedRanks()
+            for r = my + 1, num - 1 do
+                local name = GuildControlGetRankName(r + 1)
+                if name and name ~= "" then
+                    sub:CreateCheckbox(name, function() return skip[name] and true or false end, function()
+                        skip[name] = not skip[name] or nil
+                        members:Refresh()
+                    end)
+                end
+            end
+        end
+        -- Beförderung nach Zeit im Rang: Regeln und fällige Mitglieder
+        if my and num > my + 2 and CanGuildPromote and CanGuildPromote() then
+            root:CreateDivider()
+            root:CreateRadio(L["Beförderung fällig"], function() return promoteMode end, function() SetInactive(0, true) end)
+            local rules = root:CreateButton(L["Beförderungsregeln"])
+            for i, rule in ipairs(ns.PromoteRules()) do
+                local entry = rules:CreateButton((L["%s » %s nach %d Tagen"]):format(rule.from, rule.to, rule.days))
+                entry:CreateButton(L["|cffff4040Regel löschen|r"], function()
+                    table.remove(ns.PromoteRules(), i)
+                    members:Refresh()
+                end)
+            end
+            -- Neue Regel: Ausgangsrang -> Zielrang (über ihm, unter mir) -> Tage
+            local add = rules:CreateButton(L["Neue Regel …"])
+            for a = num - 1, my + 2, -1 do
+                local from = GuildControlGetRankName(a + 1)
+                local fromSub = add:CreateButton((L["Von %s"]):format(from))
+                for b = a - 1, my + 1, -1 do
+                    local to = GuildControlGetRankName(b + 1)
+                    local toSub = fromSub:CreateButton((L["nach %s"]):format(to))
+                    for _, d in ipairs(PROMOTE_DAYS) do
+                        toSub:CreateButton((L["%d Tage"]):format(d), function() AddPromoteRule(from, to, d) end)
+                    end
+                    toSub:CreateButton(L["Eigene Tage …"], function()
+                        StaticPopup_Show("GUILDPRIDE_PROMOTE_DAYS", nil, nil, { from = from, to = to })
+                    end)
+                end
+            end
+        end
+    end)
 end)
 rosterOffline:SetScript("OnClick", function(self) SetOffline(self:GetChecked() and true or false) end)
 
@@ -687,7 +924,7 @@ local function GuildData(withOffline)
                 data[#data + 1] = { name = Ambiguate(name, "guild"), full = full, rank = rank, rankIndex = rankIndex,
                                     level = level, zone = zone, note = note, officerNote = officerNote,
                                     online = isOnline, class = classFile, inGuild = true, guild = true,
-                                    isSelf = full == ns.Me(),
+                                    isSelf = full == ns.Me(), guid = select(17, GetGuildRosterInfo(i)),
                                     last = not isOnline and LastOnline(i) or nil,
                                     hours = not isOnline and LastOnlineHours(i) or 0 }
             end
@@ -753,12 +990,14 @@ local function MemberData(opts)
     -- Community nicht mehr vorhanden (verlassen) -> zurück zur Gilde
     if source and not (C_Club.GetClubInfo and C_Club.GetClubInfo(source.id)) then source = nil end
     local inactive = opts.inactive or 0
-    local withOffline = opts.offline or inactive > 0
+    local withOffline = opts.offline or inactive > 0 or opts.filter
     local data, total, online
     if source then data, total, online = ClubData(source, GuildNames(), withOffline) else data, total, online = GuildData(withOffline) end
     local q, keep = strtrim(opts.query or ""):lower(), {}
     for _, m in ipairs(data) do
-        if Matches(m, q) and (inactive == 0 or (not m.online and (m.hours or 0) >= inactive * 24)) then keep[#keep + 1] = m end
+        if Matches(m, q) and (inactive == 0 or (not m.online and (m.hours or 0) >= inactive * 24
+                and not (opts.skip and opts.skip[m.rank or ""])))
+                and (not opts.filter or opts.filter(m)) then keep[#keep + 1] = m end
     end
     local key = opts.sort or "last"
     table.sort(keep, function(a, b)
@@ -794,17 +1033,23 @@ function members:Refresh()
     end
     mark(bOnline, not showOffline); mark(bAll, showOffline)
     inviteBtn:SetText(source and L["In Community einladen"] or L["In Gilde einladen"])
-    -- Inaktive: nur Gilde, nur wer Mitglieder entfernen darf
-    local canInactive = not source and ((CanGuildRemove and CanGuildRemove()) or ns.IsOfficer())
-    if not canInactive then inactiveDays = 0 end
+    -- Inaktive / Beförderungen: nur Gilde, nur wer entfernen oder befördern darf
+    local canInactive = not source and ((CanGuildRemove and CanGuildRemove())
+        or (CanGuildPromote and CanGuildPromote()) or ns.IsOfficer())
+    if not canInactive then inactiveDays, promoteMode = 0, false end
     bInactive:SetShown(canInactive and true or false)
-    bInactive:SetText(inactiveDays > 0 and (L["Inaktiv %d+ Tage"]):format(inactiveDays) or L["Inaktive: aus"])
+    bInactive:SetText(promoteMode and L["Beförderung fällig"]
+        or inactiveDays > 0 and (L["Inaktiv %d+ Tage"]):format(inactiveDays) or L["Inaktive: aus"])
     MarkSort()
 
     local s = GuildPrideDB.memberSort or {}
     local data, total, online = MemberData({ offline = showOffline, sort = s.key, desc = s.desc,
-                                             query = searchBox:GetText(), inactive = inactiveDays })
+                                             query = searchBox:GetText(), inactive = inactiveDays,
+                                             skip = inactiveDays > 0 and SkippedRanks() or nil,
+                                             filter = promoteMode and ns.PromoteTarget or nil })
     countText:SetText((L["%d online · %d offline"]):format(online, total - online))
+    if promoteMode then UpdateAction("promote", data)
+    else UpdateAction("kick", canInactive and inactiveDays > 0 and data or nil) end
     for i, m in ipairs(data) do
         local row = memberList:GetRow(i)
         if not row.gpMenu then

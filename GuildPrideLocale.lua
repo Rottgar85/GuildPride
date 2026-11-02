@@ -220,8 +220,6 @@ local enUS = {
     ["Offiziersnotiz"] = "Officer note",
     ["Verwaltung"] = "Management",
     ["Notizen bearbeiten"] = "Edit notes",
-    ["Befördern"] = "Promote",
-    ["Degradieren"] = "Demote",
     ["Rang wählen  ▾"] = "Choose rank  ▾",
     ["Rang wählen"] = "Choose rank",
     ["Rang setzen"] = "Set rank",
@@ -336,25 +334,42 @@ local enUS = {
     ["Eigener Eintrag serverweit: "] = "Own listing server-wide: ",
     ["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"] =
         "Sent: %d (last result: %s) · Received: %d · Server listings: %d",
-    ["Davon Allianz: %d · Horde: %d"] = "Of these Alliance: %d · Horde: %d",
     ["Eigene Nachrichten aus dem Kanal zurück: %d"] = "Own messages back from the channel: %d",
-    ["Test per Flüstern an %s gesendet (Ergebnis: %s)."] = "Test whisper sent to %s (result: %s).",
-    ["Keine Antwort von %s auf den Flüster-Test."] = "No reply from %s to the whisper test.",
-    ["Keine Community-Chatkanäle gefunden: Die Community muss im Chatfenster angezeigt werden."] =
-        "No community chat channels found: the community has to be shown in a chat window.",
-    ["Test über Community „%s“ gesendet (Ergebnis: %s)."] = "Test sent via community “%s” (result: %s).",
-    ["Flüstern"] = "whisper",
-    ["Community „%s“"] = "community “%s”",
-    ["Eigene Testnachricht kam zurück (%s)."] = "Own test message came back (%s).",
-    ["Testnachricht von %s angekommen (%s)."] = "Test message from %s arrived (%s).",
-    ["Antwort von %s angekommen (%s) – dieser Weg klappt in beide Richtungen."] =
-        "Reply from %s arrived (%s) – this route works both ways.",
+    ["Serverweite Gruppensuche: in Retail nicht verfügbar – nutze dafür den Gruppenfinder."] =
+        "Server-wide Group Finder: not available in Retail – use the Premade Group Finder instead.",
     ["Serverweite Gruppensuche: Diese Spielversion sperrt Addon-Nachrichten in Chatkanälen. Dein Eintrag geht jetzt beim Eintragen raus, Antworten kommen per Flüstern."] =
         "Server-wide Group Finder: this game version blocks addon messages in chat channels. Your listing now goes out when you list yourself, replies come by whisper.",
     ["Weg: Chat beim Klicken + Flüstern"] = "Route: chat on click + whispers",
     ["Weg: Addon-Nachrichten"] = "Route: addon messages",
     ["Classic: Dein Eintrag geht beim Eintragen in den Kanal; wer die Gruppensuche öffnet, bekommt ihn per Flüstern."] =
         "Classic: your listing goes into the channel when you list yourself; anyone opening the Group Finder gets it by whisper.",
+
+    -- 1.13.4: Inaktive entfernen, Beförderung nach Zeit
+    ["Inaktiv seit"] = "Inactive for",
+    ["Aus"] = "Off",
+    ["%d Tage"] = "%d days",
+    ["Eigene Tage …"] = "Custom days …",
+    ["Inaktiv seit wie vielen Tagen? (1–3650)"] = "Inactive for how many days? (1–3650)",
+    ["Bitte eine Zahl von 1 bis 3650 eingeben."] = "Please enter a number from 1 to 3650.",
+    ["Ränge ausnehmen"] = "Exclude ranks",
+    ["Inaktive entfernen (%d) …"] = "Remove inactive (%d) …",
+    ["Niemand zum Entfernen"] = "Nobody to remove",
+    ["|cffff4040Wirklich %d entfernen|r"] = "|cffff4040Really remove %d|r",
+    ["Wird jetzt entfernt:"] = "Will be removed now:",
+    ["Beförderung fällig"] = "Promotion due",
+    ["Beförderungsregeln"] = "Promotion rules",
+    ["%s » %s nach %d Tagen"] = "%s » %s after %d days",
+    ["|cffff4040Regel löschen|r"] = "|cffff4040Delete rule|r",
+    ["Neue Regel …"] = "New rule …",
+    ["Von %s"] = "From %s",
+    ["nach %s"] = "to %s",
+    ["Befördern nach wie vielen Tagen im Rang? (1–3650)"] = "Promote after how many days in the rank? (1–3650)",
+    ["Regel: %s » %s nach %d Tagen im Rang."] = "Rule: %s » %s after %d days in the rank.",
+    ["Fällige befördern (%d) …"] = "Promote due (%d) …",
+    ["Keine Beförderung fällig"] = "No promotion due",
+    ["|cff40ff40Jetzt %d befördern|r"] = "|cff40ff40Promote %d now|r",
+    ["Wird jetzt befördert:"] = "Will be promoted now:",
+    ["  ·  seit %d Tagen im Rang"] = "  ·  %d days in rank",
 }
 
 -- Fehlende Übersetzung -> deutscher Text als Rückfall

@@ -9,10 +9,10 @@ local ADDON, ns = ...
 local L = ns.L
 
 local CMD = {
-    promote = _G.SLASH_GUILD_PROMOTE1 or "/gpromote",
-    demote  = _G.SLASH_GUILD_DEMOTE1 or "/gdemote",
-    remove  = _G.SLASH_GUILD_UNINVITE1 or "/gremove",
-    leader  = _G.SLASH_GUILD_LEADER1 or "/gleader",
+    promote = ns.SlashCmd("GUILD_PROMOTE", "/gpromote"),
+    demote  = ns.SlashCmd("GUILD_DEMOTE", "/gdemote"),
+    remove  = ns.SlashCmd("GUILD_UNINVITE", "/gremove"),
+    leader  = ns.SlashCmd("GUILD_LEADER", "/gleader"),
 }
 local InviteToGroup = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
 
@@ -59,7 +59,7 @@ local function GuildMember(full)
         if name and ns.FullName(name) == full then
             return { name = Ambiguate(name, "guild"), full = full, rank = rank, rankIndex = rankIndex, level = level,
                      zone = zone, note = note, officerNote = officerNote, online = isOnline, class = classFile,
-                     guild = true, inGuild = true, isSelf = full == ns.Me() }
+                     guild = true, inGuild = true, isSelf = full == ns.Me(), guid = select(17, GetGuildRosterInfo(i)) }
         end
     end
 end
@@ -69,7 +69,7 @@ end
 ---------------------------------------------------------------------
 local page = ns.MembersPage
 local panel = CreateFrame("Frame", "GuildPrideMemberPanel", page, "BackdropTemplate")
-panel:SetSize(300, 440)
+panel:SetSize(300, 410)
 panel:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, -30)
 panel:SetFrameLevel(page:GetFrameLevel() + 20)
 panel:EnableMouse(true)
@@ -105,38 +105,8 @@ local function Button(w, label, x, y, secure)
         b:SetSize(w, 24); b:SetPoint("TOPLEFT", x, y); b:SetText(label)
         return b
     end
-    -- Nur die sichere Vorlage: eine zweite Vorlage (z. B. UIPanelButtonTemplate)
-    -- kann den sicheren Klick-Handler ersetzen – dann passiert beim Klick nichts.
-    -- Aussehen deshalb selbst gebaut, im Stil der übrigen Knöpfe.
-    local b = CreateFrame("Button", nil, panel, "SecureActionButtonTemplate")
-    b:SetSize(w, 24); b:SetPoint("TOPLEFT", x, y)
-    local bg = b:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints(); bg:SetTexture(ns.MEDIA .. "nav")
-    ns.Paint(bg, "tex")
-    b.gpBg = bg
-    local hl = b:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetPoint("TOPLEFT", 3, -3); hl:SetPoint("BOTTOMRIGHT", -3, 3)
-    ns.Paint(hl, "glow", 0.15)
-    b:SetNormalFontObject(GPFont_Button)
-    b:SetHighlightFontObject(GPFont_Button)
-    b:SetDisabledFontObject(GPFont_ButtonOff)
-    b:SetText(label)
-    hooksecurefunc(b, "SetEnabled", function(_, on) ns.PaintEnabled(bg, on) end)
-
-    -- Genau eine Klick-Phase: ohne festes useOnKeyDown hängt es an der
-    -- Einstellung ActionButtonUseKeyDown und der Knopf kann "tot" sein.
-    b:RegisterForClicks("AnyDown")
-    b:SetAttribute("useOnKeyDown", true)
-    b:SetAttribute("type", "macro")
-
-    b:HookScript("OnClick", function(self)
-        local text = self:GetAttribute("macrotext")
-        if text and text ~= "" then
-            ns.Print((L["Befehl gesendet: |cffffd100%s|r"]):format((text:gsub("\n", " · "))))
-        end
-        -- Nach der Aktion die Gildenliste neu laden
-        C_Timer.After(1, function() if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end end)
-    end)
+    local b = ns.SecureMacroButton(panel, w, label)
+    b:SetPoint("TOPLEFT", x, y)
     return b
 end
 
@@ -151,17 +121,15 @@ end)
 
 local bNotes   = Button(180, L["Notizen bearbeiten"], 16, -186)
 local bTpl     = Button(84, L["Vorlage"], 200, -186)
-local bPromote = Button(132, L["Befördern"], 16, -242, true)
-local bDemote  = Button(132, L["Degradieren"], 152, -242, true)
-local bRank    = Button(170, L["Rang wählen  ▾"], 16, -272)
-local bSetRank = Button(94, L["Rang setzen"], 190, -272, true)
-local bKick    = Button(268, L["Aus der Gilde entfernen …"], 16, -302)
-local bKickYes = Button(268, L["|cffff4040Wirklich entfernen|r"], 16, -302, true)
-local bLead    = Button(268, L["Gildenleitung übergeben …"], 16, -332)
-local bLeadYes = Button(268, L["|cffff4040Wirklich Gildenleitung übergeben|r"], 16, -332, true)
-local bTell    = Button(132, L["Anflüstern"], 16, -372)
-local bGroup   = Button(132, L["In Gruppe einladen"], 152, -372)
-local hint = Text("GPFont_MutedSmall", -406)
+local bRank    = Button(170, L["Rang wählen  ▾"], 16, -242)
+local bSetRank = Button(94, L["Rang setzen"], 190, -242, true)
+local bKick    = Button(268, L["Aus der Gilde entfernen …"], 16, -272)
+local bKickYes = Button(268, L["|cffff4040Wirklich entfernen|r"], 16, -272, true)
+local bLead    = Button(268, L["Gildenleitung übergeben …"], 16, -302)
+local bLeadYes = Button(268, L["|cffff4040Wirklich Gildenleitung übergeben|r"], 16, -302, true)
+local bTell    = Button(132, L["Anflüstern"], 16, -342)
+local bGroup   = Button(132, L["In Gruppe einladen"], 152, -342)
+local hint = Text("GPFont_MutedSmall", -376)
 hint:SetText(L["Rangänderungen und Entfernen laufen über die Blizzard-Befehle /gpromote, /gdemote und /gremove."])
 
 local current, targetRank
@@ -182,8 +150,9 @@ for _, pair in ipairs({ { bKick, bKickYes }, { bLead, bLeadYes } }) do
     end)
 end
 
+-- voller Name mit Server, sonst bewirken /gpromote und /gdemote in Retail nichts (wie Guild Roster Manager)
 local function Steps(m, target)
-    local n, lines = Ambiguate(m.full, "none"), {}
+    local n, lines = m.full, {}
     local diff = target - m.rankIndex
     local cmd = diff > 0 and CMD.demote or CMD.promote
     for _ = 1, math.abs(diff) do lines[#lines + 1] = cmd .. " " .. n end
@@ -265,7 +234,11 @@ local function Fill(m)
     targetRank = nil
     local c = RAID_CLASS_COLORS[m.class] or NORMAL_FONT_COLOR
     nameText:SetText(("|cff%02x%02x%02x%s|r"):format(c.r * 255, c.g * 255, c.b * 255, m.name))
-    infoText:SetText(("Lvl %d · %s"):format(m.level or 0, m.rank or ""))
+    local info = ("Lvl %d · %s"):format(m.level or 0, m.rank or "")
+    -- Zeit im Rang (für die Beförderung nach Zeit)
+    local since = ns.RankSince and m.full and ns.RankSince(m.full)
+    if since then info = info .. (L["  ·  seit %d Tagen im Rang"]):format(math.floor((GetServerTime() - since) / 86400)) end
+    infoText:SetText(info)
     statusText:SetText(m.online and ("|cff40ff40●|r " .. (m.zone or "")) or ("|cff777777" .. (m.last or L["offline"]) .. "|r"))
     noteText:SetText((m.note and m.note ~= "") and m.note or L["|cff888888Keine Notiz.|r"])
     local canOff = CanViewOfficerNote()
@@ -285,16 +258,12 @@ local function Fill(m)
     local any = canPromote or canDemote or canKick or canLead
 
     manageLabel:SetShown(any); hint:SetShown(any)
-    bPromote:SetShown(any); bDemote:SetShown(any); bRank:SetShown(any); bSetRank:SetShown(any)
-    bPromote:SetEnabled(canPromote and true or false)
-    bDemote:SetEnabled(canDemote and true or false)
+    bRank:SetShown(any); bSetRank:SetShown(any)
     bRank:SetEnabled((canPromote or canDemote) and true or false)
     bKick:SetShown(canKick and true or false); bKickYes:Hide()
     bLead:SetShown(canLead and true or false); bLeadYes:Hide()
 
     local n = Ambiguate(m.full, "none")
-    SetMacro(bPromote, CMD.promote .. " " .. n)
-    SetMacro(bDemote, CMD.demote .. " " .. n)
     SetMacro(bKickYes, CMD.remove .. " " .. n)
     SetMacro(bLeadYes, CMD.leader .. " " .. n)
     UpdateRankButton()

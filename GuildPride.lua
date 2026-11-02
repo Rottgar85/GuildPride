@@ -46,11 +46,13 @@ ns.HAS_COMMUNITIES = not ns.IS_CLASSIC
 if ns.IS_RETAIL then ns.CLIENT_TAG = "R"
 elseif toc >= 16000 and toc < 20000 then ns.CLIENT_TAG = "F"
 else ns.CLIENT_TAG = "C" .. math.floor(toc / 10000) end
--- Serverweite Gruppensuche: in Retail und WoW Forever per Addon-Nachricht im
--- offenen Kanal. Classic sperrt Addon-Nachrichten in Chatkanälen (seit 1.13.3):
--- dort geht der eigene Eintrag als normale Chatnachricht in den Kanal (erlaubt
--- Blizzard nur direkt bei einem Klick), Antworten auf Abfragen kommen per Flüstern.
-ns.HAS_PUBLIC_LFG = JoinTemporaryChannel ~= nil
+-- Serverweite Gruppensuche: in WoW Forever per Addon-Nachricht im offenen Kanal.
+-- Classic sperrt Addon-Nachrichten in Chatkanälen (seit 1.13.3): dort geht der
+-- eigene Eintrag als normale Chatnachricht in den Kanal (erlaubt Blizzard nur
+-- direkt bei einem Klick), Antworten auf Abfragen kommen per Flüstern.
+-- Nicht in Retail: Blizzard trennt Kanäle und Flüstern nach Fraktion, und dafür
+-- gibt es dort den Gruppenfinder.
+ns.HAS_PUBLIC_LFG = JoinTemporaryChannel ~= nil and not ns.IS_RETAIL
 ns.PUBLIC_VIA_CHAT = ns.IS_CLASSIC
 -- Serverweite Gruppensuche eingeschaltet und in dieser Spielversion möglich?
 function ns.PublicLFGOn()
@@ -96,6 +98,16 @@ end
 ns.SEP = "\031"
 function ns.Me()
     return UnitName("player") .. "-" .. (GetNormalizedRealmName() or "")
+end
+-- Blizzard-Befehl für sichere Makros (/gpromote, /gremove …): bevorzugt einen
+-- Namen ohne Umlaute – im deutschen Client lief /gbefördern im Makro ins Leere,
+-- /gentfernen dagegen schon. Sonst der englische Name.
+function ns.SlashCmd(key, english)
+    for i = 1, 9 do
+        local cmd = _G["SLASH_" .. key .. i]
+        if type(cmd) == "string" and not cmd:find("[\128-\255]") then return cmd end
+    end
+    return english
 end
 function ns.IsOfficer()
     return CanEditMOTD and CanEditMOTD()
@@ -595,12 +607,6 @@ f:SetScript("OnEvent", function(_, event, ...)
         -- Fremden – ebenfalls nur an die Gruppensuche, und nur Einträge (PLFG)
         if channel == "WHISPER" and message:sub(1, 5) == "PLFG:" then
             if ns.OnPublicMessage then ns.OnPublicMessage(message, sender, true) end
-            return
-        end
-        -- /gp test: Testnachricht, auch von Fremden – nur Anzeige und Antwort
-        if message:sub(1, 4) == "TST:" then
-            local _, _, _, _, _, _, localID = ...
-            if ns.OnCommTest and not IsSecret(localID) then ns.OnCommTest(message, sender, channel, localID) end
             return
         end
         -- Kanal: nur unser abgesicherter Gildenkanal zählt, keine anderen Kanäle

@@ -1,5 +1,23 @@
 # GuildPride Changelog
 
+## 1.14.0
+
+**English**
+- **Remove inactive members** (officers and guild master): the **Inactive** button in the member list now opens a menu – 14, 30, 60, 90, 180 days or your own number. Under **Exclude ranks** you leave out ranks such as alts. While the filter is on, **Remove inactive (N) …** replaces the invite field; a second click on the red **Really remove** removes them. Only ranks below yours, never yourself. Blizzard only allows this per click and one click holds about 8 names, so with many inactive members you click a few times
+- **Promotion by time**: under **Promotion rules** you set e.g. "Recruit → Member after 14 days in the rank". **Promotion due** shows who has reached the time, **Promote due (N) …** promotes them; a second click on the green **Promote N now** confirms. Like Guild Roster Manager, GuildPride uses /gpromote with the full name including the realm The days in the rank come from the guild event log (joins and promotions). Members whose last change is older than the log count at least as long as the log goes back. The member panel shows "days in rank"
+- Member panel: the Promote and Demote buttons are gone – **Choose rank ▾** and **Set rank** move a member up or down any number of ranks. Set rank now sends the full name including the realm; without it /gpromote and /gdemote did nothing in Retail
+- Server-wide Group Finder removed from Retail: Blizzard separates Alliance and Horde in chat channels and whispers, and Retail has the Premade Group Finder for this. The guild Group Finder stays. If you had it on, GuildPride leaves the channel by itself
+- Classic versions and WoW Forever keep the server-wide Group Finder for your own faction
+- `/gp test` removed again – the test showed that GuildPride cannot reach the other faction
+
+**Deutsch**
+- **Inaktive entfernen** (Offiziere und Gildenleitung): Der Knopf **Inaktive** in der Mitgliederliste öffnet jetzt ein Menü – 14, 30, 60, 90, 180 Tage oder eine eigene Zahl. Unter **Ränge ausnehmen** lässt du Ränge wie Twinks außen vor. Solange der Filter an ist, steht statt des Einladefelds **Inaktive entfernen (N) …**; ein zweiter Klick auf das rote **Wirklich entfernen** entfernt sie. Nur Ränge unter dir, nie du selbst. Blizzard erlaubt das nur per Klick und ein Klick fasst etwa 8 Namen, bei vielen Inaktiven klickst du also mehrmals
+- **Beförderung nach Zeit**: Unter **Beförderungsregeln** legst du z. B. „Rekrut → Mitglied nach 14 Tagen im Rang“ fest. **Beförderung fällig** zeigt, wer die Zeit erreicht hat, **Fällige befördern (N) …** befördert sie; ein zweiter Klick auf das grüne **Jetzt N befördern** bestätigt. Wie Guild Roster Manager nutzt GuildPride dafür /gpromote mit vollem Namen samt Server Die Tage im Rang kommen aus dem Gilden-Ereignisprotokoll (Beitritte und Beförderungen). Wessen letzter Wechsel älter ist als das Protokoll, zählt mindestens so lange, wie das Protokoll zurückreicht. Das Mitgliederfenster zeigt „seit N Tagen im Rang“
+- Mitgliederfenster: Die Knöpfe Befördern und Degradieren entfallen – **Rang wählen ▾** und **Rang setzen** bringen ein Mitglied beliebig viele Ränge nach oben oder unten. Rang setzen schickt jetzt den vollen Namen samt Server; ohne ihn bewirkten /gpromote und /gdemote in Retail nichts
+- Serverweite Gruppensuche in Retail entfernt: Blizzard trennt Allianz und Horde in Chatkanälen und beim Flüstern, und Retail hat dafür den Gruppenfinder. Die Gruppensuche der Gilde bleibt. War sie an, verlässt GuildPride den Kanal von selbst
+- Classic-Versionen und WoW Forever behalten die serverweite Gruppensuche für die eigene Fraktion
+- `/gp test` wieder entfernt – der Test hat gezeigt, dass GuildPride die andere Fraktion nicht erreicht
+
 ## 1.13.3
 
 **English**
