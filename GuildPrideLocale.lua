@@ -336,6 +336,7 @@ local enUS = {
     ["Eigener Eintrag serverweit: "] = "Own listing server-wide: ",
     ["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"] =
         "Sent: %d (last result: %s) · Received: %d · Server listings: %d",
+    ["Davon Allianz: %d · Horde: %d"] = "Of these Alliance: %d · Horde: %d",
     ["Serverweite Gruppensuche: Diese Spielversion sperrt Addon-Nachrichten in Chatkanälen. Dein Eintrag geht jetzt beim Eintragen raus, Antworten kommen per Flüstern."] =
         "Server-wide Group Finder: this game version blocks addon messages in chat channels. Your listing now goes out when you list yourself, replies come by whisper.",
     ["Weg: Chat beim Klicken + Flüstern"] = "Route: chat on click + whispers",

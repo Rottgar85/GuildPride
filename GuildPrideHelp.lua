@@ -430,8 +430,9 @@ local function OnPublicEntry(payload, sender)
         pubVerBy[sender] = ver
     end
     faction = Clean(faction, 1)
-    -- Classic: die andere Fraktion kann man weder einladen noch anfragen
-    if kind == "none" or not TYPES[kind] or (ns.IS_CLASSIC and faction ~= "" and faction ~= MyFaction()) then
+    -- Nur Retail spielt fraktionsübergreifend; in Classic und WoW Forever
+    -- kann man die andere Fraktion weder einladen noch anfragen
+    if kind == "none" or not TYPES[kind] or (not ns.IS_RETAIL and faction ~= "" and faction ~= MyFaction()) then
         publicEntries[sender] = nil
     else
         if TooSoon(sender .. ":E", 3) then return end
@@ -1096,7 +1097,7 @@ function page:Refresh()
             if e.public then
                 shown = Ambiguate(item.name, "none")
                 mark = " |cff8fb3ff[" .. L["Server"] .. "]|r"
-                if not ns.IS_CLASSIC and FACTION_ICON[e.faction or ""] then mark = mark .. " " .. FACTION_ICON[e.faction] end
+                if ns.IS_RETAIL and FACTION_ICON[e.faction or ""] then mark = mark .. " " .. FACTION_ICON[e.faction] end
             end
             r.name:SetText(("|cff%s%s|r"):format(hex, shown) .. mark
                 .. (e.self and (" |cff999999(" .. L["du"] .. ")|r") or ""))
@@ -1183,14 +1184,19 @@ SlashCmdList.GUILDPRIDE = function(arg)
         ns.Print(L["Serverweite Gruppensuche: "] .. (GuildPrideDB.publicLFG and L["an"] or L["aus"]))
     elseif cmd == "server status" then
         -- Fehlersuche: Option, Kanal, eigener Eintrag, Gesendetes und Empfangenes
-        local st, id, n = ns.publicStats, ns.PublicChannelId(), 0
-        for _ in pairs(publicEntries) do n = n + 1 end
+        local st, id, n, byFaction = ns.publicStats, ns.PublicChannelId(), 0, { A = 0, H = 0 }
+        for _, e in pairs(publicEntries) do
+            n = n + 1
+            if byFaction[e.faction or ""] then byFaction[e.faction] = byFaction[e.faction] + 1 end
+        end
         ns.Print(L["Serverweite Gruppensuche: "] .. (ns.PublicLFGOn() and L["an"] or L["aus"])
             .. "  ·  " .. (L["Kanal %s: %s"]):format(ns.PublicChannelName(), id and ("#" .. id) or L["nicht beigetreten"])
             .. "  ·  " .. L["Eigener Eintrag serverweit: "] .. (mine and mine.public and L["ja"] or L["nein"])
             .. "  ·  " .. (ns.PUBLIC_VIA_CHAT and L["Weg: Chat beim Klicken + Flüstern"] or L["Weg: Addon-Nachrichten"]))
         ns.Print((L["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"]):format(
             st.sent, st.lastRes == nil and "-" or tostring(st.lastRes), st.received, n))
+        -- Retail: beide Fraktionen teilen den Kanal – zeigt, ob die andere ankommt
+        if ns.IS_RETAIL then ns.Print((L["Davon Allianz: %d · Horde: %d"]):format(byFaction.A, byFaction.H)) end
     elseif cmd == "server entsperren" or cmd == "server unblock" then
         GuildPrideDB.lfgBlocked = nil
         ns.Print(L["Ausgeblendete Spieler in der Gruppensuche werden wieder angezeigt."])

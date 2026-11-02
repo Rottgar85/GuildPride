@@ -1,5 +1,17 @@
 # GuildPride Changelog
 
+## 1.13.2
+
+**English**
+- Server-wide Group Finder in Retail: Alliance and Horde share the same channel and see each other's listings (with faction icon)
+- In WoW Forever and all Classic versions only listings of your own faction are shown
+- `/gp server status` in Retail also counts server listings by faction
+
+**Deutsch**
+- Serverweite Gruppensuche in Retail: Allianz und Horde teilen sich denselben Kanal und sehen gegenseitig ihre Einträge (mit Fraktionssymbol)
+- In WoW Forever und allen Classic-Versionen erscheinen nur Einträge der eigenen Fraktion
+- `/gp server status` zählt in Retail die Einträge vom Server zusätzlich nach Fraktion
+
 ## 1.13.1
 
 **English**

@@ -1,4 +1,4 @@
-GuildPride 1.13.1 (Retail, Midnight, WoW Forever, alle Classic-Versionen) - Autor: Rottgar85
+GuildPride 1.13.2 (Retail, Midnight, WoW Forever, alle Classic-Versionen) - Autor: Rottgar85
 CurseForge: Projekt 1771937
 
 DEUTSCH
@@ -34,4 +34,4 @@ Important commands (all of them: /gp help)
 GuildPride tauscht Daten nur mit GuildPride-Spielern der eigenen Gilde per Addon-Nachricht.
 GuildPride only exchanges data with GuildPride players in your guild via addon messages.
 
-Fehler melden / Report bugs: bitte mit Lua-Fehlermeldung und Spielversion / with the Lua error and game version.
+Fehler melden / Report bugs: bitte mit Lua-Fehlermeldung und Spielversion / with the Lua error and game version.
