@@ -3,11 +3,13 @@
 ## 1.13.1
 
 **English**
+- Right-click any player in the game (target, focus, group, chat name, friends list, communities) and pick **Invite to guild**. Only shown if you may invite and the player is not already in your guild
 - Server-wide Group Finder only in Retail and WoW Forever: Blizzard blocks addon messages in chat channels in every Classic version, so it could never work there. In Classic the option, the **Server-wide** box and the **Guild · Server · All** switch are hidden and no extra channel is joined
 - If a game version rejects these messages, the feature switches itself off for the session and says so
 - `/gp server status` shows whether the channel is joined and how much was sent and received – helpful when no server listings show up
 
 **Deutsch**
+- Rechtsklick auf einen beliebigen Spieler im Spiel (Ziel, Fokus, Gruppe, Chatname, Freundesliste, Communities) und **In Gilde einladen** wählen. Erscheint nur mit Einladerecht und wenn der Spieler noch nicht in deiner Gilde ist
 - Serverweite Gruppensuche nur noch in Retail und WoW Forever: In allen Classic-Versionen sperrt Blizzard Addon-Nachrichten in Chatkanälen, dort konnte sie nie funktionieren. In Classic sind die Option, das Kästchen **Serverweit** und der Umschalter **Gilde · Server · Alle** ausgeblendet, es wird kein zusätzlicher Kanal betreten
 - Lehnt eine Spielversion diese Nachrichten ab, schaltet sich die Funktion für die Sitzung mit Hinweis ab
 - `/gp server status` zeigt, ob der Kanal betreten ist und wie viel gesendet und empfangen wurde – hilft, wenn keine Einträge vom Server erscheinen
