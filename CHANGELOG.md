@@ -4,14 +4,14 @@
 
 **English**
 - Right-click any player in the game (target, focus, group, chat name, friends list, communities) and pick **Invite to guild**. Only shown if you may invite and the player is not already in your guild
-- Server-wide Group Finder only in Retail and WoW Forever: Blizzard blocks addon messages in chat channels in every Classic version, so it could never work there. In Classic the option, the **Server-wide** box and the **Guild · Server · All** switch are hidden and no extra channel is joined
-- If a game version rejects these messages, the feature switches itself off for the session and says so
+- Server-wide Group Finder now works in all Classic versions (Anniversary/TBC, Classic Era, MoP …): Blizzard blocks addon messages in chat channels there, so your listing goes into the channel as a hidden chat line when you click **Looking for group**, **Quest help** etc. or tick **Server-wide**, and anyone who opens the Group Finder gets the current listings by whisper. Changes to your listing reach the others with your next click
+- If a game version rejects addon messages in the channel, GuildPride switches to this route by itself and says so
 - `/gp server status` shows whether the channel is joined and how much was sent and received – helpful when no server listings show up
 
 **Deutsch**
 - Rechtsklick auf einen beliebigen Spieler im Spiel (Ziel, Fokus, Gruppe, Chatname, Freundesliste, Communities) und **In Gilde einladen** wählen. Erscheint nur mit Einladerecht und wenn der Spieler noch nicht in deiner Gilde ist
-- Serverweite Gruppensuche nur noch in Retail und WoW Forever: In allen Classic-Versionen sperrt Blizzard Addon-Nachrichten in Chatkanälen, dort konnte sie nie funktionieren. In Classic sind die Option, das Kästchen **Serverweit** und der Umschalter **Gilde · Server · Alle** ausgeblendet, es wird kein zusätzlicher Kanal betreten
-- Lehnt eine Spielversion diese Nachrichten ab, schaltet sich die Funktion für die Sitzung mit Hinweis ab
+- Serverweite Gruppensuche jetzt auch in allen Classic-Versionen (Anniversary/TBC, Classic Era, MoP …): Dort sperrt Blizzard Addon-Nachrichten in Chatkanälen, deshalb geht dein Eintrag beim Klick auf **Sucht Gruppe**, **Quest-Hilfe** usw. oder auf **Serverweit** als ausgeblendete Chatzeile in den Kanal, und wer die Gruppensuche öffnet, bekommt die aktuellen Einträge per Flüstern. Änderungen am Eintrag kommen mit deinem nächsten Klick bei den anderen an
+- Lehnt eine Spielversion Addon-Nachrichten im Kanal ab, wechselt GuildPride von selbst auf diesen Weg und sagt Bescheid
 - `/gp server status` zeigt, ob der Kanal betreten ist und wie viel gesendet und empfangen wurde – hilft, wenn keine Einträge vom Server erscheinen
 
 ## 1.13.0

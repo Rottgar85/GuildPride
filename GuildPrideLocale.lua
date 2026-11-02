@@ -336,6 +336,12 @@ local enUS = {
     ["Eigener Eintrag serverweit: "] = "Own listing server-wide: ",
     ["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"] =
         "Sent: %d (last result: %s) · Received: %d · Server listings: %d",
+    ["Serverweite Gruppensuche: Diese Spielversion sperrt Addon-Nachrichten in Chatkanälen. Dein Eintrag geht jetzt beim Eintragen raus, Antworten kommen per Flüstern."] =
+        "Server-wide Group Finder: this game version blocks addon messages in chat channels. Your listing now goes out when you list yourself, replies come by whisper.",
+    ["Weg: Chat beim Klicken + Flüstern"] = "Route: chat on click + whispers",
+    ["Weg: Addon-Nachrichten"] = "Route: addon messages",
+    ["Classic: Dein Eintrag geht beim Eintragen in den Kanal; wer die Gruppensuche öffnet, bekommt ihn per Flüstern."] =
+        "Classic: your listing goes into the channel when you list yourself; anyone opening the Group Finder gets it by whisper.",
 }
 
 -- Fehlende Übersetzung -> deutscher Text als Rückfall

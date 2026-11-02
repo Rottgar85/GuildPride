@@ -230,6 +230,9 @@ end
 ---------------------------------------------------------------------
 local PROTO = "1"
 local PUBLIC_MAX = 300
+-- Classic: der Eintrag wird nicht regelmäßig neu gesendet (nur beim Klicken),
+-- daher dort erst nach Ablauf (EXPIRE) ausblenden statt nach STALE
+local function PublicStale() return ns.PUBLIC_VIA_CHAT and EXPIRE or STALE end
 local FACTION = { Alliance = "A", Horde = "H" }
 local FACTION_ICON = { A = "|TInterface\\FriendsFrame\\PlusManz-Alliance:14:14|t", H = "|TInterface\\FriendsFrame\\PlusManz-Horde:14:14|t" }
 local publicLive = false   -- steht gerade ein eigener Eintrag im offenen Kanal?
@@ -250,22 +253,55 @@ local function PublicNone()
     return ns.CLIENT_TAG, PROTO, "none", "", 0, "", 0, 0, "", "", "", stateVer
 end
 
-local function SendPublic()
+local function PublicFields()
+    local size, max = GroupSize()
+    local _, class = UnitClass("player")
+    local q, d = mine.quest, mine.dungeon
+    return ns.CLIENT_TAG, PROTO, mine.kind, Short(mine.note, 48), UnitLevel("player"),
+        Short(GetZoneText(), 24), size, max, mine.needs or "", MyRoleKey(), class or "", stateVer,
+        mine.map or 0, mine.keyLevel or 0, q and q.id or 0, q and q.level or 0, q and Short(q.name, 36) or "",
+        d and Short(d.name, 36) or "", d and d.min or 0, d and d.max or 0, d and d.diff or "", d and d.keyLevel or 0,
+        MyFaction()
+end
+
+-- Classic: in den offenen Kanal darf nur direkt aus einem Klick geschrieben
+-- werden (normale Chatnachricht). Klick-Handler laufen deshalb über ByClick.
+local userClick = false
+local function ByClick(fn, ...)
+    userClick = true
+    local ok, err = pcall(fn, ...)
+    userClick = false
+    if not ok then geterrorhandler()(err) end
+end
+
+-- target: Antwort auf eine Abfrage per Flüstern; sonst Rundsendung in den Kanal
+local function SendPublic(target)
     if not ns.PublicLFGOn() then return end
+    if target then
+        if mine and mine.public then ns.QueuePublicTo(target, "PLFG", PublicFields()) end
+        return
+    end
+    if ns.PUBLIC_VIA_CHAT and not userClick then return end
+    local function Send(...)
+        if ns.PUBLIC_VIA_CHAT then ns.SendPublicChat("PLFG", ...) else ns.Queue("PLFG", "@PUBLIC", ...) end
+    end
     if mine and mine.public then
-        local size, max = GroupSize()
-        local _, class = UnitClass("player")
-        local q, d = mine.quest, mine.dungeon
-        ns.Queue("PLFG", "@PUBLIC", ns.CLIENT_TAG, PROTO, mine.kind, Short(mine.note, 48), UnitLevel("player"),
-            Short(GetZoneText(), 24), size, max, mine.needs or "", MyRoleKey(), class or "", stateVer,
-            mine.map or 0, mine.keyLevel or 0, q and q.id or 0, q and q.level or 0, q and Short(q.name, 36) or "",
-            d and Short(d.name, 36) or "", d and d.min or 0, d and d.max or 0, d and d.diff or "", d and d.keyLevel or 0,
-            MyFaction())
+        Send(PublicFields())
         publicLive, lastPublicSent = true, GetServerTime()
     elseif publicLive then
-        ns.Queue("PLFG", "@PUBLIC", PublicNone())
+        Send(PublicNone())
         publicLive = false
     end
+end
+
+-- Abfrage an alle im offenen Kanal (beim Öffnen, Klick auf Server/Alle)
+local lastPublicAsk = 0
+local function AskPublic()
+    if not (ns.PublicChannelId and ns.PublicChannelId()) or GetTime() - lastPublicAsk < 30 then return end
+    if ns.PUBLIC_VIA_CHAT and not userClick then return end
+    lastPublicAsk = GetTime()
+    if ns.PUBLIC_VIA_CHAT then ns.SendPublicChat("PLFGQ", ns.CLIENT_TAG, PROTO)
+    else ns.Queue("PLFGQ", "@PUBLIC", ns.CLIENT_TAG, PROTO) end
 end
 
 local function SendMine(target)
@@ -411,19 +447,23 @@ local function OnPublicEntry(payload, sender)
     if ns.RefreshUI then ns.RefreshUI() end
 end
 
-function ns.OnPublicMessage(message, sender)
+-- whisper: kam per Flüstern (Antwort auf unsere Abfrage) – dann nur Einträge
+function ns.OnPublicMessage(message, sender, whisper)
     if sender == ns.Me() or not ns.PublicLFGOn() then return end
     ns.publicStats.received = ns.publicStats.received + 1
     local kind, value = message:match("^(%u+):(.*)$")
-    if kind ~= "PLFG" and kind ~= "PLFGQ" then return end
+    if kind ~= "PLFG" and (kind ~= "PLFGQ" or whisper) then return end
     local tag, proto, rest = value:match("^([^\031]*)\031([^\031]*)\031?(.*)$")
     if tag ~= ns.CLIENT_TAG or proto ~= PROTO or Blocked(sender) then return end
     if kind == "PLFG" then return OnPublicEntry(rest, sender) end
     -- Abfrage: nur wer selbst serverweit eingetragen ist, antwortet – mit
-    -- Zufallsverzögerung, und nicht, wenn der Eintrag gerade erst rausging
+    -- Zufallsverzögerung. Classic: per Flüstern an den Fragenden (in den Kanal
+    -- ginge nur beim Klicken); sonst in den Kanal, außer der Eintrag ging gerade erst raus
     if TooSoon(sender .. ":Q", 30) or not (mine and mine.public) then return end
     C_Timer.After(1 + math.random() * 7, function()
-        if mine and mine.public and GetServerTime() - lastPublicSent >= 60 then SendPublic() end
+        if not (mine and mine.public) then return end
+        if ns.PUBLIC_VIA_CHAT then SendPublic(sender)
+        elseif GetServerTime() - lastPublicSent >= 60 then SendPublic() end
     end)
 end
 
@@ -436,7 +476,7 @@ function ns.PublicLFGChanged()
     else
         -- Eintrag bei den anderen zurückziehen, dann den Kanal verlassen
         local farewell
-        if publicLive then
+        if publicLive and (userClick or not ns.PUBLIC_VIA_CHAT) then
             local parts = { PublicNone() }
             for i = 1, #parts do parts[i] = tostring(parts[i]) end
             farewell = "PLFG:" .. table.concat(parts, SEP)
@@ -460,7 +500,7 @@ C_Timer.NewTicker(60, function()
     local now = GetServerTime()
     -- Einträge vom Server ohne Lebenszeichen und alte Zähler wegräumen
     for name, e in pairs(publicEntries) do
-        if now - e.t > EXPIRE or now - e.seen > STALE then publicEntries[name] = nil end
+        if now - e.t > EXPIRE or now - e.seen > PublicStale() then publicEntries[name] = nil end
     end
     for k, t in pairs(publicAt) do if GetTime() - t > 60 then publicAt[k] = nil end end
     if not mine then return end
@@ -510,6 +550,10 @@ pubCheck:HookScript("OnEnter", function(self)
     GameTooltip:SetText(L["Serverweit"], 1, 1, 1)
     GameTooltip:AddLine(L["Eintrag auch allen mit GuildPride auf dem Server zeigen (gleiche Spielversion, ohne Gildenname)."],
         0.8, 0.8, 0.8, true)
+    if ns.PUBLIC_VIA_CHAT then
+        GameTooltip:AddLine(L["Classic: Dein Eintrag geht beim Eintragen in den Kanal; wer die Gruppensuche öffnet, bekommt ihn per Flüstern."],
+            0.6, 0.8, 1, true)
+    end
     GameTooltip:Show()
 end)
 pubCheck:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -518,7 +562,7 @@ pubCheck:SetScript("OnClick", function(self)
     if mine then
         mine.public = GuildPrideDB.lfgPublic
         BumpVer()
-        SendMine()
+        ByClick(SendMine)
     end
     ns.RefreshUI()
 end)
@@ -586,7 +630,8 @@ local function MakePicker(anchor, top)
                 rows[i] = b
             end
             b.text:SetText(it.text)
-            b:SetScript("OnClick", it.onClick)
+            local onClick = it.onClick
+            b:SetScript("OnClick", onClick and function(...) ByClick(onClick, ...) end)
             b:Show()
         end
         for i = #items + 1, #rows do rows[i]:Hide() end
@@ -803,17 +848,17 @@ end
 -- Knopfleiste: links eintragen / austragen, rechts die Schlüssel-Ansicht (Retail)
 local bGroup = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 bGroup:SetSize(108, 24); bGroup:SetPoint("TOPLEFT", 4, -52); bGroup:SetText(L["Sucht Gruppe"])
-bGroup:SetScript("OnClick", function() Set("group") end)
+bGroup:SetScript("OnClick", function() ByClick(Set, "group") end)
 local bQuest = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 bQuest:SetSize(108, 24); bQuest:SetPoint("LEFT", bGroup, "RIGHT", 4, 0); bQuest:SetText(L["Quest-Hilfe"])
-bQuest:SetScript("OnClick", function() Set("quest") end)
+bQuest:SetScript("OnClick", function() ByClick(Set, "quest") end)
 local bOffer = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 bOffer:SetSize(132, 24); bOffer:SetPoint("LEFT", bQuest, "RIGHT", 4, 0); bOffer:SetText(L["Schlüssel anbieten"])
-bOffer:SetScript("OnClick", function() Set("key") end)
+bOffer:SetScript("OnClick", function() ByClick(Set, "key") end)
 bOffer:SetShown(TYPES.key ~= nil)
 local bClear = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 bClear:SetSize(92, 24); bClear:SetPoint("LEFT", TYPES.key and bOffer or bQuest, "RIGHT", 4, 0); bClear:SetText(L["Austragen"])
-bClear:SetScript("OnClick", function() Set(nil) end)
+bClear:SetScript("OnClick", function() ByClick(Set, nil) end)
 
 -- Ansicht "Schlüssel der Gilde" (nur Retail, siehe GuildPrideKeys.lua)
 local keysView = false
@@ -854,7 +899,11 @@ for i, s in ipairs(SCOPES) do
     b:SetSize(64, 20)
     b:SetPoint("TOPRIGHT", -2 - (#SCOPES - i) * 66, -76)
     b:SetText(s.label)
-    b:SetScript("OnClick", function() GuildPrideDB.lfgScope = s.key; page:Refresh() end)
+    b:SetScript("OnClick", function()
+        GuildPrideDB.lfgScope = s.key
+        page:Refresh()
+        if s.key ~= "guild" then ByClick(AskPublic) end
+    end)
     scopeBtns[s.key] = b
 end
 local function UpdateScopeButtons(show)
@@ -1019,7 +1068,7 @@ function page:Refresh()
     end
     if scope ~= "guild" then
         for name, e in pairs(publicEntries) do
-            if now - e.t > EXPIRE or now - e.seen > STALE then
+            if now - e.t > EXPIRE or now - e.seen > PublicStale() then
                 publicEntries[name] = nil
             elseif scope == "server" or not entries[name] then   -- bei "Alle" zählt der Gildeneintrag
                 list[#list + 1] = { name = name, e = e }
@@ -1118,7 +1167,8 @@ page:HookScript("OnShow", function()
     if now - lastAsk < 60 then return end
     lastAsk = now
     ns.Queue("LFGQ", nil, "1")
-    if ns.PublicChannelId and ns.PublicChannelId() then ns.Queue("PLFGQ", "@PUBLIC", ns.CLIENT_TAG, PROTO) end
+    -- Der Reiter öffnet sich nur durch Klick oder Taste (Fenster, Reiter, J, /gp)
+    ByClick(AskPublic)
 end)
 
 -- /gp server: serverweite Gruppensuche an/aus · /gp server entsperren: Ausgeblendete wieder zeigen
@@ -1129,7 +1179,7 @@ SlashCmdList.GUILDPRIDE = function(arg)
         ns.Print(L["Serverweite Gruppensuche: in dieser Spielversion nicht möglich (Blizzard sperrt Addon-Nachrichten in Chatkanälen)."])
     elseif cmd == "server" then
         GuildPrideDB.publicLFG = not GuildPrideDB.publicLFG
-        ns.PublicLFGChanged()
+        ByClick(ns.PublicLFGChanged)   -- Befehl per Eingabetaste: Abmeldung darf in den Kanal
         ns.Print(L["Serverweite Gruppensuche: "] .. (GuildPrideDB.publicLFG and L["an"] or L["aus"]))
     elseif cmd == "server status" then
         -- Fehlersuche: Option, Kanal, eigener Eintrag, Gesendetes und Empfangenes
@@ -1137,7 +1187,8 @@ SlashCmdList.GUILDPRIDE = function(arg)
         for _ in pairs(publicEntries) do n = n + 1 end
         ns.Print(L["Serverweite Gruppensuche: "] .. (ns.PublicLFGOn() and L["an"] or L["aus"])
             .. "  ·  " .. (L["Kanal %s: %s"]):format(ns.PublicChannelName(), id and ("#" .. id) or L["nicht beigetreten"])
-            .. "  ·  " .. L["Eigener Eintrag serverweit: "] .. (mine and mine.public and L["ja"] or L["nein"]))
+            .. "  ·  " .. L["Eigener Eintrag serverweit: "] .. (mine and mine.public and L["ja"] or L["nein"])
+            .. "  ·  " .. (ns.PUBLIC_VIA_CHAT and L["Weg: Chat beim Klicken + Flüstern"] or L["Weg: Addon-Nachrichten"]))
         ns.Print((L["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"]):format(
             st.sent, st.lastRes == nil and "-" or tostring(st.lastRes), st.received, n))
     elseif cmd == "server entsperren" or cmd == "server unblock" then

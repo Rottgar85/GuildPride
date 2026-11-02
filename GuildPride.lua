@@ -46,10 +46,12 @@ ns.HAS_COMMUNITIES = not ns.IS_CLASSIC
 if ns.IS_RETAIL then ns.CLIENT_TAG = "R"
 elseif toc >= 16000 and toc < 20000 then ns.CLIENT_TAG = "F"
 else ns.CLIENT_TAG = "C" .. math.floor(toc / 10000) end
--- Addon-Nachrichten in eigene Chatkanäle sperrt Blizzard in allen Classic-
--- Clients (seit Classic 1.13.3, gegen LFG-Addons). Die serverweite Gruppensuche
--- gibt es daher nur in Retail und WoW Forever.
-ns.HAS_PUBLIC_LFG = not ns.IS_CLASSIC
+-- Serverweite Gruppensuche: in Retail und WoW Forever per Addon-Nachricht im
+-- offenen Kanal. Classic sperrt Addon-Nachrichten in Chatkanälen (seit 1.13.3):
+-- dort geht der eigene Eintrag als normale Chatnachricht in den Kanal (erlaubt
+-- Blizzard nur direkt bei einem Klick), Antworten auf Abfragen kommen per Flüstern.
+ns.HAS_PUBLIC_LFG = JoinTemporaryChannel ~= nil
+ns.PUBLIC_VIA_CHAT = ns.IS_CLASSIC
 -- Serverweite Gruppensuche eingeschaltet und in dieser Spielversion möglich?
 function ns.PublicLFGOn()
     return ns.HAS_PUBLIC_LFG and GuildPrideDB and GuildPrideDB.publicLFG and true or false
@@ -588,6 +590,12 @@ f:SetScript("OnEvent", function(_, event, ...)
                 if ns.OnPublicMessage then ns.OnPublicMessage(message, sender) end
                 return
             end
+        end
+        -- Antwort auf eine serverweite Abfrage: kommt per Flüstern, auch von
+        -- Fremden – ebenfalls nur an die Gruppensuche, und nur Einträge (PLFG)
+        if channel == "WHISPER" and message:sub(1, 5) == "PLFG:" then
+            if ns.OnPublicMessage then ns.OnPublicMessage(message, sender, true) end
+            return
         end
         -- Kanal: nur unser abgesicherter Gildenkanal zählt, keine anderen Kanäle
         if channel == "CHANNEL" then

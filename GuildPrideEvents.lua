@@ -213,6 +213,7 @@ end
 ---------------------------------------------------------------------
 local function PublicChannel() return "GPLFG" .. (ns.CLIENT_TAG or "X") end
 ns.PublicChannelName = PublicChannel
+local SendChat = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
 -- Für /gp server status: gesendet, letztes Sende-Ergebnis, empfangen
 ns.publicStats = { sent = 0, received = 0 }
 
@@ -247,10 +248,54 @@ function ns.UpdatePublicChannel(farewell)
         end)
     elseif not ns.PublicLFGOn() and joined then
         wipe(publicQueue)
-        if farewell then C_ChatInfo.SendAddonMessage(PREFIX, farewell, "CHANNEL", (GetChannelName(name))) end
+        if farewell then
+            if ns.PUBLIC_VIA_CHAT then SendChat((farewell:gsub(SEP, "~")), "CHANNEL", nil, (GetChannelName(name)))
+            else C_ChatInfo.SendAddonMessage(PREFIX, farewell, "CHANNEL", (GetChannelName(name))) end
+        end
         if LeaveChannelByName then LeaveChannelByName(name) end
     end
 end
+
+-- Classic: Rundsendungen gehen als normale Chatnachricht in den offenen Kanal.
+-- Das erlaubt Blizzard nur direkt bei einem Klick – Aufrufer achten darauf.
+-- Das Trennzeichen ist dort nicht erlaubt und wird zu "~".
+function ns.SendPublicChat(kind, ...)
+    local chan = ns.PublicChannelId()
+    if not chan then return end
+    local parts = { ... }
+    for i = 1, select("#", ...) do parts[i] = (tostring(parts[i] == nil and "" or parts[i]):gsub("~", "-")) end
+    local msg = kind .. ":" .. table.concat(parts, "~")
+    if #msg > 255 then return end
+    SendChat(msg, "CHANNEL", nil, chan)
+    local st = ns.publicStats
+    st.sent, st.lastRes, st.lastAt = st.sent + 1, "chat", GetTime()
+end
+
+-- Kanalzeilen nicht im Chatfenster zeigen; der Filter kommt erst dazu, wenn
+-- der Chat-Weg wirklich genutzt wird (Retail bleibt unberührt)
+local chatFiltered = false
+local function FilterPublicChat()
+    if chatFiltered then return end
+    local AddFilter = ChatFrame_AddMessageEventFilter or (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter)
+    if not AddFilter then return end
+    chatFiltered = true
+    AddFilter("CHAT_MSG_CHANNEL", function(_, _, _, _, _, chanName, _, _, _, chanIndex, chanBase)
+        if not ns.PUBLIC_VIA_CHAT then return false end
+        return ns.IsPublicChannel(chanIndex, chanBase) or ns.IsPublicChannel(nil, chanName)
+    end)
+end
+if ns.PUBLIC_VIA_CHAT then FilterPublicChat() end
+
+-- Classic: Einträge und Abfragen aus dem offenen Kanal an die Gruppensuche
+local chatIn = CreateFrame("Frame")
+chatIn:RegisterEvent("CHAT_MSG_CHANNEL")
+chatIn:SetScript("OnEvent", function(_, _, text, sender, _, chanName, _, _, _, chanIndex, chanBase)
+    if not ns.PUBLIC_VIA_CHAT or not ns.OnPublicMessage then return end
+    if type(text) ~= "string" or type(sender) ~= "string" or sender == "" then return end
+    if not (ns.IsPublicChannel(chanIndex, chanBase) or ns.IsPublicChannel(nil, chanName)) then return end
+    if not sender:find("-", 1, true) then sender = sender .. "-" .. (GetNormalizedRealmName() or "") end
+    ns.OnPublicMessage((text:gsub("~", SEP)), sender)
+end)
 
 local chanFrame = CreateFrame("Frame")
 chanFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -436,18 +481,24 @@ C_Timer.NewTicker(2, function()
     if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return end
     local item = table.remove(publicQueue, 1)
     if not item then return end
-    local chan = ns.PublicChannelId()
-    if not chan then return end
-    local res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan)
+    local res
+    if item.to then
+        -- Antwort auf eine Abfrage: direkt an den Fragenden
+        res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.to)
+    else
+        local chan = ns.PublicChannelId()
+        if not chan or ns.PUBLIC_VIA_CHAT then return end
+        res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan)
+    end
     local st = ns.publicStats
     st.sent, st.lastRes, st.lastAt = st.sent + 1, res, GetTime()
-    if RESULT and RESULT.InvalidChatType ~= nil and res == RESULT.InvalidChatType then
+    if not item.to and RESULT and RESULT.InvalidChatType ~= nil and res == RESULT.InvalidChatType then
         -- Diese Spielversion lässt keine Addon-Nachrichten in eigene Kanäle zu:
-        -- für diese Sitzung abschalten, Kanal verlassen, einmal Bescheid geben
-        ns.HAS_PUBLIC_LFG = false
-        wipe(publicQueue)
-        if ns.PublicLFGChanged then ns.PublicLFGChanged() end
-        ns.Print(L["Serverweite Gruppensuche: in dieser Spielversion nicht möglich (Blizzard sperrt Addon-Nachrichten in Chatkanälen)."])
+        -- weiter wie in Classic (Chatnachricht beim Klicken, Antworten per Flüstern)
+        ns.PUBLIC_VIA_CHAT = true
+        FilterPublicChat()
+        for i = #publicQueue, 1, -1 do if not publicQueue[i].to then table.remove(publicQueue, i) end end
+        ns.Print(L["Serverweite Gruppensuche: Diese Spielversion sperrt Addon-Nachrichten in Chatkanälen. Dein Eintrag geht jetzt beim Eintragen raus, Antworten kommen per Flüstern."])
     elseif Throttled(res) then
         item.tries = (item.tries or 0) + 1
         if item.tries <= 5 then table.insert(publicQueue, 1, item) end
@@ -462,18 +513,29 @@ end)
 local MAX_LEN, PART_LEN = 195, 175
 local multiId = 0
 
+-- Serverweit: nie mehrteilig (MP wird dort nicht angenommen); pro Art und
+-- Empfänger zählt nur der neueste Stand, ältere wartende werden ersetzt
+local function PublicPush(kind, msg, to)
+    if #msg > 255 then return end
+    for i, it in ipairs(publicQueue) do
+        if it.kind == kind and it.to == to then publicQueue[i] = { msg = msg, kind = kind, to = to }; return end
+    end
+    table.insert(publicQueue, { msg = msg, kind = kind, to = to })
+end
+
+-- Antwort auf eine serverweite Abfrage: per Flüstern an den Fragenden
+function ns.QueuePublicTo(to, kind, ...)
+    local parts = { ... }
+    for i = 1, select("#", ...) do parts[i] = tostring(parts[i] == nil and "" or parts[i]) end
+    PublicPush(kind, kind .. ":" .. table.concat(parts, SEP), to)
+end
+
 local function Queue(kind, target, ...)
     local parts = { ... }
     for i = 1, select("#", ...) do parts[i] = tostring(parts[i] == nil and "" or parts[i]) end
     local msg = kind .. ":" .. table.concat(parts, SEP)
     if target == "@PUBLIC" then
-        -- Nie mehrteilig (MP wird im offenen Kanal nicht angenommen); pro Art
-        -- zählt nur der neueste Stand, ältere wartende werden ersetzt
-        if #msg > 255 then return end
-        for i, it in ipairs(publicQueue) do
-            if it.kind == kind then publicQueue[i] = { msg = msg, kind = kind }; return end
-        end
-        table.insert(publicQueue, { msg = msg, kind = kind })
+        PublicPush(kind, msg)
         return
     end
     if #msg <= MAX_LEN then
