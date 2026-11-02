@@ -212,9 +212,12 @@ end
 -- Gruppensuche-Einträge mit passender Kennung (GuildPrideHelp.lua).
 ---------------------------------------------------------------------
 local function PublicChannel() return "GPLFG" .. (ns.CLIENT_TAG or "X") end
+ns.PublicChannelName = PublicChannel
+-- Für /gp server status: gesendet, letztes Sende-Ergebnis, empfangen
+ns.publicStats = { sent = 0, received = 0 }
 
 function ns.PublicChannelId()
-    if not (GuildPrideDB and GuildPrideDB.publicLFG) then return end
+    if not ns.PublicLFGOn() then return end
     local id = GetChannelName(PublicChannel())
     return id and id > 0 and id or nil
 end
@@ -233,16 +236,16 @@ function ns.UpdatePublicChannel(farewell)
     if not joinReady then return end
     local name = PublicChannel()
     local joined = GetChannelName(name) > 0
-    if GuildPrideDB.publicLFG and not joined then
+    if ns.PublicLFGOn() and not joined then
         if JoinTemporaryChannel then JoinTemporaryChannel(name) end
         -- Kein Platz mehr (höchstens 10 eigene Kanäle)? Einmal Bescheid geben
         C_Timer.After(5, function()
-            if GuildPrideDB.publicLFG and GetChannelName(name) == 0 and not publicWarned then
+            if ns.PublicLFGOn() and GetChannelName(name) == 0 and not publicWarned then
                 publicWarned = true
                 ns.Print(L["Serverweite Gruppensuche: Kanal konnte nicht betreten werden (zu viele Chatkanäle?)."])
             end
         end)
-    elseif not GuildPrideDB.publicLFG and joined then
+    elseif not ns.PublicLFGOn() and joined then
         wipe(publicQueue)
         if farewell then C_ChatInfo.SendAddonMessage(PREFIX, farewell, "CHANNEL", (GetChannelName(name))) end
         if LeaveChannelByName then LeaveChannelByName(name) end
@@ -436,7 +439,16 @@ C_Timer.NewTicker(2, function()
     local chan = ns.PublicChannelId()
     if not chan then return end
     local res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan)
-    if Throttled(res) then
+    local st = ns.publicStats
+    st.sent, st.lastRes, st.lastAt = st.sent + 1, res, GetTime()
+    if RESULT and RESULT.InvalidChatType ~= nil and res == RESULT.InvalidChatType then
+        -- Diese Spielversion lässt keine Addon-Nachrichten in eigene Kanäle zu:
+        -- für diese Sitzung abschalten, Kanal verlassen, einmal Bescheid geben
+        ns.HAS_PUBLIC_LFG = false
+        wipe(publicQueue)
+        if ns.PublicLFGChanged then ns.PublicLFGChanged() end
+        ns.Print(L["Serverweite Gruppensuche: in dieser Spielversion nicht möglich (Blizzard sperrt Addon-Nachrichten in Chatkanälen)."])
+    elseif Throttled(res) then
         item.tries = (item.tries or 0) + 1
         if item.tries <= 5 then table.insert(publicQueue, 1, item) end
         pauseUntil = GetTime() + 1.5

@@ -329,6 +329,13 @@ local enUS = {
     ["%s wird in der Gruppensuche ausgeblendet (/gp server entsperren hebt das auf)."] =
         "%s is hidden in the Group Finder (/gp server unblock undoes this).",
     ["Ausgeblendete Spieler in der Gruppensuche werden wieder angezeigt."] = "Hidden players are shown in the Group Finder again.",
+    ["Serverweite Gruppensuche: in dieser Spielversion nicht möglich (Blizzard sperrt Addon-Nachrichten in Chatkanälen)."] =
+        "Server-wide Group Finder: not possible in this game version (Blizzard blocks addon messages in chat channels).",
+    ["Kanal %s: %s"] = "Channel %s: %s",
+    ["nicht beigetreten"] = "not joined",
+    ["Eigener Eintrag serverweit: "] = "Own listing server-wide: ",
+    ["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"] =
+        "Sent: %d (last result: %s) · Received: %d · Server listings: %d",
 }
 
 -- Fehlende Übersetzung -> deutscher Text als Rückfall

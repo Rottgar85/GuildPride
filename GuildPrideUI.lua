@@ -975,14 +975,18 @@ local options = {
     { key = "sound",         label = L["Sounds abspielen"] },
     { key = "memberAlerts",  label = L["Warnung bei Beitritt / Austritt"] },
     { key = "helpAlerts",    label = L["Hinweis, wenn jemand Gruppe / Quest-Hilfe sucht"] },
-    { key = "publicLFG",     label = L["Serverweite Gruppensuche (alle mit GuildPride, gleiche Spielversion)"],
+    { key = "publicLFG",     label = L["Serverweite Gruppensuche (alle mit GuildPride, gleiche Spielversion)"], public = true,
       changed = function() if ns.PublicLFGChanged then ns.PublicLFGChanged() end end },
-    { key = "publicAlerts",  label = L["Hinweis auch bei Einträgen vom Server"] },
+    { key = "publicAlerts",  label = L["Hinweis auch bei Einträgen vom Server"], public = true },
     { key = "shareMilestones", label = L["Eigene Erfolge, Bosse, M+ und Reittiere mit der Gilde teilen"] },
     { key = "minimap",       label = L["Minimap-Knopf anzeigen"],
       changed = function() if ns.UpdateMinimap then ns.UpdateMinimap() end end },
     { key = "welcome",       label = L["Neue Mitglieder automatisch im Gildenchat begrüßen"] },
 }
+-- Serverweite Gruppensuche: in Classic-Clients nicht möglich, Schalter weglassen
+for i = #options, 1, -1 do
+    if options[i].public and not ns.HAS_PUBLIC_LFG then table.remove(options, i) end
+end
 local function SetOption(opt, on)
     GuildPrideDB[opt.key] = on and true or false
     if opt.changed then opt.changed() end
