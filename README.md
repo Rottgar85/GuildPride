@@ -41,6 +41,7 @@ World of Warcraft addon for Retail (Midnight 12.x), WoW Forever and all Classic 
 - `/gp sound`, `/gp popup` turn sounds and pop-ups on or off
 - `/gp blizzard` switch between GuildPride and the Blizzard guild window
 - `/gp invite Name-Realm` invite a player to the guild
+- `/gp server` server-wide group finder on or off, `/gp server unblock` shows hidden players again
 - `/gp badge 30` preview a milestone pop-up, `/gp version` who uses which version
 
 ### Good to know
@@ -89,6 +90,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns` (C
 - `/gp sound`, `/gp popup` Sounds und Popups an oder aus
 - `/gp blizzard` zwischen GuildPride und dem Blizzard-Gildenfenster wechseln
 - `/gp einladen Name-Realm` Spieler in die Gilde einladen
+- `/gp server` serverweite Gruppensuche an oder aus, `/gp server entsperren` zeigt ausgeblendete Spieler wieder
 - `/gp badge 30` Meilenstein-Popup testen, `/gp version` wer welche Version nutzt
 
 ### Gut zu wissen

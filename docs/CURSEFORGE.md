@@ -47,6 +47,7 @@
 | `/gp options` | open the GuildPride page in the WoW options |
 | `/gp version` | who in the guild uses which version |
 | `/gp channel` | status of the secured channel (officers: `/gp channel new` creates a new key) |
+| `/gp server` | turn the server-wide group finder on/off (`/gp server unblock` shows hidden players again) |
 | `/gp badge 30` | preview a milestone pop-up |
 
 ### Feedback
@@ -98,6 +99,7 @@ Bug reports and ideas are very welcome – on [GitHub](https://github.com/Rottga
 | `/gp optionen` | GuildPride-Seite in den WoW-Optionen öffnen |
 | `/gp version` | wer in der Gilde welche Version nutzt |
 | `/gp kanal` | Stand des abgesicherten Kanals (Offiziere: `/gp kanal neu` erzeugt einen neuen Schlüssel) |
+| `/gp server` | serverweite Gruppensuche an/aus (`/gp server entsperren` zeigt ausgeblendete Spieler wieder) |
 | `/gp badge 30` | Meilenstein-Popup testen |
 
 ### Feedback
