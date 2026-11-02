@@ -251,7 +251,7 @@ local function PublicNone()
 end
 
 local function SendPublic()
-    if not GuildPrideDB.publicLFG then return end
+    if not ns.PublicLFGOn() then return end
     if mine and mine.public then
         local size, max = GroupSize()
         local _, class = UnitClass("player")
@@ -412,7 +412,8 @@ local function OnPublicEntry(payload, sender)
 end
 
 function ns.OnPublicMessage(message, sender)
-    if sender == ns.Me() or not GuildPrideDB.publicLFG then return end
+    if sender == ns.Me() or not ns.PublicLFGOn() then return end
+    ns.publicStats.received = ns.publicStats.received + 1
     local kind, value = message:match("^(%u+):(.*)$")
     if kind ~= "PLFG" and kind ~= "PLFGQ" then return end
     local tag, proto, rest = value:match("^([^\031]*)\031([^\031]*)\031?(.*)$")
@@ -428,7 +429,7 @@ end
 
 -- Option an/aus (Einstellungen, /gp server)
 function ns.PublicLFGChanged()
-    if GuildPrideDB.publicLFG then
+    if ns.PublicLFGOn() then
         ns.UpdatePublicChannel()
         -- nach dem Beitritt den eigenen Eintrag nachliefern
         if mine and mine.public then C_Timer.After(8, SendPublic) end
@@ -786,7 +787,7 @@ local function Set(kind)
     end
     if kind then
         mine = { kind = kind, note = Clean(noteBox:GetText(), 60), needs = NeedsCode(), quest = picked, dungeon = pickedDungeon,
-                 t = GetServerTime(), public = GuildPrideDB.publicLFG and GuildPrideDB.lfgPublic or false }
+                 t = GetServerTime(), public = ns.PublicLFGOn() and GuildPrideDB.lfgPublic or false }
         UpdateMyKey()
         ns.Print(L["Du bist eingetragen: "] .. KindLabel(kind, (GroupSize())))
     else
@@ -845,7 +846,7 @@ status:SetJustifyH("LEFT")
 local SCOPES = { { key = "guild", label = L["Gilde"] }, { key = "server", label = L["Server"] }, { key = "all", label = L["Alle"] } }
 local scopeBtns = {}
 local function Scope()
-    if not GuildPrideDB.publicLFG then return "guild" end
+    if not ns.PublicLFGOn() then return "guild" end
     return GuildPrideDB.lfgScope or "all"
 end
 for i, s in ipairs(SCOPES) do
@@ -982,7 +983,7 @@ function page:Refresh()
     if picked then status:SetText(status:GetText() .. "  ·  " .. QuestLink(picked.id, picked.level, picked.name)) end
     if mine and mine.public then status:SetText(status:GetText() .. "  ·  |cff8fb3ff" .. L["Serverweit"] .. "|r") end
 
-    local publicOn = GuildPrideDB.publicLFG and true or false
+    local publicOn = ns.PublicLFGOn()
     pubCheck:SetShown(publicOn); pubLabel:SetShown(publicOn)
     status:SetWidth(publicOn and not keysView and 420 or 620); status:SetWordWrap(false)
     pubCheck:SetChecked(GuildPrideDB.lfgPublic)
@@ -1124,10 +1125,21 @@ end)
 local origSlash = SlashCmdList.GUILDPRIDE
 SlashCmdList.GUILDPRIDE = function(arg)
     local cmd = strtrim(arg or ""):lower()
-    if cmd == "server" then
+    if (cmd == "server" or cmd == "server status") and not ns.HAS_PUBLIC_LFG then
+        ns.Print(L["Serverweite Gruppensuche: in dieser Spielversion nicht möglich (Blizzard sperrt Addon-Nachrichten in Chatkanälen)."])
+    elseif cmd == "server" then
         GuildPrideDB.publicLFG = not GuildPrideDB.publicLFG
         ns.PublicLFGChanged()
         ns.Print(L["Serverweite Gruppensuche: "] .. (GuildPrideDB.publicLFG and L["an"] or L["aus"]))
+    elseif cmd == "server status" then
+        -- Fehlersuche: Option, Kanal, eigener Eintrag, Gesendetes und Empfangenes
+        local st, id, n = ns.publicStats, ns.PublicChannelId(), 0
+        for _ in pairs(publicEntries) do n = n + 1 end
+        ns.Print(L["Serverweite Gruppensuche: "] .. (ns.PublicLFGOn() and L["an"] or L["aus"])
+            .. "  ·  " .. (L["Kanal %s: %s"]):format(ns.PublicChannelName(), id and ("#" .. id) or L["nicht beigetreten"])
+            .. "  ·  " .. L["Eigener Eintrag serverweit: "] .. (mine and mine.public and L["ja"] or L["nein"]))
+        ns.Print((L["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"]):format(
+            st.sent, st.lastRes == nil and "-" or tostring(st.lastRes), st.received, n))
     elseif cmd == "server entsperren" or cmd == "server unblock" then
         GuildPrideDB.lfgBlocked = nil
         ns.Print(L["Ausgeblendete Spieler in der Gruppensuche werden wieder angezeigt."])

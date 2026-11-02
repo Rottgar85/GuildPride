@@ -20,7 +20,7 @@
 - **Milestones with badges** – animated pop-up with a badge when a guildmate reaches level 10, 20, 30 …, plus achievements, first raid boss kills, new M+ bests and new mounts. Joins and departures show a clear on-screen notice. Missed milestones are fetched when you log in.
 - **Event planner** – officers create events with date, time, description and officer note, optionally **repeating every week**. Members sign up as *Attending / Maybe / Declined* with their role. Reminder 15 minutes before the start, lineup check, "Invite all attendees" and **attendance tracking** per player.
 - **Group finder & quest help** – list yourself as *Looking for group*, *Looking for members* or *Needs quest help* with the roles you still need. Link a quest from your quest log or pick a **dungeon** (Classic versions and WoW Forever): searchable list with level ranges; the **Heroic** button only appears when your character can actually run heroics, and then only heroic dungeons are listed. **Join** sends a join request, **Invite** invites a solo player.
-- **Server-wide group finder** – tick *Server-wide* and your listing is also shown to everyone on your server who uses GuildPride; switch the list between *Guild · Server · All*. Every game version stays separate, no guild name is sent, only group finder listings are exchanged, and you can hide players. `/gp server` turns it off.
+- **Server-wide group finder** (Retail and WoW Forever) – tick *Server-wide* and your listing is also shown to everyone on your server who uses GuildPride; switch the list between *Guild · Server · All*. Every game version stays separate, no guild name is sent, only group finder listings are exchanged, and you can hide players. `/gp server` turns it off. Not available in Classic versions, where Blizzard blocks addon messages in chat channels.
 - **Guild keystones** (Retail) – see everyone's keystone and M+ rating, offer your key with the roles you need.
 - **Polls** – officers create polls with up to 6 answers and an optional duration, everyone votes.
 - **Guild info** – Blizzard's guild info text for everyone, with a notice when it changes and a copy button.
@@ -47,7 +47,7 @@
 | `/gp options` | open the GuildPride page in the WoW options |
 | `/gp version` | who in the guild uses which version |
 | `/gp channel` | status of the secured channel (officers: `/gp channel new` creates a new key) |
-| `/gp server` | turn the server-wide group finder on/off (`/gp server unblock` shows hidden players again) |
+| `/gp server` | turn the server-wide group finder on/off (`/gp server unblock` shows hidden players again, `/gp server status` shows channel and messages) |
 | `/gp badge 30` | preview a milestone pop-up |
 
 ### Feedback
@@ -72,7 +72,7 @@ Bug reports and ideas are very welcome – on [GitHub](https://github.com/Rottga
 - **Meilensteine mit Abzeichen** – animiertes Popup mit Abzeichen, wenn jemand Level 10, 20, 30 … erreicht, dazu Erfolge, erste Raidboss-Siege, neue M+-Bestleistungen und neue Reittiere. Beitritte und Austritte erscheinen als deutlicher Hinweis. Verpasste Meilensteine werden beim Einloggen nachgeladen.
 - **Event-Planer** – Offiziere legen Events mit Datum, Uhrzeit, Beschreibung und Offiziers-Notiz an, auf Wunsch **jede Woche wiederholt**. Mitglieder melden sich mit *Zusagen / Vielleicht / Absagen* und ihrer Rolle an. Erinnerung 15 Minuten vorher, Rollen-Check, „Alle Zugesagten einladen“ und **Anwesenheit** pro Spieler.
 - **Gruppensuche & Quest-Hilfe** – als *Sucht Gruppe*, *Sucht Mitspieler* oder *Braucht Quest-Hilfe* eintragen, mit den Rollen, die noch fehlen. Quest aus dem Questlog verlinken oder einen **Dungeon** wählen (Classic-Versionen und WoW Forever): durchsuchbare Liste mit Levelbereich; der Knopf **Heroisch** erscheint erst, wenn dein Charakter heroisch laufen kann, und zeigt dann nur heroische Dungeons. **Beitreten** schickt eine Beitrittsanfrage, **Einladen** lädt Einzelspieler ein.
-- **Serverweite Gruppensuche** – *Serverweit* ankreuzen, dann sehen auch alle anderen auf dem Server mit GuildPride deinen Eintrag; die Liste lässt sich zwischen *Gilde · Server · Alle* umschalten. Jede Spielversion bleibt für sich, kein Gildenname wird mitgeschickt, ausgetauscht werden nur Gruppensuche-Einträge, Spieler lassen sich ausblenden. `/gp server` schaltet es ab.
+- **Serverweite Gruppensuche** (Retail und WoW Forever) – *Serverweit* ankreuzen, dann sehen auch alle anderen auf dem Server mit GuildPride deinen Eintrag; die Liste lässt sich zwischen *Gilde · Server · Alle* umschalten. Jede Spielversion bleibt für sich, kein Gildenname wird mitgeschickt, ausgetauscht werden nur Gruppensuche-Einträge, Spieler lassen sich ausblenden. `/gp server` schaltet es ab. In Classic-Versionen nicht verfügbar, dort sperrt Blizzard Addon-Nachrichten in Chatkanälen.
 - **Gilden-Schlüssel** (Retail) – Schlüsselsteine und M+-Wertung aller Mitglieder, eigenen Schlüssel mit den fehlenden Rollen anbieten.
 - **Umfragen** – Offiziere legen Umfragen mit bis zu 6 Antworten und wahlweiser Laufzeit an, alle stimmen ab.
 - **Gildeninfo** – der Info-Text aus dem Blizzard-Gildenfenster für alle, mit Hinweis bei Änderungen und Kopier-Knopf.
@@ -99,7 +99,7 @@ Bug reports and ideas are very welcome – on [GitHub](https://github.com/Rottga
 | `/gp optionen` | GuildPride-Seite in den WoW-Optionen öffnen |
 | `/gp version` | wer in der Gilde welche Version nutzt |
 | `/gp kanal` | Stand des abgesicherten Kanals (Offiziere: `/gp kanal neu` erzeugt einen neuen Schlüssel) |
-| `/gp server` | serverweite Gruppensuche an/aus (`/gp server entsperren` zeigt ausgeblendete Spieler wieder) |
+| `/gp server` | serverweite Gruppensuche an/aus (`/gp server entsperren` zeigt ausgeblendete Spieler wieder, `/gp server status` zeigt Kanal und Nachrichten) |
 | `/gp badge 30` | Meilenstein-Popup testen |
 
 ### Feedback
