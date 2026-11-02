@@ -40,7 +40,7 @@ local enUS = {
     ["hat einen Meilenstein erreicht (%s %s)"] = "reached a milestone (%s %s)",
     ["geladen. /gp für Befehle"] = "loaded. Type /gp for commands",
     ["Eigenes Gildenfenster: "] = "Custom guild window: ",
-    ["Befehle: /gp (Fenster) · sound · popup · blizzard · einladen <Name> · werben · optionen · badge <Level> · version · kanal"] = "Commands: /gp (window) · sound · popup · blizzard · invite <name> · recruit · options · badge <level> · version · channel",
+    ["Befehle: /gp (Fenster) · sound · popup · blizzard · einladen <Name> · werben · optionen · badge <Level> · version · kanal · server"] = "Commands: /gp (window) · sound · popup · blizzard · invite <name> · recruit · options · badge <level> · version · channel · server",
     ["ja"] = "yes",
     ["nein"] = "no",
     ["Frage Versionen ab …"] = "Asking for versions …",
@@ -312,6 +312,23 @@ local enUS = {
     ["Linksklick: Gildenfenster"] = "Left-click: guild window",
     ["Rechtsklick: Einstellungen"] = "Right-click: settings",
     ["Ziehen: verschieben"] = "Drag: move",
+    -- Serverweite Gruppensuche
+    ["Serverweit"] = "Server-wide",
+    ["Server"] = "Server",
+    ["Alle"] = "All",
+    ["Eintrag auch allen mit GuildPride auf dem Server zeigen (gleiche Spielversion, ohne Gildenname)."] =
+        "Also show your listing to everyone with GuildPride on the server (same game version, no guild name).",
+    ["Serverweite Gruppensuche (alle mit GuildPride, gleiche Spielversion)"] =
+        "Server-wide Group Finder (everyone with GuildPride, same game version)",
+    ["Hinweis auch bei Einträgen vom Server"] = "Also notify for server-wide listings",
+    ["Serverweite Gruppensuche: "] = "Server-wide Group Finder: ",
+    ["Serverweite Gruppensuche: Kanal konnte nicht betreten werden (zu viele Chatkanäle?)."] =
+        "Server-wide Group Finder: could not join the channel (too many chat channels?).",
+    ["Ignorieren"] = "Ignore",
+    ["Diesen Spieler in der Gruppensuche ausblenden"] = "Hide this player in the Group Finder",
+    ["%s wird in der Gruppensuche ausgeblendet (/gp server entsperren hebt das auf)."] =
+        "%s is hidden in the Group Finder (/gp server unblock undoes this).",
+    ["Ausgeblendete Spieler in der Gruppensuche werden wieder angezeigt."] = "Hidden players are shown in the Group Finder again.",
 }
 
 -- Fehlende Übersetzung -> deutscher Text als Rückfall

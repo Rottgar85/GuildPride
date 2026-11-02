@@ -40,6 +40,12 @@ ns.IS_RETAIL = (select(4, GetBuildInfo()) or 0) >= 100000 and C_MythicPlus ~= ni
 local toc = select(4, GetBuildInfo()) or 0
 ns.IS_CLASSIC = toc < 100000 and not (toc >= 16000 and toc < 20000)
 ns.HAS_COMMUNITIES = not ns.IS_CLASSIC
+-- Kennung der Spielversion für die serverweite Gruppensuche: jede Version hat
+-- einen eigenen Kanal und nimmt nur Nachrichten mit der eigenen Kennung an.
+-- R = Retail (über alle Erweiterungen), F = Forever, C1 … C5 = Classic Era bis MoP
+if ns.IS_RETAIL then ns.CLIENT_TAG = "R"
+elseif toc >= 16000 and toc < 20000 then ns.CLIENT_TAG = "F"
+else ns.CLIENT_TAG = "C" .. math.floor(toc / 10000) end
 -- Classic-Clients haben außerdem nicht alle Events:
 -- unbekannte Events werfen beim Registrieren einen Fehler, daher abgesichert.
 function ns.RegisterEvents(frame, ...)
@@ -63,7 +69,8 @@ local FALLBACK_ICON = "Interface\\Icons\\INV_Misc_Tournaments_banner_Human"
 
 local defaults = { sound = true, popup = true, useCustomLogo = false,
                    replaceGuildFrame = true, memberAlerts = true, helpAlerts = true, shareMilestones = true,
-                   minimap = true, chatFont = 12, scale = 1, alpha = 1, welcome = false }
+                   minimap = true, chatFont = 12, scale = 1, alpha = 1, welcome = false,
+                   publicLFG = true, publicAlerts = false, lfgPublic = false, lfgScope = "all" }
 
 -- Weitere Meilensteine neben LEVEL (Wert ist Text bzw. ID)
 local EXTRA_KINDS = { ACH = true, BOSS = true, MPLUS = true, MOUNT = true }
@@ -564,6 +571,16 @@ f:SetScript("OnEvent", function(_, event, ...)
         -- Absender immer als "Name-Realm": manchmal kommt er ohne Realm an, dann
         -- wurden eigene Nachrichten für fremde gehalten (z. B. doppelte Hinweise)
         sender = Normalize(sender)
+        -- Serverweite Gruppensuche: offener Kanal, in dem jeder schreiben kann.
+        -- Nur die Gruppensuche bekommt diese Nachrichten (prüft Art und Kennung
+        -- selbst), nie Dispatch – Weiterleitungen und Gildendaten sind so tabu.
+        if channel == "CHANNEL" and ns.IsPublicChannel then
+            local _, _, _, _, _, _, localID, chanName = ...
+            if not IsSecret(localID) and not IsSecret(chanName) and ns.IsPublicChannel(localID, chanName) then
+                if ns.OnPublicMessage then ns.OnPublicMessage(message, sender) end
+                return
+            end
+        end
         -- Kanal: nur unser abgesicherter Gildenkanal zählt, keine anderen Kanäle
         if channel == "CHANNEL" then
             local _, _, _, _, _, _, localID, chanName = ...
@@ -627,6 +644,6 @@ SlashCmdList.GUILDPRIDE = function(arg)
             InterfaceOptionsFrame_OpenToCategory(ns.SettingsPanel)   -- zweimal: alter Blizzard-Fehler
         end
     else
-        Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · einladen <Name> · werben · optionen · badge <Level> · version · kanal"])
+        Print(L["Befehle: /gp (Fenster) · sound · popup · blizzard · einladen <Name> · werben · optionen · badge <Level> · version · kanal · server"])
     end
 end

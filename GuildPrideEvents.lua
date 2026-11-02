@@ -44,6 +44,7 @@ end
 -- Der Server drosselt Addon-Nachrichten pro Prefix. Gedrosselte Nachrichten
 -- gingen früher verloren; jetzt kommen sie zurück in die Warteschlange.
 local queue = {}
+local publicQueue = {}   -- serverweite Gruppensuche (Ziel "@PUBLIC"), eigener Takt
 local pauseUntil = 0
 local RESULT = Enum and Enum.SendAddonMessageResult
 local function Throttled(res)
@@ -205,12 +206,55 @@ local function JoinDataChannel()
     if JoinTemporaryChannel then JoinTemporaryChannel(name, pw) end
 end
 
+---------------------------------------------------------------------
+-- Serverweite Gruppensuche: offener Kanal je Spielversion ("GPLFGR",
+-- "GPLFGC1" …). Darin kann jeder schreiben – angenommen werden dort nur
+-- Gruppensuche-Einträge mit passender Kennung (GuildPrideHelp.lua).
+---------------------------------------------------------------------
+local function PublicChannel() return "GPLFG" .. (ns.CLIENT_TAG or "X") end
+
+function ns.PublicChannelId()
+    if not (GuildPrideDB and GuildPrideDB.publicLFG) then return end
+    local id = GetChannelName(PublicChannel())
+    return id and id > 0 and id or nil
+end
+
+function ns.IsPublicChannel(localID, chanName)
+    local id = ns.PublicChannelId()
+    if not id then return false end
+    if localID == id then return true end
+    local name = PublicChannel():lower()
+    return type(chanName) == "string" and (chanName:lower() == name or chanName:lower():match("^%d+%.%s*(.+)$") == name)
+end
+
+-- farewell: beim Verlassen noch direkt gesendet (eigenen Eintrag zurückziehen)
+local publicWarned = false
+function ns.UpdatePublicChannel(farewell)
+    if not joinReady then return end
+    local name = PublicChannel()
+    local joined = GetChannelName(name) > 0
+    if GuildPrideDB.publicLFG and not joined then
+        if JoinTemporaryChannel then JoinTemporaryChannel(name) end
+        -- Kein Platz mehr (höchstens 10 eigene Kanäle)? Einmal Bescheid geben
+        C_Timer.After(5, function()
+            if GuildPrideDB.publicLFG and GetChannelName(name) == 0 and not publicWarned then
+                publicWarned = true
+                ns.Print(L["Serverweite Gruppensuche: Kanal konnte nicht betreten werden (zu viele Chatkanäle?)."])
+            end
+        end)
+    elseif not GuildPrideDB.publicLFG and joined then
+        wipe(publicQueue)
+        if farewell then C_ChatInfo.SendAddonMessage(PREFIX, farewell, "CHANNEL", (GetChannelName(name))) end
+        if LeaveChannelByName then LeaveChannelByName(name) end
+    end
+end
+
 local chanFrame = CreateFrame("Frame")
 chanFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 chanFrame:RegisterEvent("PLAYER_GUILD_UPDATE")
 chanFrame:SetScript("OnEvent", function()
     -- spät beitreten, damit Allgemein/Handel ihre gewohnten Nummern behalten
-    C_Timer.After(15, function() joinReady = true; JoinDataChannel() end)
+    C_Timer.After(15, function() joinReady = true; JoinDataChannel(); ns.UpdatePublicChannel() end)
 end)
 
 -- Schlüssel: Hex-Text + Version (Zeit). Neuere Version gewinnt, bei
@@ -382,6 +426,23 @@ C_Timer.NewTicker(0.3, function()
     end
 end)
 
+-- Serverweite Gruppensuche: höchstens eine Nachricht alle 2 s, nur über den
+-- offenen Kanal (nie ersatzweise an die Gilde), Gildennachrichten haben Vorrang
+C_Timer.NewTicker(2, function()
+    if #queue > 0 or GetTime() < pauseUntil then return end
+    if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return end
+    local item = table.remove(publicQueue, 1)
+    if not item then return end
+    local chan = ns.PublicChannelId()
+    if not chan then return end
+    local res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan)
+    if Throttled(res) then
+        item.tries = (item.tries or 0) + 1
+        if item.tries <= 5 then table.insert(publicQueue, 1, item) end
+        pauseUntil = GetTime() + 1.5
+    end
+end)
+
 -- Addon-Nachrichten dürfen höchstens 255 Byte lang sein; längere (z. B. Events
 -- mit Beschreibung und Notiz) kamen früher nie an. Sie werden jetzt als
 -- "MP:id·nr·anzahl·stück" verschickt und beim Empfänger wieder zusammengesetzt
@@ -393,6 +454,16 @@ local function Queue(kind, target, ...)
     local parts = { ... }
     for i = 1, select("#", ...) do parts[i] = tostring(parts[i] == nil and "" or parts[i]) end
     local msg = kind .. ":" .. table.concat(parts, SEP)
+    if target == "@PUBLIC" then
+        -- Nie mehrteilig (MP wird im offenen Kanal nicht angenommen); pro Art
+        -- zählt nur der neueste Stand, ältere wartende werden ersetzt
+        if #msg > 255 then return end
+        for i, it in ipairs(publicQueue) do
+            if it.kind == kind then publicQueue[i] = { msg = msg, kind = kind }; return end
+        end
+        table.insert(publicQueue, { msg = msg, kind = kind })
+        return
+    end
     if #msg <= MAX_LEN then
         table.insert(queue, { msg = msg, target = target })
         return

@@ -1,5 +1,25 @@
 # GuildPride Changelog
 
+## 1.13.0
+
+**English**
+- Server-wide Group Finder: see listings from everyone on your server who uses GuildPride, not just your guild
+- Each game version stays separate (Retail, Classic Era, MoP Classic, WoW Forever …): its own channel plus a version tag in every message
+- Your listing is guild-only by default; tick **Server-wide** to also show it on the server. No guild name is ever sent
+- Switch the list between **Guild · Server · All**; server listings show the realm (if different) and, in Retail, the faction. In Classic the other faction is hidden
+- Hide a player with the small button on their listing; `/gp server unblock` shows them again. Players on your ignore list never appear
+- Only group finder listings are accepted from the open channel – guild data (events, polls, milestones, channel key) never leaves the guild
+- New settings: "Server-wide Group Finder" (on) and "Also notify for server-wide listings" (off); `/gp server` toggles the feature
+
+**Deutsch**
+- Serverweite Gruppensuche: Einträge von allen auf dem Server, die GuildPride nutzen – nicht nur aus der eigenen Gilde
+- Jede Spielversion bleibt für sich (Retail, Classic Era, MoP Classic, WoW Forever …): eigener Kanal und Versionskennung in jeder Nachricht
+- Der eigene Eintrag ist standardmäßig nur für die Gilde; mit **Serverweit** erscheint er auch auf dem Server. Ein Gildenname wird nie mitgeschickt
+- Liste umschaltbar: **Gilde · Server · Alle**; Einträge vom Server zeigen den Realm (falls anders) und in Retail die Fraktion. In Classic wird die andere Fraktion ausgeblendet
+- Spieler über den kleinen Knopf am Eintrag ausblenden; `/gp server entsperren` zeigt sie wieder. Spieler auf der Ignorierliste erscheinen nie
+- Aus dem offenen Kanal werden nur Gruppensuche-Einträge angenommen – Gildendaten (Events, Umfragen, Meilensteine, Kanal-Schlüssel) verlassen nie die Gilde
+- Neue Einstellungen: „Serverweite Gruppensuche“ (an) und „Hinweis auch bei Einträgen vom Server“ (aus); `/gp server` schaltet die Funktion um
+
 ## 1.12.5
 
 **English**

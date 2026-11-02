@@ -158,7 +158,8 @@ local ROLES = {
 local ROLE_BY_SPEC = { TANK = "T", HEALER = "H", DAMAGER = "D" }
 
 local entries = {}   -- [Name-Realm] = { kind, note, level, zone, size, max, needs, role, class, t, seen }
-local mine           -- eigener Eintrag
+local publicEntries = {}   -- dasselbe vom ganzen Server (offener Kanal), getrennt von der Gilde
+local mine           -- eigener Eintrag (mine.public: auch serverweit)
 local needs = {}     -- eigene Auswahl: { T = true, H = true }
 local picked         -- gewählte Quest aus dem Questlog: { id, level, name }
 local pickedDungeon  -- gewählter Dungeon: { name, min, max, diff, keyLevel }
@@ -221,6 +222,52 @@ local function UpdateMyKey()
     end
 end
 
+---------------------------------------------------------------------
+-- Serverweit: offener Kanal je Spielversion (GuildPrideEvents.lua), eigene
+-- Nachrichten PLFG/PLFGQ. Erste Felder: Spielversion + Protokoll – passt das
+-- nicht, wird verworfen. Kein Gildenname und keine Gildendaten, nur was die
+-- Suche braucht; immer einteilig (unter 255 Byte).
+---------------------------------------------------------------------
+local PROTO = "1"
+local PUBLIC_MAX = 300
+local FACTION = { Alliance = "A", Horde = "H" }
+local FACTION_ICON = { A = "|TInterface\\FriendsFrame\\PlusManz-Alliance:14:14|t", H = "|TInterface\\FriendsFrame\\PlusManz-Horde:14:14|t" }
+local publicLive = false   -- steht gerade ein eigener Eintrag im offenen Kanal?
+local lastPublicSent = 0
+local pubVerBy = {}        -- wie verBy, nur für den offenen Kanal
+local publicAt = {}        -- ["Name-Realm:Art"] = letzte angenommene Nachricht
+
+-- Auf Bytes kürzen, ohne ein Umlaut-Zeichen (UTF-8) zu zerschneiden
+local function Short(s, max)
+    s = Clean(s, max)
+    if #s == max then s = s:gsub("[\192-\255][\128-\191]*$", "") end
+    return s
+end
+
+local function MyFaction() return FACTION[UnitFactionGroup("player") or ""] or "" end
+
+local function PublicNone()
+    return ns.CLIENT_TAG, PROTO, "none", "", 0, "", 0, 0, "", "", "", stateVer
+end
+
+local function SendPublic()
+    if not GuildPrideDB.publicLFG then return end
+    if mine and mine.public then
+        local size, max = GroupSize()
+        local _, class = UnitClass("player")
+        local q, d = mine.quest, mine.dungeon
+        ns.Queue("PLFG", "@PUBLIC", ns.CLIENT_TAG, PROTO, mine.kind, Short(mine.note, 48), UnitLevel("player"),
+            Short(GetZoneText(), 24), size, max, mine.needs or "", MyRoleKey(), class or "", stateVer,
+            mine.map or 0, mine.keyLevel or 0, q and q.id or 0, q and q.level or 0, q and Short(q.name, 36) or "",
+            d and Short(d.name, 36) or "", d and d.min or 0, d and d.max or 0, d and d.diff or "", d and d.keyLevel or 0,
+            MyFaction())
+        publicLive, lastPublicSent = true, GetServerTime()
+    elseif publicLive then
+        ns.Queue("PLFG", "@PUBLIC", PublicNone())
+        publicLive = false
+    end
+end
+
 local function SendMine(target)
     if mine then
         UpdateMyKey()
@@ -238,6 +285,7 @@ local function SendMine(target)
     elseif not target then
         ns.Queue("LFG", nil, "none", "", 0, "", 0, 0, "", "", "", stateVer)
     end
+    if not target then SendPublic() end
     -- Rundsendung zusätzlich an die Gildenleitung flüstern (Rangrechte)
     if not target and ns.TellLeaders then ns.TellLeaders(SendMine) end
 end
@@ -253,6 +301,43 @@ local function MyEntry()
              questName = mine.quest and mine.quest.name or "", dungeon = mine.dungeon }
 end
 
+-- Eintrag aus einer fremden Nachricht (Gilde oder offener Kanal). Zweiter
+-- Rückgabewert: Chat-Hinweis fällig (neu, höchstens einer pro Spieler und Minute)
+local function BuildEntry(old, sender, kind, note, level, zone, size, max, need, role, class,
+                          map, keyLevel, questId, questLevel, questName, dName, dMin, dMax, dDiff, dKey)
+    local isNew = not old or old.kind ~= kind
+    local now = GetServerTime()
+    local alert = isNew and now - (alertedAt[sender] or 0) >= ALERT_GAP
+    if alert then alertedAt[sender] = now end
+    -- Zahlen begrenzen (fremde Nachricht: keine Riesenwerte oder Kommazahlen)
+    local N = ns.Num
+    local e = { kind = kind, note = Clean(note, 60), level = N(level, 0, 999) or 0, zone = Clean(zone, 40),
+                size = N(size, 1, 40) or 1, max = N(max, 1, 40) or 5, needs = Clean(need, 3),
+                role = Clean(role, 1), class = Clean(class, 20), t = old and old.t or now,
+                map = N(map, 0, 99999) or 0, keyLevel = N(keyLevel, 0, 999) or 0, seen = now,
+                questId = N(questId, 0, 9999999) or 0, questLevel = N(questLevel, 0, 999) or 0,
+                questName = Clean(questName, 50) }
+    dName = Clean(dName, 40)
+    if dName ~= "" then
+        e.dungeon = { name = dName, min = N(dMin, 0, 999) or 0, max = N(dMax, 0, 999) or 0,
+                      diff = Clean(dDiff, 1), keyLevel = N(dKey, 0, 999) or 0 }
+    end
+    if isNew then e.t = now end
+    return e, alert
+end
+
+local function Alert(sender, e)
+    local extra = (" · " .. L["Gruppe %d/%d"]):format(e.size, e.max)
+    if e.kind == "key" then extra = " · " .. KeyLabel(e.map, e.keyLevel) .. extra end
+    if e.questId > 0 then extra = " · " .. QuestLink(e.questId, e.questLevel, e.questName) .. extra end
+    if e.dungeon then extra = " · |cff66ccff" .. DungeonText(e.dungeon) .. "|r" .. extra end
+    if e.needs ~= "" then extra = extra .. " · " .. (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
+    local who = e.public and (Ambiguate(sender, "none") .. " |cff8fb3ff[" .. L["Server"] .. "]|r") or Ambiguate(sender, "guild")
+    ns.Print(("%s%s|r: |cffffd100%s|r (Lvl %d, %s)%s%s"):format(TYPES[e.kind].color, KindLabel(e.kind, e.size),
+        who, e.level, e.zone, extra, e.note ~= "" and (" – " .. e.note) or ""))
+    if GuildPrideDB.sound then PlaySound(SOUNDKIT.TELL_MESSAGE) end
+end
+
 ns.On("LFG", function(payload, sender)
     if sender == ns.Me() then return end
     local kind, note, level, zone, size, max, need, role, class, ver, map, keyLevel, questId, questLevel, questName,
@@ -266,40 +351,101 @@ ns.On("LFG", function(payload, sender)
     if kind == "none" or not TYPES[kind] then
         entries[sender] = nil
     else
-        local old = entries[sender]
-        local isNew = not old or old.kind ~= kind
-        -- Höchstens ein Chat-Hinweis pro Spieler und Minute
-        local now = GetServerTime()
-        local alert = isNew and now - (alertedAt[sender] or 0) >= ALERT_GAP
-        if alert then alertedAt[sender] = now end
-        -- Zahlen begrenzen (fremde Nachricht: keine Riesenwerte oder Kommazahlen)
-        local N = ns.Num
-        local e = { kind = kind, note = Clean(note, 60), level = N(level, 0, 999) or 0, zone = Clean(zone, 40),
-                    size = N(size, 1, 40) or 1, max = N(max, 1, 40) or 5, needs = Clean(need, 3),
-                    role = Clean(role, 1), class = Clean(class, 20), t = old and old.t or GetServerTime(),
-                    map = N(map, 0, 99999) or 0, keyLevel = N(keyLevel, 0, 999) or 0, seen = GetServerTime(),
-                    questId = N(questId, 0, 9999999) or 0, questLevel = N(questLevel, 0, 999) or 0,
-                    questName = Clean(questName, 50) }
-        dName = Clean(dName, 40)
-        if dName ~= "" then
-            e.dungeon = { name = dName, min = N(dMin, 0, 999) or 0, max = N(dMax, 0, 999) or 0,
-                          diff = Clean(dDiff, 1), keyLevel = N(dKey, 0, 999) or 0 }
-        end
-        if isNew then e.t = GetServerTime() end
+        local e, alert = BuildEntry(entries[sender], sender, kind, note, level, zone, size, max, need, role, class,
+            map, keyLevel, questId, questLevel, questName, dName, dMin, dMax, dDiff, dKey)
         entries[sender] = e
-        if alert and GuildPrideDB.helpAlerts ~= false then
-            local extra = (" · " .. L["Gruppe %d/%d"]):format(e.size, e.max)
-            if kind == "key" then extra = " · " .. KeyLabel(e.map, e.keyLevel) .. extra end
-            if e.questId > 0 then extra = " · " .. QuestLink(e.questId, e.questLevel, e.questName) .. extra end
-            if e.dungeon then extra = " · |cff66ccff" .. DungeonText(e.dungeon) .. "|r" .. extra end
-            if e.needs ~= "" then extra = extra .. " · " .. (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
-            ns.Print(("%s%s|r: |cffffd100%s|r (Lvl %d, %s)%s%s"):format(TYPES[kind].color, KindLabel(kind, e.size),
-                Ambiguate(sender, "guild"), e.level, e.zone, extra, e.note ~= "" and (" – " .. e.note) or ""))
-            if GuildPrideDB.sound then PlaySound(SOUNDKIT.TELL_MESSAGE) end
-        end
+        if alert and GuildPrideDB.helpAlerts ~= false then Alert(sender, e) end
     end
     if ns.RefreshUI then ns.RefreshUI() end
 end)
+
+-- Offener Kanal: nur PLFG/PLFGQ mit eigener Spielversion; Ignorierte und
+-- selbst Gesperrte bleiben draußen; pro Absender begrenzt
+local function TooSoon(key, gap)
+    local now = GetTime()
+    if publicAt[key] and now - publicAt[key] < gap then return true end
+    publicAt[key] = now
+    return false
+end
+
+local function Blocked(name)
+    if GuildPrideDB.lfgBlocked and GuildPrideDB.lfgBlocked[name] then return true end
+    local short = Ambiguate(name, "none")
+    if C_FriendList and C_FriendList.IsIgnored then return C_FriendList.IsIgnored(short) and true or false end
+    return IsIgnored and IsIgnored(short) and true or false
+end
+
+-- Kein Platz mehr: der am längsten stumme Eintrag fliegt raus
+local function MakeRoom()
+    local n, oldest, oldestT = 0, nil, math.huge
+    for name, e in pairs(publicEntries) do
+        n = n + 1
+        if e.seen < oldestT then oldest, oldestT = name, e.seen end
+    end
+    if n >= PUBLIC_MAX and oldest then publicEntries[oldest] = nil end
+end
+
+local function OnPublicEntry(payload, sender)
+    local kind, note, level, zone, size, max, need, role, class, ver, map, keyLevel, questId, questLevel, questName,
+          dName, dMin, dMax, dDiff, dKey, faction = strsplit(SEP, payload)
+    ver = ns.Stamp(ver)
+    if ver > 0 then
+        if pubVerBy[sender] and ver < pubVerBy[sender] then return end
+        pubVerBy[sender] = ver
+    end
+    faction = Clean(faction, 1)
+    -- Classic: die andere Fraktion kann man weder einladen noch anfragen
+    if kind == "none" or not TYPES[kind] or (ns.IS_CLASSIC and faction ~= "" and faction ~= MyFaction()) then
+        publicEntries[sender] = nil
+    else
+        if TooSoon(sender .. ":E", 3) then return end
+        local old = publicEntries[sender]
+        if not old then MakeRoom() end
+        local e, alert = BuildEntry(old, sender, kind, note, level, zone, size, max, need, role, class,
+            map, keyLevel, questId, questLevel, questName, dName, dMin, dMax, dDiff, dKey)
+        e.public, e.faction = true, faction
+        publicEntries[sender] = e
+        -- Gildenmitglieder melden sich schon über die Gilde
+        if alert and GuildPrideDB.publicAlerts and not entries[sender] then Alert(sender, e) end
+    end
+    if ns.RefreshUI then ns.RefreshUI() end
+end
+
+function ns.OnPublicMessage(message, sender)
+    if sender == ns.Me() or not GuildPrideDB.publicLFG then return end
+    local kind, value = message:match("^(%u+):(.*)$")
+    if kind ~= "PLFG" and kind ~= "PLFGQ" then return end
+    local tag, proto, rest = value:match("^([^\031]*)\031([^\031]*)\031?(.*)$")
+    if tag ~= ns.CLIENT_TAG or proto ~= PROTO or Blocked(sender) then return end
+    if kind == "PLFG" then return OnPublicEntry(rest, sender) end
+    -- Abfrage: nur wer selbst serverweit eingetragen ist, antwortet – mit
+    -- Zufallsverzögerung, und nicht, wenn der Eintrag gerade erst rausging
+    if TooSoon(sender .. ":Q", 30) or not (mine and mine.public) then return end
+    C_Timer.After(1 + math.random() * 7, function()
+        if mine and mine.public and GetServerTime() - lastPublicSent >= 60 then SendPublic() end
+    end)
+end
+
+-- Option an/aus (Einstellungen, /gp server)
+function ns.PublicLFGChanged()
+    if GuildPrideDB.publicLFG then
+        ns.UpdatePublicChannel()
+        -- nach dem Beitritt den eigenen Eintrag nachliefern
+        if mine and mine.public then C_Timer.After(8, SendPublic) end
+    else
+        -- Eintrag bei den anderen zurückziehen, dann den Kanal verlassen
+        local farewell
+        if publicLive then
+            local parts = { PublicNone() }
+            for i = 1, #parts do parts[i] = tostring(parts[i]) end
+            farewell = "PLFG:" .. table.concat(parts, SEP)
+        end
+        publicLive = false
+        wipe(publicEntries)
+        ns.UpdatePublicChannel(farewell)
+    end
+    if ns.RefreshUI then ns.RefreshUI() end
+end
 
 -- REQ: Login-Abgleich aller Module · LFGQ: jemand hat die Gruppensuche geöffnet
 for _, k in ipairs({ "REQ", "LFGQ" }) do
@@ -310,8 +456,13 @@ end
 
 -- Eigenen Eintrag regelmäßig erneuern bzw. nach Ablauf austragen
 C_Timer.NewTicker(60, function()
-    if not mine then return end
     local now = GetServerTime()
+    -- Einträge vom Server ohne Lebenszeichen und alte Zähler wegräumen
+    for name, e in pairs(publicEntries) do
+        if now - e.t > EXPIRE or now - e.seen > STALE then publicEntries[name] = nil end
+    end
+    for k, t in pairs(publicAt) do if GetTime() - t > 60 then publicAt[k] = nil end end
+    if not mine then return end
     if now - mine.t > EXPIRE then
         mine = nil
         BumpVer()
@@ -344,6 +495,32 @@ local page = ns.AddTab(L["Gruppensuche"], 40)
 local hint = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
 hint:SetPoint("TOPLEFT", 2, -2)
 hint:SetText(L["Titel (optional), Rollen wählen, dann eintragen. Die Gruppengröße wird automatisch übernommen."])
+hint:SetWidth(520); hint:SetJustifyH("LEFT"); hint:SetWordWrap(false)
+
+-- Eigenen Eintrag auch serverweit zeigen (nur wenn die Option an ist)
+local pubCheck = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
+pubCheck:SetSize(22, 22)
+pubCheck:SetPoint("TOPRIGHT", -78, 4)
+local pubLabel = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
+pubLabel:SetPoint("LEFT", pubCheck, "RIGHT", 2, 0)
+pubLabel:SetText(L["Serverweit"])
+pubCheck:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText(L["Serverweit"], 1, 1, 1)
+    GameTooltip:AddLine(L["Eintrag auch allen mit GuildPride auf dem Server zeigen (gleiche Spielversion, ohne Gildenname)."],
+        0.8, 0.8, 0.8, true)
+    GameTooltip:Show()
+end)
+pubCheck:HookScript("OnLeave", function() GameTooltip:Hide() end)
+pubCheck:SetScript("OnClick", function(self)
+    GuildPrideDB.lfgPublic = self:GetChecked() and true or false
+    if mine then
+        mine.public = GuildPrideDB.lfgPublic
+        BumpVer()
+        SendMine()
+    end
+    ns.RefreshUI()
+end)
 
 local noteBox = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
 noteBox:SetSize(120, 22)
@@ -609,7 +786,7 @@ local function Set(kind)
     end
     if kind then
         mine = { kind = kind, note = Clean(noteBox:GetText(), 60), needs = NeedsCode(), quest = picked, dungeon = pickedDungeon,
-                 t = GetServerTime() }
+                 t = GetServerTime(), public = GuildPrideDB.publicLFG and GuildPrideDB.lfgPublic or false }
         UpdateMyKey()
         ns.Print(L["Du bist eingetragen: "] .. KindLabel(kind, (GroupSize())))
     else
@@ -663,6 +840,30 @@ end
 local status = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
 status:SetPoint("TOPLEFT", 6, -82)
 status:SetJustifyH("LEFT")
+
+-- Welche Einträge zeigen: Gilde · Server · Alle (rechts neben dem Status)
+local SCOPES = { { key = "guild", label = L["Gilde"] }, { key = "server", label = L["Server"] }, { key = "all", label = L["Alle"] } }
+local scopeBtns = {}
+local function Scope()
+    if not GuildPrideDB.publicLFG then return "guild" end
+    return GuildPrideDB.lfgScope or "all"
+end
+for i, s in ipairs(SCOPES) do
+    local b = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    b:SetSize(64, 20)
+    b:SetPoint("TOPRIGHT", -2 - (#SCOPES - i) * 66, -76)
+    b:SetText(s.label)
+    b:SetScript("OnClick", function() GuildPrideDB.lfgScope = s.key; page:Refresh() end)
+    scopeBtns[s.key] = b
+end
+local function UpdateScopeButtons(show)
+    local cur = Scope()
+    for key, b in pairs(scopeBtns) do
+        b:SetShown(show)
+        if b.gpBg then b.gpBg:SetTexture(ns.MEDIA .. (key == cur and "nav_active" or "nav")) end
+        if key == cur then b:LockHighlight() else b:UnlockHighlight() end
+    end
+end
 
 -- Liste: Titel groß oben, darunter zwei Zeilen; scrollbar bei vielen Einträgen
 local ROW_H, ROW_W, rows = 60, 624, {}
@@ -719,6 +920,18 @@ local function GetRow(i)
         GameTooltip:Show()
     end)
     r.tell:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    -- Einträge vom Server: Spieler in der Gruppensuche ausblenden
+    r.block = CreateFrame("Button", nil, r)
+    r.block:SetSize(14, 14); r.block:SetPoint("TOPRIGHT", -4, -2)
+    r.block:SetNormalTexture("Interface\\Buttons\\UI-StopButton")
+    r.block:SetHighlightTexture("Interface\\Buttons\\UI-StopButton", "ADD")
+    r.block:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L["Ignorieren"], 1, 1, 1)
+        GameTooltip:AddLine(L["Diesen Spieler in der Gruppensuche ausblenden"], 0.8, 0.8, 0.8)
+        GameTooltip:Show()
+    end)
+    r.block:SetScript("OnLeave", function() GameTooltip:Hide() end)
     rows[i] = r
     return r
 end
@@ -767,6 +980,13 @@ function page:Refresh()
     end
     if pickedDungeon then status:SetText(status:GetText() .. "  ·  |cff66ccff" .. DungeonText(pickedDungeon) .. "|r") end
     if picked then status:SetText(status:GetText() .. "  ·  " .. QuestLink(picked.id, picked.level, picked.name)) end
+    if mine and mine.public then status:SetText(status:GetText() .. "  ·  |cff8fb3ff" .. L["Serverweit"] .. "|r") end
+
+    local publicOn = GuildPrideDB.publicLFG and true or false
+    pubCheck:SetShown(publicOn); pubLabel:SetShown(publicOn)
+    status:SetWidth(publicOn and not keysView and 420 or 620); status:SetWordWrap(false)
+    pubCheck:SetChecked(GuildPrideDB.lfgPublic)
+    UpdateScopeButtons(publicOn and not keysView)
 
     -- Schlüssel der Gilde statt der Suchliste
     bKeys:SetText(keysView and L["Gruppensuche"] or L["Schlüssel der Gilde"])
@@ -787,12 +1007,22 @@ function page:Refresh()
     end
 
     local list = {}
-    if mine then list[1] = { name = ns.Me(), e = MyEntry() } end
+    local scope = Scope()
+    if mine and (scope ~= "server" or mine.public) then list[1] = { name = ns.Me(), e = MyEntry() } end
     for name, e in pairs(entries) do
         if now - e.t > EXPIRE or now - (e.seen or e.t) > STALE then
             entries[name] = nil
-        else
+        elseif scope ~= "server" then
             list[#list + 1] = { name = name, e = e }
+        end
+    end
+    if scope ~= "guild" then
+        for name, e in pairs(publicEntries) do
+            if now - e.t > EXPIRE or now - e.seen > STALE then
+                publicEntries[name] = nil
+            elseif scope == "server" or not entries[name] then   -- bei "Alle" zählt der Gildeneintrag
+                list[#list + 1] = { name = name, e = e }
+            end
         end
     end
     table.sort(list, function(a, b) return a.e.t > b.e.t end)
@@ -811,8 +1041,23 @@ function page:Refresh()
             if item.e.kind == "quest" then r.edge:SetColorTexture(1, 0.82, 0, 1)
             elseif item.e.kind == "key" then r.edge:SetColorTexture(0.64, 0.21, 0.93, 1)
             else r.edge:SetColorTexture(0.44, 0.66, 1, 1) end
-            r.name:SetText(("|cff%s%s|r"):format(hex, Ambiguate(item.name, "guild"))
+            -- Vom Server: Realm zeigen, wenn es ein anderer ist, Fraktion (Retail) und Kennzeichen
+            local shown, mark = Ambiguate(item.name, "guild"), ""
+            if e.public then
+                shown = Ambiguate(item.name, "none")
+                mark = " |cff8fb3ff[" .. L["Server"] .. "]|r"
+                if not ns.IS_CLASSIC and FACTION_ICON[e.faction or ""] then mark = mark .. " " .. FACTION_ICON[e.faction] end
+            end
+            r.name:SetText(("|cff%s%s|r"):format(hex, shown) .. mark
                 .. (e.self and (" |cff999999(" .. L["du"] .. ")|r") or ""))
+            r.block:SetShown(e.public and not e.self)
+            r.block:SetScript("OnClick", function()
+                GuildPrideDB.lfgBlocked = GuildPrideDB.lfgBlocked or {}
+                GuildPrideDB.lfgBlocked[item.name] = true
+                publicEntries[item.name] = nil
+                ns.Print((L["%s wird in der Gruppensuche ausgeblendet (/gp server entsperren hebt das auf)."]):format(shown))
+                page:Refresh()
+            end)
             r.info:SetText(("Lvl %d · %s · |cff999999%s|r"):format(e.level, RoleLabel(e.role), e.zone))
             -- Titel: eigener Text, sonst Dungeon, sonst die verlinkte Quest, sonst die Art des Eintrags
             local hasQuest = (e.questId or 0) > 0 and (e.questName or "") ~= ""
@@ -872,6 +1117,23 @@ page:HookScript("OnShow", function()
     if now - lastAsk < 60 then return end
     lastAsk = now
     ns.Queue("LFGQ", nil, "1")
+    if ns.PublicChannelId and ns.PublicChannelId() then ns.Queue("PLFGQ", "@PUBLIC", ns.CLIENT_TAG, PROTO) end
 end)
+
+-- /gp server: serverweite Gruppensuche an/aus · /gp server entsperren: Ausgeblendete wieder zeigen
+local origSlash = SlashCmdList.GUILDPRIDE
+SlashCmdList.GUILDPRIDE = function(arg)
+    local cmd = strtrim(arg or ""):lower()
+    if cmd == "server" then
+        GuildPrideDB.publicLFG = not GuildPrideDB.publicLFG
+        ns.PublicLFGChanged()
+        ns.Print(L["Serverweite Gruppensuche: "] .. (GuildPrideDB.publicLFG and L["an"] or L["aus"]))
+    elseif cmd == "server entsperren" or cmd == "server unblock" then
+        GuildPrideDB.lfgBlocked = nil
+        ns.Print(L["Ausgeblendete Spieler in der Gruppensuche werden wieder angezeigt."])
+    else
+        origSlash(arg)
+    end
+end
 
 C_Timer.NewTicker(60, function() if ns.RefreshUI then ns.RefreshUI() end end)
