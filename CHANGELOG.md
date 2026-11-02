@@ -1,5 +1,21 @@
 # GuildPride Changelog
 
+## 1.13.3
+
+**English**
+- Right-click **Invite to guild** in every game version: game versions without Blizzard's new menu system get the entry in the classic right-click menu
+- Also in the battleground scoreboard
+- `/gp server status` also shows whether your own messages come back from the channel – this tells you, even with a single character, whether the channel works
+- `/gp test Name-Realm` checks whether GuildPride can reach another player without the open channel: by whisper and through your communities (also across factions). Both sides see what arrived
+- Correction to 1.13.2: Blizzard keeps chat channels separate per faction in Retail too, so server-wide listings only reach players of your own faction
+
+**Deutsch**
+- Rechtsklick **In Gilde einladen** in allen Spielversionen: Spielversionen ohne Blizzards neues Menüsystem bekommen den Eintrag im klassischen Rechtsklick-Menü
+- Auch auf der Punktetafel im Schlachtfeld
+- `/gp server status` zeigt zusätzlich, ob die eigenen Nachrichten aus dem Kanal zurückkommen – so sieht man schon mit einem Charakter, ob der Kanal funktioniert
+- `/gp test Name-Realm` prüft, ob GuildPride einen anderen Spieler ohne den offenen Kanal erreicht: per Flüstern und über deine Communities (auch über die Fraktionsgrenze). Beide Seiten sehen, was angekommen ist
+- Berichtigung zu 1.13.2: Blizzard trennt Chatkanäle auch in Retail nach Fraktion, Einträge vom Server erreichen daher nur Spieler der eigenen Fraktion
+
 ## 1.13.2
 
 **English**

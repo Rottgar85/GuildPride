@@ -337,6 +337,18 @@ local enUS = {
     ["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"] =
         "Sent: %d (last result: %s) · Received: %d · Server listings: %d",
     ["Davon Allianz: %d · Horde: %d"] = "Of these Alliance: %d · Horde: %d",
+    ["Eigene Nachrichten aus dem Kanal zurück: %d"] = "Own messages back from the channel: %d",
+    ["Test per Flüstern an %s gesendet (Ergebnis: %s)."] = "Test whisper sent to %s (result: %s).",
+    ["Keine Antwort von %s auf den Flüster-Test."] = "No reply from %s to the whisper test.",
+    ["Keine Community-Chatkanäle gefunden: Die Community muss im Chatfenster angezeigt werden."] =
+        "No community chat channels found: the community has to be shown in a chat window.",
+    ["Test über Community „%s“ gesendet (Ergebnis: %s)."] = "Test sent via community “%s” (result: %s).",
+    ["Flüstern"] = "whisper",
+    ["Community „%s“"] = "community “%s”",
+    ["Eigene Testnachricht kam zurück (%s)."] = "Own test message came back (%s).",
+    ["Testnachricht von %s angekommen (%s)."] = "Test message from %s arrived (%s).",
+    ["Antwort von %s angekommen (%s) – dieser Weg klappt in beide Richtungen."] =
+        "Reply from %s arrived (%s) – this route works both ways.",
     ["Serverweite Gruppensuche: Diese Spielversion sperrt Addon-Nachrichten in Chatkanälen. Dein Eintrag geht jetzt beim Eintragen raus, Antworten kommen per Flüstern."] =
         "Server-wide Group Finder: this game version blocks addon messages in chat channels. Your listing now goes out when you list yourself, replies come by whisper.",
     ["Weg: Chat beim Klicken + Flüstern"] = "Route: chat on click + whispers",

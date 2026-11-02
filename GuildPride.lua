@@ -597,6 +597,12 @@ f:SetScript("OnEvent", function(_, event, ...)
             if ns.OnPublicMessage then ns.OnPublicMessage(message, sender, true) end
             return
         end
+        -- /gp test: Testnachricht, auch von Fremden – nur Anzeige und Antwort
+        if message:sub(1, 4) == "TST:" then
+            local _, _, _, _, _, _, localID = ...
+            if ns.OnCommTest and not IsSecret(localID) then ns.OnCommTest(message, sender, channel, localID) end
+            return
+        end
         -- Kanal: nur unser abgesicherter Gildenkanal zählt, keine anderen Kanäle
         if channel == "CHANNEL" then
             local _, _, _, _, _, _, localID, chanName = ...

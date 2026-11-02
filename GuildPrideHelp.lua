@@ -450,7 +450,12 @@ end
 
 -- whisper: kam per Flüstern (Antwort auf unsere Abfrage) – dann nur Einträge
 function ns.OnPublicMessage(message, sender, whisper)
-    if sender == ns.Me() or not ns.PublicLFGOn() then return end
+    if not ns.PublicLFGOn() then return end
+    -- Eigene Nachrichten kommen aus dem Kanal zurück: zeigt, dass der Kanal sie durchreicht
+    if sender == ns.Me() then
+        if not whisper then ns.publicStats.echo = ns.publicStats.echo + 1 end
+        return
+    end
     ns.publicStats.received = ns.publicStats.received + 1
     local kind, value = message:match("^(%u+):(.*)$")
     if kind ~= "PLFG" and (kind ~= "PLFGQ" or whisper) then return end
@@ -1195,11 +1200,15 @@ SlashCmdList.GUILDPRIDE = function(arg)
             .. "  ·  " .. (ns.PUBLIC_VIA_CHAT and L["Weg: Chat beim Klicken + Flüstern"] or L["Weg: Addon-Nachrichten"]))
         ns.Print((L["Gesendet: %d (letztes Ergebnis: %s) · Empfangen: %d · Einträge vom Server: %d"]):format(
             st.sent, st.lastRes == nil and "-" or tostring(st.lastRes), st.received, n))
-        -- Retail: beide Fraktionen teilen den Kanal – zeigt, ob die andere ankommt
+        ns.Print((L["Eigene Nachrichten aus dem Kanal zurück: %d"]):format(st.echo))
+        -- Retail: zeigt, ob die andere Fraktion ankommt (Blizzard trennt Chatkanäle nach Fraktion)
         if ns.IS_RETAIL then ns.Print((L["Davon Allianz: %d · Horde: %d"]):format(byFaction.A, byFaction.H)) end
     elseif cmd == "server entsperren" or cmd == "server unblock" then
         GuildPrideDB.lfgBlocked = nil
         ns.Print(L["Ausgeblendete Spieler in der Gruppensuche werden wieder angezeigt."])
+    elseif cmd == "test" or cmd:sub(1, 5) == "test " then
+        -- /gp test [Name-Realm]: Flüstern an den Namen, dazu alle Community-Kanäle
+        ns.CommTest((strtrim(arg):sub(5):gsub("%s", "")))
     else
         origSlash(arg)
     end

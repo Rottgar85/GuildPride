@@ -466,7 +466,11 @@ local function MenuInviteName(ctx)
     return name
 end
 
+local MENU_WHICH = { "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "TARGET", "FOCUS", "FRIEND", "BN_FRIEND",
+                     "CHAT_ROSTER", "WORLD_STATE_SCORE", "COMMUNITIES_MEMBER", "COMMUNITIES_WOW_MEMBER" }
+
 if Menu and Menu.ModifyMenu then
+    -- Neues Menüsystem: Retail und die aktuellen Classic-Clients
     local function AddGuildInvite(_, root, ctx)
         local ok, name = pcall(MenuInviteName, ctx)
         if not (ok and name) then return end
@@ -474,10 +478,28 @@ if Menu and Menu.ModifyMenu then
         root:CreateTitle("GuildPride")
         root:CreateButton(L["In Gilde einladen"], function() ns.InviteToGuild(name) end)
     end
-    for _, which in ipairs({ "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "TARGET", "FOCUS", "FRIEND",
-                             "BN_FRIEND", "CHAT_ROSTER", "COMMUNITIES_MEMBER", "COMMUNITIES_WOW_MEMBER" }) do
+    for _, which in ipairs(MENU_WHICH) do
         Menu.ModifyMenu("MENU_UNIT_" .. which, AddGuildInvite)
     end
+elseif UnitPopup_ShowMenu and UIDropDownMenu_AddButton then
+    -- Altes Aufklappmenü (Clients ohne neues Menüsystem): unten anhängen
+    local wanted = {}
+    for _, which in ipairs(MENU_WHICH) do wanted[which] = true end
+    hooksecurefunc("UnitPopup_ShowMenu", function(dropdown, which, unit, name)
+        if UIDROPDOWNMENU_MENU_LEVEL ~= 1 or not wanted[which] then return end
+        dropdown = dropdown or {}
+        local ok, target = pcall(MenuInviteName, { unit = unit or dropdown.unit, name = name or dropdown.name,
+            server = dropdown.server, chatTarget = dropdown.chatTarget, bnetIDAccount = dropdown.bnetIDAccount })
+        if not (ok and target) then return end
+        if UIDropDownMenu_AddSeparator then UIDropDownMenu_AddSeparator(1) end
+        local info = UIDropDownMenu_CreateInfo()
+        info.text, info.isTitle, info.notCheckable = "GuildPride", true, true
+        UIDropDownMenu_AddButton(info, 1)
+        info = UIDropDownMenu_CreateInfo()
+        info.text, info.notCheckable = L["In Gilde einladen"], true
+        info.func = function() ns.InviteToGuild(target) end
+        UIDropDownMenu_AddButton(info, 1)
+    end)
 end
 
 -- Linksklick: Gildenmitglied -> Detailfenster, Community-Mitglied -> Menü
