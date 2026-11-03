@@ -144,6 +144,8 @@ end
 for _, pair in ipairs({ { bKick, bKickYes }, { bLead, bLeadYes } }) do
     local ask, yes = pair[1], pair[2]
     yes:Hide()
+    -- nach dem Kampf erneut fragen statt die alte Bestätigung zu zeigen
+    yes.gpAfterCombat = function(_, wasShown) yes:Hide(); if wasShown then ask:Show() end end
     ask:SetScript("OnClick", function() if not InCombatLockdown() then ask:Hide(); yes:Show() end end)
     yes:HookScript("OnClick", function()
         C_Timer.After(0.3, function() if not InCombatLockdown() then yes:Hide(); ask:Show() end end)

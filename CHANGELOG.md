@@ -1,5 +1,15 @@
 # GuildPride Changelog
 
+## 1.14.1
+
+**English**
+- **J** no longer opens the Blizzard guild window alongside GuildPride – it is closed right away, even if it shows up a moment later
+- The guild window now stays open in combat and can be opened in combat (J, minimap, /gp) – you can keep reading and writing in the chat. The promote and remove buttons are hidden during combat (Blizzard blocks them there) and come back afterwards. An open confirmation (**Really remove**, **Promote N now**, guild leader handover) asks again after combat, so it never acts on an old selection
+
+**Deutsch**
+- **J** öffnet neben GuildPride nicht mehr das Blizzard-Gildenfenster – es wird sofort wieder geschlossen, auch wenn es sich verzögert öffnet
+- Das Gildenfenster bleibt im Kampf offen und lässt sich im Kampf öffnen (J, Minimap, /gp) – Chat lesen und schreiben geht weiter. Die Knöpfe zum Befördern und Entfernen sind im Kampf ausgeblendet (Blizzard sperrt sie dort) und kommen danach wieder. Eine offene Bestätigung (**Wirklich entfernen**, **Jetzt N befördern**, Gildenleitung übergeben) fragt nach dem Kampf neu, damit sie nie für eine alte Auswahl gilt
+
 ## 1.14.0
 
 **English**

@@ -412,6 +412,7 @@ roster:SetWidth(ROSTER_W)
 -- Nur die sichere Vorlage: eine zweite Vorlage (z. B. UIPanelButtonTemplate)
 -- kann den sicheren Klick-Handler ersetzen – dann passiert beim Klick nichts.
 -- Aussehen deshalb selbst gebaut, im Stil der übrigen Knöpfe.
+local secureButtons = {}
 function ns.SecureMacroButton(parent, w, label)
     local b = CreateFrame("Button", nil, parent, "SecureActionButtonTemplate")
     b:SetSize(w, 24)
@@ -442,8 +443,37 @@ function ns.SecureMacroButton(parent, w, label)
         -- Nach der Aktion die Gildenliste neu laden
         C_Timer.After(1, function() if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end end)
     end)
+    secureButtons[#secureButtons + 1] = b
     return b
 end
+
+-- Sichere Knöpfe machen ihre Elternfenster im Kampf mitgeschützt: dann ließe sich das
+-- Gildenfenster nicht öffnen oder schließen. Deshalb hängen wir sie kurz vor
+-- Kampfbeginn (PLAYER_REGEN_DISABLED ist noch erlaubt) ab und danach wieder an.
+local parking = CreateFrame("Frame")
+parking:Hide()
+local secureState = CreateFrame("Frame")
+secureState:RegisterEvent("PLAYER_REGEN_DISABLED")
+secureState:RegisterEvent("PLAYER_REGEN_ENABLED")
+secureState:SetScript("OnEvent", function(_, event)
+    for _, b in ipairs(secureButtons) do
+        if event == "PLAYER_REGEN_DISABLED" then
+            if not b.gpParked then
+                local points = {}
+                for i = 1, b:GetNumPoints() do points[i] = { b:GetPoint(i) } end
+                b.gpParked = { parent = b:GetParent(), points = points, shown = b:IsShown() }
+                b:Hide(); b:ClearAllPoints(); b:SetParent(parking)
+            end
+        elseif b.gpParked then
+            local s = b.gpParked
+            b.gpParked = nil
+            b:SetParent(s.parent)
+            for _, p in ipairs(s.points) do b:SetPoint(unpack(p)) end
+            -- Bestätigungsknöpfe nicht wieder zeigen: ihr Makro kann im Kampf veraltet sein
+            if b.gpAfterCombat then b.gpAfterCombat(b, s.shown) else b:SetShown(s.shown) end
+        end
+    end
+end)
 
 -- Große Mitgliederliste (statt Chat)
 local members = CreateFrame("Frame", nil, community)
@@ -600,6 +630,11 @@ local bActAsk = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
 bActAsk:SetSize(260, 24); bActAsk:SetPoint("BOTTOMLEFT", 8, 6); bActAsk:Hide()
 local bActYes = ns.SecureMacroButton(members, 260, "")
 bActYes:SetPoint("BOTTOMLEFT", 8, 6); bActYes:Hide()
+-- nach dem Kampf neu aufbauen, damit Makro und Namen zur aktuellen Liste passen
+bActYes.gpAfterCombat = function(self)
+    self:Hide()
+    if members:IsShown() then members:Refresh() end
+end
 local actNames, actKind = {}, "kick"
 
 bActAsk:SetScript("OnClick", function() if not InCombatLockdown() then bActAsk:Hide(); bActYes:Show() end end)
@@ -1435,10 +1470,6 @@ function ns.RefreshUI()
 end
 
 function ns.ToggleUI()
-    if InCombatLockdown() and not frame:IsShown() then
-        ns.Print(L["|cffff4040Im Kampf kann das Gildenfenster nicht geöffnet werden.|r"])
-        return
-    end
     if frame:IsShown() then
         frame:Hide()
         PlaySound(SOUNDKIT.IG_CHARACTER_INFO_CLOSE)
@@ -1455,11 +1486,13 @@ end
 -- Blizzard-Gildenfenster ersetzen
 ---------------------------------------------------------------------
 local bypass = false
+local blockUntil = 0   -- Blizzard-Fenster bis zu diesem Zeitpunkt sofort wieder schließen
 
 -- Blizzard-Gildenfenster je nach Client: Communities (Retail, MoP),
 -- GuildFrame (Cata/Wrath) oder der Gilden-Reiter im Freundesfenster (Era, Anniversary)
-local function HideBlizzardGuild(useHideUIPanel)
-    local hide = useHideUIPanel and HideUIPanel or function(f) f:Hide() end
+local function HideBlizzardGuild()
+    -- Im Kampf kein HideUIPanel: das läuft über den geschützten Fenster-Manager
+    local hide = InCombatLockdown() and function(f) f:Hide() end or HideUIPanel
     local hidden = false
     for _, f in ipairs({ CommunitiesFrame, GuildFrame }) do
         if f and f:IsShown() then hide(f); hidden = true end
@@ -1470,36 +1503,44 @@ end
 
 function ns.OpenBlizzardGuild()
     frame:Hide()
+    blockUntil = 0
     bypass = true
     if ToggleGuildFrame then ToggleGuildFrame() end
     bypass = false
 end
 
+-- Öffnet sich das Blizzard-Fenster verzögert oder ein zweites Mal (Laden bei Bedarf,
+-- Fenster-Manager), schließen wir es beim Anzeigen gleich wieder.
+local hookedShow = {}
+local function HookBlizzardShow()
+    for _, f in ipairs({ CommunitiesFrame, GuildFrame }) do
+        if f and not hookedShow[f] then
+            hookedShow[f] = true
+            f:HookScript("OnShow", function(self)
+                if GetTime() < blockUntil then C_Timer.After(0, HideBlizzardGuild) end
+            end)
+        end
+    end
+end
+HookBlizzardShow()
+local loader = CreateFrame("Frame")
+loader:RegisterEvent("ADDON_LOADED")
+loader:SetScript("OnEvent", HookBlizzardShow)
+
 -- Wir überschreiben ToggleGuildFrame NICHT (würde Taint verursachen),
 -- sondern schließen das Blizzard-Fenster direkt nach dem Öffnen wieder.
+-- Gilt auch im Kampf: unser Fenster ist dann weiter bedienbar (Chat lesen und schreiben).
 if ToggleGuildFrame then
     hooksecurefunc("ToggleGuildFrame", function()
-        -- Im Kampf: jedes Gildenfenster blocken (auch das von Blizzard)
-        if InCombatLockdown() then
-            HideBlizzardGuild()
-            ns.Print(L["|cffff4040Im Kampf kann das Gildenfenster nicht geöffnet werden.|r"])
-            return
-        end
         if bypass or not GuildPrideDB or not GuildPrideDB.replaceGuildFrame then return end
         if not IsInGuild() then return end
-        HideBlizzardGuild(true)
+        blockUntil = GetTime() + 0.5
+        HookBlizzardShow()
+        HideBlizzardGuild()
+        C_Timer.After(0, HideBlizzardGuild)
         ns.ToggleUI()
     end)
 end
-
--- Bei Kampfbeginn offene Fenster schließen
-local combat = CreateFrame("Frame")
-combat:RegisterEvent("PLAYER_REGEN_DISABLED")
-combat:SetScript("OnEvent", function()
-    frame:Hide()
-    if ns.CloseEventDialogs then ns.CloseEventDialogs() end
-    if CommunitiesFrame and CommunitiesFrame:IsShown() then CommunitiesFrame:Hide() end
-end)
 
 -- Für andere Module freigeben
 ns.AddTab = AddTab

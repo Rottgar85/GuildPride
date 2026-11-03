@@ -1259,8 +1259,6 @@ function ns.ShowCreateDialog()
     dlg:Show(); fTitle:SetFocus()
 end
 
-function ns.CloseEventDialogs() dlg:Hide() end
-
 ---------------------------------------------------------------------
 -- Sync beim Login + Erinnerung 15 Min. vorher
 ---------------------------------------------------------------------
