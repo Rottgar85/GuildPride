@@ -1121,15 +1121,16 @@ function page:Refresh()
             local hasQuest = (e.questId or 0) > 0 and (e.questName or "") ~= ""
             local d = e.dungeon
             local lv = d and LevelRange(d.min, d.max) or ""
+            local key = e.kind == "key" and KeyLabel(e.map, e.keyLevel) or ""
             r.title:SetText(e.note ~= "" and e.note
+                or (key ~= "" and key)
                 or (d and ("|cff66ccff" .. DungeonText(d) .. "|r" .. (lv ~= "" and (" |cff999999" .. lv .. "|r") or "")))
                 or (hasQuest and ("|cffffd100" .. e.questName .. "|r"))
                 or (t.color .. KindLabel(e.kind, e.size) .. "|r"))
 
-            -- Unten nur noch Quest, Schlüssel, gesuchte Rollen und Zeit (Art und Dungeon stehen im Titel)
+            -- Unten nur noch Quest, gesuchte Rollen und Zeit (Art, Schlüssel und Dungeon stehen im Titel)
             local parts = {}
             if hasQuest then parts[#parts + 1] = QuestLink(e.questId, e.questLevel, e.questName) end
-            if e.kind == "key" then parts[#parts + 1] = KeyLabel(e.map, e.keyLevel) end
             if e.needs ~= "" then parts[#parts + 1] = (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
             parts[#parts + 1] = "|cff777777" .. Ago(now, e.t) .. "|r"
             r.line2:SetText(table.concat(parts, "  ·  "))

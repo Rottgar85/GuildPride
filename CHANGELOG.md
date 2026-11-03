@@ -4,9 +4,11 @@
 
 **English**
 - Group Finder: the hint at the top is shorter and fits completely again
+- Retail: a keystone offer now shows the dungeon and key level as its title (e.g. "+12 Mists of Tirna Scithe") instead of "Offers a keystone"
 
 **Deutsch**
 - Gruppensuche: Der Hinweis oben ist kürzer und passt wieder vollständig hinein
+- Retail: Ein Schlüssel-Angebot zeigt als Überschrift jetzt Dungeon und Schlüsselstufe (z. B. „+12 Nebel von Tirna Scithe“) statt „Bietet Schlüssel an“
 
 ## 1.14.2
 
