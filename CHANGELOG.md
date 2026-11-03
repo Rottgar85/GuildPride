@@ -5,10 +5,14 @@
 **English**
 - Group Finder: the note field is gone. **Sign up** and **Sign off** replace *Looking for group*, *Quest help* and *Remove me*. With a quest picked (and no dungeon) you are listed as *Needs quest help*, otherwise as *Looking for group*
 - When your group is full, your listing is removed by itself
+- Choosing or clearing Tank, Healer or DPS after signing up updates your listing right away
+- Listings are tidier: the bottom line no longer repeats *Looking for group* and the dungeon; the dungeon's level range now sits next to the title
 
 **Deutsch**
 - Gruppensuche: Das Notizfeld entfällt. **Anmelden** und **Abmelden** ersetzen *Sucht Gruppe*, *Quest-Hilfe* und *Austragen*. Mit gewählter Quest (ohne Dungeon) stehst du als *Braucht Quest-Hilfe* drin, sonst als *Sucht Gruppe*
 - Ist deine Gruppe voll, wird dein Eintrag automatisch gelöscht
+- Wählst du nach dem Anmelden Tank, Heiler oder DD an oder ab, wird dein Eintrag sofort aktualisiert
+- Einträge aufgeräumt: Unten stehen *Sucht Gruppe* und der Dungeon nicht mehr doppelt; der Levelbereich des Dungeons steht jetzt oben beim Titel
 
 ## 1.14.1
 

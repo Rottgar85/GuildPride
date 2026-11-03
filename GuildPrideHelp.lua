@@ -809,6 +809,12 @@ local function UpdateNeedButtons()
         if needs[r.key] then b:LockHighlight() else b:UnlockHighlight() end
     end
 end
+local function NeedsCode()
+    local s = ""
+    for _, r in ipairs(ROLES) do if needs[r.key] then s = s .. r.key end end
+    return s
+end
+
 local prev = needLabel
 for _, r in ipairs(ROLES) do
     local b = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
@@ -818,15 +824,16 @@ for _, r in ipairs(ROLES) do
     b:SetScript("OnClick", function()
         needs[r.key] = not needs[r.key] or nil
         UpdateNeedButtons()
+        -- schon angemeldet: gesuchte Rollen sofort im Eintrag aktualisieren
+        if mine then
+            mine.needs = NeedsCode()
+            BumpVer()
+            SendMine()
+            ns.RefreshUI()
+        end
     end)
     needBtns[r.key] = b
     prev = b
-end
-
-local function NeedsCode()
-    local s = ""
-    for _, r in ipairs(ROLES) do if needs[r.key] then s = s .. r.key end end
-    return s
 end
 
 local function Set(kind)
@@ -1109,18 +1116,18 @@ function page:Refresh()
                 page:Refresh()
             end)
             r.info:SetText(("Lvl %d · %s · |cff999999%s|r"):format(e.level, RoleLabel(e.role), e.zone))
-            -- Titel: eigener Text, sonst Dungeon, sonst die verlinkte Quest, sonst die Art des Eintrags
+            -- Titel: eigener Text (ältere Versionen), sonst Dungeon mit Levelbereich,
+            -- sonst die verlinkte Quest, sonst die Art des Eintrags
             local hasQuest = (e.questId or 0) > 0 and (e.questName or "") ~= ""
             local d = e.dungeon
-            r.title:SetText(e.note ~= "" and e.note or (d and ("|cff66ccff" .. DungeonText(d) .. "|r"))
+            local lv = d and LevelRange(d.min, d.max) or ""
+            r.title:SetText(e.note ~= "" and e.note
+                or (d and ("|cff66ccff" .. DungeonText(d) .. "|r" .. (lv ~= "" and (" |cff999999" .. lv .. "|r") or "")))
                 or (hasQuest and ("|cffffd100" .. e.questName .. "|r"))
                 or (t.color .. KindLabel(e.kind, e.size) .. "|r"))
 
-            local parts = { t.color .. KindLabel(e.kind, e.size) .. "|r" }
-            if d then
-                local lv = LevelRange(d.min, d.max)
-                parts[#parts + 1] = "|cff66ccff" .. DungeonText(d) .. "|r" .. (lv ~= "" and (" |cff999999" .. lv .. "|r") or "")
-            end
+            -- Unten nur noch Quest, Schlüssel, gesuchte Rollen und Zeit (Art und Dungeon stehen im Titel)
+            local parts = {}
             if hasQuest then parts[#parts + 1] = QuestLink(e.questId, e.questLevel, e.questName) end
             if e.kind == "key" then parts[#parts + 1] = KeyLabel(e.map, e.keyLevel) end
             if e.needs ~= "" then parts[#parts + 1] = (L["Sucht noch: %s"]):format(NeedsString(e.needs)) end
