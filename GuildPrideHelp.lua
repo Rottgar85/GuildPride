@@ -548,7 +548,7 @@ local page = ns.AddTab(L["Gruppensuche"], 40)
 
 local hint = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
 hint:SetPoint("TOPLEFT", 2, -2)
-hint:SetText(L["Quest oder Dungeon und Rollen wählen, dann anmelden."])
+hint:SetText(L["Quest oder Dungeon und fehlende Rollen wählen, dann anmelden."])
 hint:SetWidth(520); hint:SetJustifyH("LEFT"); hint:SetWordWrap(false)
 
 -- Eigenen Eintrag auch serverweit zeigen (nur wenn die Option an ist)
