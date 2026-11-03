@@ -1,5 +1,13 @@
 # GuildPride Changelog
 
+## 1.14.3
+
+**English**
+- Group Finder: the hint at the top is shorter and fits completely again
+
+**Deutsch**
+- Gruppensuche: Der Hinweis oben ist kürzer und passt wieder vollständig hinein
+
 ## 1.14.2
 
 **English**
