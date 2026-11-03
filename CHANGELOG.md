@@ -1,5 +1,15 @@
 # GuildPride Changelog
 
+## 1.14.2
+
+**English**
+- Group Finder: the note field is gone. **Sign up** and **Sign off** replace *Looking for group*, *Quest help* and *Remove me*. With a quest picked (and no dungeon) you are listed as *Needs quest help*, otherwise as *Looking for group*
+- When your group is full, your listing is removed by itself
+
+**Deutsch**
+- Gruppensuche: Das Notizfeld entfällt. **Anmelden** und **Abmelden** ersetzen *Sucht Gruppe*, *Quest-Hilfe* und *Austragen*. Mit gewählter Quest (ohne Dungeon) stehst du als *Braucht Quest-Hilfe* drin, sonst als *Sucht Gruppe*
+- Ist deine Gruppe voll, wird dein Eintrag automatisch gelöscht
+
 ## 1.14.1
 
 **English**

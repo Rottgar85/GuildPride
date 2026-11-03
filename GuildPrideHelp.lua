@@ -528,7 +528,16 @@ grp:SetScript("OnEvent", function()
     if not mine or pendingUpdate then return end
     pendingUpdate = C_Timer.NewTimer(2, function()
         pendingUpdate = nil
-        if mine then SendMine(); if ns.RefreshUI then ns.RefreshUI() end end
+        if not mine then return end
+        -- Gruppe voll -> Eintrag löschen
+        local n, max = GroupSize()
+        if n >= max then
+            mine = nil
+            BumpVer()
+            ns.Print(L["Deine Gruppe ist voll – du bist abgemeldet."])
+        end
+        SendMine()
+        if ns.RefreshUI then ns.RefreshUI() end
     end)
 end)
 
@@ -539,7 +548,7 @@ local page = ns.AddTab(L["Gruppensuche"], 40)
 
 local hint = page:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
 hint:SetPoint("TOPLEFT", 2, -2)
-hint:SetText(L["Titel (optional), Rollen wählen, dann eintragen. Die Gruppengröße wird automatisch übernommen."])
+hint:SetText(L["Quest oder Dungeon und Rollen wählen, dann anmelden. Die Gruppengröße wird automatisch übernommen."])
 hint:SetWidth(520); hint:SetJustifyH("LEFT"); hint:SetWordWrap(false)
 
 -- Eigenen Eintrag auch serverweit zeigen (nur wenn die Option an ist)
@@ -571,17 +580,11 @@ pubCheck:SetScript("OnClick", function(self)
     ns.RefreshUI()
 end)
 
-local noteBox = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
-noteBox:SetSize(120, 22)
-noteBox:SetPoint("TOPLEFT", 8, -22)
-noteBox:SetAutoFocus(false)
-noteBox:SetMaxLetters(60)
-
--- Knöpfe neben dem Titelfeld: Quest aus dem Questlog, Dungeon aus der Dungeonliste
+-- Auswahlknöpfe: Quest aus dem Questlog, Dungeon aus der Dungeonliste
 local function PickButton(anchor, width, text, tipTitle, tipText)
     local b = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
     b:SetSize(width, 22)
-    b:SetPoint("LEFT", anchor, "RIGHT", 4, 0)
+    if anchor then b:SetPoint("LEFT", anchor, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", 8, -22) end
     b:SetText(text)
     b:HookScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -592,7 +595,7 @@ local function PickButton(anchor, width, text, tipTitle, tipText)
     b:HookScript("OnLeave", function() GameTooltip:Hide() end)
     return b
 end
-local bQuestPick = PickButton(noteBox, 66, L["Quest"], L["Quest verlinken"], L["Quest aus deinem Questlog wählen"])
+local bQuestPick = PickButton(nil, 66, L["Quest"], L["Quest verlinken"], L["Quest aus deinem Questlog wählen"])
 local bDungeonPick = PickButton(bQuestPick, 74, L["Dungeon"], L["Dungeon wählen"],
     L["Dungeon, Schwierigkeit und Stufe für deinen Eintrag"])
 
@@ -791,11 +794,8 @@ bDungeonPick:SetScript("OnClick", function()
     questPicker:Hide()
     if dungeonPicker:IsShown() then dungeonPicker:Hide() else OpenDungeonPicker() end
 end)
--- Retail: ohne Dungeon-Knopf, das Titelfeld bekommt den Platz
-if not HAS_DUNGEON_PICK then
-    bDungeonPick:Hide()
-    noteBox:SetWidth(198)
-end
+-- Retail: ohne Dungeon-Knopf
+if not HAS_DUNGEON_PICK then bDungeonPick:Hide() end
 
 local needLabel = page:CreateFontString(nil, "OVERLAY", "GPFont_Text")
 needLabel:SetPoint("LEFT", HAS_DUNGEON_PICK and bDungeonPick or bQuestPick, "RIGHT", 16, 0)
@@ -835,7 +835,7 @@ local function Set(kind)
         return
     end
     if kind then
-        mine = { kind = kind, note = Clean(noteBox:GetText(), 60), needs = NeedsCode(), quest = picked, dungeon = pickedDungeon,
+        mine = { kind = kind, note = "", needs = NeedsCode(), quest = picked, dungeon = pickedDungeon,
                  t = GetServerTime(), public = ns.PublicLFGOn() and GuildPrideDB.lfgPublic or false }
         UpdateMyKey()
         ns.Print(L["Du bist eingetragen: "] .. KindLabel(kind, (GroupSize())))
@@ -843,26 +843,23 @@ local function Set(kind)
         mine = nil
         ns.Print(L["Du bist ausgetragen."])
     end
-    noteBox:ClearFocus()
     BumpVer()
     SendMine()
     ns.RefreshUI()
 end
 
 -- Knopfleiste: links eintragen / austragen, rechts die Schlüssel-Ansicht (Retail)
-local bGroup = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bGroup:SetSize(108, 24); bGroup:SetPoint("TOPLEFT", 4, -52); bGroup:SetText(L["Sucht Gruppe"])
-bGroup:SetScript("OnClick", function() ByClick(Set, "group") end)
-local bQuest = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bQuest:SetSize(108, 24); bQuest:SetPoint("LEFT", bGroup, "RIGHT", 4, 0); bQuest:SetText(L["Quest-Hilfe"])
-bQuest:SetScript("OnClick", function() ByClick(Set, "quest") end)
+-- Anmelden: mit gewählter Quest (ohne Dungeon) als Quest-Hilfe, sonst als Gruppensuche
+local bSignUp = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bSignUp:SetSize(108, 24); bSignUp:SetPoint("TOPLEFT", 4, -52); bSignUp:SetText(L["Anmelden"])
+bSignUp:SetScript("OnClick", function() ByClick(Set, (picked and not pickedDungeon) and "quest" or "group") end)
+local bSignOff = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+bSignOff:SetSize(108, 24); bSignOff:SetPoint("LEFT", bSignUp, "RIGHT", 4, 0); bSignOff:SetText(L["Abmelden"])
+bSignOff:SetScript("OnClick", function() ByClick(Set, nil) end)
 local bOffer = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bOffer:SetSize(132, 24); bOffer:SetPoint("LEFT", bQuest, "RIGHT", 4, 0); bOffer:SetText(L["Schlüssel anbieten"])
+bOffer:SetSize(132, 24); bOffer:SetPoint("LEFT", bSignOff, "RIGHT", 4, 0); bOffer:SetText(L["Schlüssel anbieten"])
 bOffer:SetScript("OnClick", function() ByClick(Set, "key") end)
 bOffer:SetShown(TYPES.key ~= nil)
-local bClear = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-bClear:SetSize(92, 24); bClear:SetPoint("LEFT", TYPES.key and bOffer or bQuest, "RIGHT", 4, 0); bClear:SetText(L["Austragen"])
-bClear:SetScript("OnClick", function() ByClick(Set, nil) end)
 
 -- Ansicht "Schlüssel der Gilde" (nur Retail, siehe GuildPrideKeys.lua)
 local keysView = false
