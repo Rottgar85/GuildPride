@@ -1,5 +1,13 @@
 # GuildPride Changelog
 
+## 1.14.5
+
+**English**
+- Contains the changes listed under 1.14.4, which was not uploaded because of a GitHub error. No further changes
+
+**Deutsch**
+- Enthält die Änderungen von 1.14.4, die wegen eines GitHub-Fehlers nicht hochgeladen wurde. Keine weiteren Änderungen
+
 ## 1.14.4
 
 **English**
