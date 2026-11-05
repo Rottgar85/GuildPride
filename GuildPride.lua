@@ -46,6 +46,7 @@ ns.HAS_COMMUNITIES = not ns.IS_CLASSIC
 if ns.IS_RETAIL then ns.CLIENT_TAG = "R"
 elseif toc >= 16000 and toc < 20000 then ns.CLIENT_TAG = "F"
 else ns.CLIENT_TAG = "C" .. math.floor(toc / 10000) end
+ns.IS_FOREVER = ns.CLIENT_TAG == "F"
 -- Serverweite Gruppensuche: in WoW Forever per Addon-Nachricht im offenen Kanal.
 -- Classic sperrt Addon-Nachrichten in Chatkanälen (seit 1.13.3): dort geht der
 -- eigene Eintrag als normale Chatnachricht in den Kanal (erlaubt Blizzard nur
@@ -96,9 +97,58 @@ function ns.On(kind, fn)
     table.insert(ns.Handlers[kind], fn)
 end
 ns.SEP = "\031"
-function ns.Me()
-    return UnitName("player") .. "-" .. (GetNormalizedRealmName() or "")
+-- WoW Forever: Vor- plus Nachname ist regionsweit eindeutig, ein Realm gehört
+-- nicht dazu. Das Spiel liefert den Nachnamen teils dort, wo sonst der Realm
+-- steht („Reon-Strobek“). Einheitliche Form hier: „Reon Strobek“.
+local function ForeverName(name)
+    local first, rest = name:match("^([^%-]+)%-(.+)$")
+    if not first then return name end
+    if first:find(" ", 1, true) or rest == GetNormalizedRealmName() or rest == GetRealmName() then return first end
+    local surname = rest:match("^[^%-]+")
+    return surname and (first .. " " .. surname) or first
 end
+
+local function Normalize(name)
+    if not name then return nil end
+    if ns.IS_FOREVER then return ForeverName(name) end
+    if not name:find("-") then
+        name = name .. "-" .. (GetNormalizedRealmName() or "")
+    end
+    return name
+end
+ns.Normalize = Normalize
+
+function ns.Me()
+    if ns.IS_FOREVER and UnitFullName then
+        local name, surname = UnitFullName("player")
+        if name then return Normalize((surname and surname ~= "") and (name .. "-" .. surname) or name) end
+    end
+    return Normalize(UnitName("player"))
+end
+
+-- Gildeninfo und Nachricht des Tages sind in manchen Zuständen für Addons
+-- gesperrt: Schon das Lesen löst dann ADDON_ACTION_BLOCKED aus (kein Lua-Fehler,
+-- pcall hilft nicht). Darum vorher prüfen und den letzten Stand weiterzeigen.
+local RESTRICTIONS = { "Combat", "Encounter", "ChallengeMode", "PvPMatch", "Map" }
+function ns.GuildTextLocked()
+    if InCombatLockdown() then return true end
+    local R, T = C_RestrictedActions, Enum and Enum.AddOnRestrictionType
+    if not (R and R.IsAddOnRestrictionActive and T) then return false end
+    for _, key in ipairs(RESTRICTIONS) do
+        if T[key] and R.IsAddOnRestrictionActive(T[key]) then return true end
+    end
+    return false
+end
+
+local lastMotd = ""
+function ns.GuildMOTD()
+    if not GetGuildRosterMOTD or ns.GuildTextLocked() then return lastMotd end
+    local text = GetGuildRosterMOTD()
+    if issecretvalue and issecretvalue(text) then return lastMotd end
+    lastMotd = text or ""
+    return lastMotd
+end
+
 -- Blizzard-Befehl für sichere Makros (/gpromote, /gremove …): bevorzugt einen
 -- Namen ohne Umlaute – im deutschen Client lief /gbefördern im Makro ins Leere,
 -- /gentfernen dagegen schon. Sonst der englische Name.
@@ -120,14 +170,6 @@ end
 local function IconString(size)
     local path = "Interface\\AddOns\\GuildPride\\Media\\logo_small"
     return ("|T%s:%d|t"):format(path, size or 14)
-end
-
-local function Normalize(name)
-    if not name then return nil end
-    if not name:find("-") then
-        name = name .. "-" .. (GetNormalizedRealmName() or "")
-    end
-    return name
 end
 
 -- Fremde Eingaben entschärfen: Steuerzeichen und "|" (Farb-, Link- und
@@ -555,7 +597,7 @@ f:SetScript("OnEvent", function(_, event, ...)
         GuildPrideDB.btagQueue, GuildPrideDB.btagAuto = nil, nil
         GuildPrideDB.btagAsked, GuildPrideDB.btagSent, GuildPrideDB.btagDone = nil, nil, nil
         C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
-        ns.AddonUsers[Normalize(UnitName("player"))] = true
+        ns.AddonUsers[ns.Me()] = true
 
     elseif event == "PLAYER_LOGIN" then
         if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end

@@ -244,6 +244,7 @@ local enUS = {
     ["|cffff4040Aus der Community entfernen|r"] = "|cffff4040Remove from community|r",
     ["Befehl gesendet: |cffffd100%s|r"] = "Command sent: |cffffd100%s|r",
     ["|cffff4040WoW hat die Aktion blockiert (%s). Bitte im Blizzard-Gildenfenster ausführen.|r"] = "|cffff4040WoW blocked the action (%s). Please use Blizzard's guild window instead.|r",
+    ["|cffff4040WoW hat eine Aktion blockiert (%s).|r"] = "|cffff4040WoW blocked an action (%s).|r",
     ["Beitreten"] = "Join",
     ["Einladen"] = "Invite",
     ["In Gruppe"] = "In group",

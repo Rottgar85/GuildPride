@@ -84,13 +84,19 @@ copyBox:SetScript("OnEscapePressed", function() CopyMode(false) end)
 bCopy:SetScript("OnClick", function() CopyMode(not copyScroll:IsShown()) end)
 page:HookScript("OnHide", function() CopyMode(false) end)
 
+local lastInfo   -- letzter lesbarer Stand, wird in gesperrten Zuständen weitergezeigt
 local function InfoText()
+    -- Gesperrt: Schon der Aufruf würde „Aktion blockiert“ auslösen
+    if ns.GuildTextLocked() then return lastInfo end
     local t
-    if C_GuildInfo and C_GuildInfo.GetInfoText then t = C_GuildInfo.GetInfoText()
-    elseif GetGuildInfoText then t = GetGuildInfoText() end
+    -- Classic/Forever: C_GuildInfo.GetInfoText ist dort geschützt (ADDON_ACTION_BLOCKED),
+    -- deshalb zuerst die alte Funktion verwenden
+    if GetGuildInfoText then t = GetGuildInfoText()
+    elseif C_GuildInfo and C_GuildInfo.GetInfoText then t = C_GuildInfo.GetInfoText() end
     -- Midnight: im Kampf kann der Text gesperrt ("secret") sein
-    if issecretvalue and issecretvalue(t) then return nil end
-    return t or ""
+    if issecretvalue and issecretvalue(t) then return lastInfo end
+    lastInfo = t or ""
+    return lastInfo
 end
 
 local function CanEdit()

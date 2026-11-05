@@ -22,8 +22,30 @@ local function DB()
     return ns.GuildTable("events")   -- je Gilde getrennt
 end
 
+-- Addon-Flüstern an Spieler, die inzwischen offline sind, erzeugt sonst
+-- "Momentan ist kein Spieler mit dem Namen ... online." im Chat
+local whisperedAt = {}
+function ns.SendAddonMsg(prefix, msg, channel, target)
+    if channel == "WHISPER" and target then
+        whisperedAt[target] = GetTime()
+        whisperedAt[(target:match("^[^-]+")) or target] = GetTime()
+    end
+    return C_ChatInfo.SendAddonMessage(prefix, msg, channel, target)
+end
+local AddSystemFilter = ChatFrame_AddMessageEventFilter or (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter)
+if AddSystemFilter and ERR_CHAT_PLAYER_NOT_FOUND_S then
+    local pattern = "^" .. ERR_CHAT_PLAYER_NOT_FOUND_S:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%%%s", "(.+)") .. "$"
+    AddSystemFilter("CHAT_MSG_SYSTEM", function(_, _, text)
+        if issecretvalue and issecretvalue(text) then return false end
+        local who = text and text:match(pattern)
+        if not who then return false end
+        local t = whisperedAt[who] or whisperedAt[(who:match("^[^-]+")) or who]
+        return t ~= nil and GetTime() - t < 10
+    end)
+end
+
 local function Me()
-    return UnitName("player") .. "-" .. (GetNormalizedRealmName() or "")
+    return ns.Me()
 end
 
 local function CanManage()
@@ -113,7 +135,7 @@ local function Relay(msg)
     local id = math.random(10, 99) .. relayId
     local res
     for _, r in ipairs(Relays()) do
-        res = C_ChatInfo.SendAddonMessage(PREFIX, "RLY:" .. id .. SEP .. msg, "WHISPER", r)
+        res = ns.SendAddonMsg(PREFIX, "RLY:" .. id .. SEP .. msg, "WHISPER", r)
     end
     return res
 end
@@ -121,7 +143,7 @@ end
 -- Immer zuerst direkt an die Gilde. Nur wenn das scheitert oder der eigene
 -- Rang ausdrücklich nicht schreiben darf, zusätzlich über andere weiterleiten.
 local function SendToGuild(msg)
-    local res = C_ChatInfo.SendAddonMessage(PREFIX, msg, "GUILD")
+    local res = ns.SendAddonMsg(PREFIX, msg, "GUILD")
     if Throttled(res) then return res end
     if Failed(res) or not ns.CanSpeakGuild() then
         Relay(msg)
@@ -250,7 +272,7 @@ function ns.UpdatePublicChannel(farewell)
         wipe(publicQueue)
         if farewell then
             if ns.PUBLIC_VIA_CHAT then SendChat((farewell:gsub(SEP, "~")), "CHANNEL", nil, (GetChannelName(name)))
-            else C_ChatInfo.SendAddonMessage(PREFIX, farewell, "CHANNEL", (GetChannelName(name))) end
+            else ns.SendAddonMsg(PREFIX, farewell, "CHANNEL", (GetChannelName(name))) end
         end
         if LeaveChannelByName then LeaveChannelByName(name) end
     end
@@ -293,8 +315,7 @@ chatIn:SetScript("OnEvent", function(_, _, text, sender, _, chanName, _, _, _, c
     if not ns.PUBLIC_VIA_CHAT or not ns.OnPublicMessage then return end
     if type(text) ~= "string" or type(sender) ~= "string" or sender == "" then return end
     if not (ns.IsPublicChannel(chanIndex, chanBase) or ns.IsPublicChannel(nil, chanName)) then return end
-    if not sender:find("-", 1, true) then sender = sender .. "-" .. (GetNormalizedRealmName() or "") end
-    ns.OnPublicMessage((text:gsub("~", SEP)), sender)
+    ns.OnPublicMessage((text:gsub("~", SEP)), ns.Normalize(sender))
 end)
 
 local chanFrame = CreateFrame("Frame")
@@ -323,9 +344,9 @@ local function SendKey(target)
     if not (s and s.k) then return end
     local msg = "CKY:" .. s.k .. SEP .. s.v
     if target then
-        C_ChatInfo.SendAddonMessage(PREFIX, msg, "WHISPER", target)
+        ns.SendAddonMsg(PREFIX, msg, "WHISPER", target)
     elseif IsInGuild() then
-        C_ChatInfo.SendAddonMessage(PREFIX, msg, "GUILD")
+        ns.SendAddonMsg(PREFIX, msg, "GUILD")
     end
 end
 
@@ -444,12 +465,12 @@ C_Timer.NewTicker(0.3, function()
     if not item then return end
     local res
     if item.target == "@OFFICER" then
-        if IsInGuild() then res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "OFFICER") end
+        if IsInGuild() then res = ns.SendAddonMsg(PREFIX, item.msg, "OFFICER") end
     elseif item.target == "@CHANNEL" then
         -- Nur über den abgesicherten Kanal; ohne Kanal-Schlüssel über die Gilde
         local chan = ns.DataChannelId()
         if chan then
-            res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan)
+            res = ns.SendAddonMsg(PREFIX, item.msg, "CHANNEL", chan)
         elseif IsInGuild() then
             res = SendToGuild(item.msg)
         end
@@ -458,14 +479,14 @@ C_Timer.NewTicker(0.3, function()
         -- (alle im Kanal bleiben so auf demselben Stand), sonst flüstern
         local chan = ns.DataChannelId()
         if chan and InChannel(item.target) then
-            res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan)
+            res = ns.SendAddonMsg(PREFIX, item.msg, "CHANNEL", chan)
         else
-            res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.target)
+            res = ns.SendAddonMsg(PREFIX, item.msg, "WHISPER", item.target)
         end
     elseif IsInGuild() then
         res = SendToGuild(item.msg)
         local chan = ns.DataChannelId()
-        if chan and not Throttled(res) then C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan) end
+        if chan and not Throttled(res) then ns.SendAddonMsg(PREFIX, item.msg, "CHANNEL", chan) end
     end
     if Throttled(res) then
         item.tries = (item.tries or 0) + 1
@@ -484,11 +505,11 @@ C_Timer.NewTicker(2, function()
     local res
     if item.to then
         -- Antwort auf eine Abfrage: direkt an den Fragenden
-        res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "WHISPER", item.to)
+        res = ns.SendAddonMsg(PREFIX, item.msg, "WHISPER", item.to)
     else
         local chan = ns.PublicChannelId()
         if not chan or ns.PUBLIC_VIA_CHAT then return end
-        res = C_ChatInfo.SendAddonMessage(PREFIX, item.msg, "CHANNEL", chan)
+        res = ns.SendAddonMsg(PREFIX, item.msg, "CHANNEL", chan)
     end
     local st = ns.publicStats
     st.sent, st.lastRes, st.lastAt = st.sent + 1, res, GetTime()
@@ -992,9 +1013,10 @@ local function GroupNames()
     local n = GetNumGroupMembers()
     for i = 1, n do
         local unit = IsInRaid() and ("raid" .. i) or (i == n and "player" or ("party" .. i))
-        local name, r = UnitName(unit)
+        -- Forever: Der zweite Wert von UnitFullName ist der Nachname
+        local name, r = (ns.IS_FOREVER and UnitFullName or UnitName)(unit)
         if name and not (issecretvalue and issecretvalue(name)) then
-            out[name .. "-" .. ((r and r ~= "") and r or realm)] = true
+            out[ns.Normalize(name .. "-" .. ((r and r ~= "") and r or realm))] = true
         end
     end
     out[Me()] = true

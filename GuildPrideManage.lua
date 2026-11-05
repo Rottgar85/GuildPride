@@ -114,9 +114,21 @@ end
 local blocked = CreateFrame("Frame")
 blocked:RegisterEvent("ADDON_ACTION_BLOCKED")
 blocked:RegisterEvent("ADDON_ACTION_FORBIDDEN")
+local blockedAt = {}
 blocked:SetScript("OnEvent", function(_, _, addon, func)
     if addon ~= ADDON then return end
-    ns.Print((L["|cffff4040WoW hat die Aktion blockiert (%s). Bitte im Blizzard-Gildenfenster ausführen.|r"]):format(tostring(func)))
+    func = tostring(func)
+    -- Dieselbe Sperre höchstens einmal pro Minute melden
+    local now = GetTime()
+    if blockedAt[func] and now - blockedAt[func] < 60 then return end
+    blockedAt[func] = now
+    -- UNKNOWN(): WoW nennt keine Funktion. Das Event kommt noch während des
+    -- Aufrufs, der Stapel zeigt also die auslösende Zeile unseres Codes.
+    local file, line = debugstack(2):match("(GuildPride%w*%.lua)[^:]*:(%d+)")
+    local shown = file and ("%s, %s:%s"):format(func, file, line) or func
+    local text = func == "UNKNOWN()" and L["|cffff4040WoW hat eine Aktion blockiert (%s).|r"]
+        or L["|cffff4040WoW hat die Aktion blockiert (%s). Bitte im Blizzard-Gildenfenster ausführen.|r"]
+    ns.Print(text:format(shown))
 end)
 
 local bNotes   = Button(180, L["Notizen bearbeiten"], 16, -186)

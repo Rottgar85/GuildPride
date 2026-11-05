@@ -1,5 +1,19 @@
 # GuildPride Changelog
 
+## 1.14.4
+
+**English**
+- WoW Forever: character names with a surname are now handled correctly. GuildPride no longer adds the realm to them, which caused "No player named ..." messages and failed whispers
+- Guild info and message of the day are no longer read while the game restricts them for addons (combat, boss encounters, keystones, PvP). The last known text stays visible
+- "No player named ..." messages caused by GuildPride's own background whispers to players who just went offline are hidden
+- Blocked action messages appear at most once a minute per action and name the line of code that caused them
+
+**Deutsch**
+- WoW Forever: Charakternamen mit Nachnamen werden jetzt richtig behandelt. GuildPride hängt keinen Realm mehr an, das führte zu „Momentan ist kein Spieler mit dem Namen ...“ und fehlgeschlagenem Flüstern
+- Gildeninfo und Nachricht des Tages werden nicht mehr gelesen, solange das Spiel sie für Addons sperrt (Kampf, Bosskämpfe, Schlüsseldungeons, PvP). Der letzte bekannte Text bleibt sichtbar
+- „Momentan ist kein Spieler ...“-Meldungen durch GuildPrides eigenes Flüstern im Hintergrund an gerade offline gegangene Spieler werden ausgeblendet
+- Meldungen über blockierte Aktionen erscheinen pro Aktion höchstens einmal pro Minute und nennen die auslösende Codezeile
+
 ## 1.14.3
 
 **English**

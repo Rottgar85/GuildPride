@@ -109,7 +109,7 @@ local function Secret(v) return issecretvalue and issecretvalue(v) or false end
 local function MentionsMe(text, who)
     if Secret(text) or type(text) ~= "string" then return false end
     local me = UnitName("player")
-    if not me or who == me then return false end
+    if not me or who == me or (who and ns.Normalize(who) == ns.Me()) then return false end
     return text:lower():find(me:lower(), 1, true) ~= nil
 end
 
@@ -180,7 +180,7 @@ local function AuthorName(clubId, a)
     local name = a.name
     if IsUnknown(name) then name = nil end
     if not name and a.isSelf == true then
-        name = UnitName("player") .. "-" .. (GetNormalizedRealmName() or "")
+        name = ns.Me()
     end
     local guid = (not Secret(a.guid) and type(a.guid) == "string" and a.guid ~= "") and a.guid or nil
     if not name and guid then name = RosterName(guid) end
@@ -721,7 +721,7 @@ else
         local e = { t = time(), ch = ch, who = Ambiguate(author, "guild"), full = author, text = text, class = class }
         table.insert(list, e)
         while #list > MAX_SAVED do table.remove(list, 1) end
-        if author ~= ns.Me() and Ambiguate(author, "guild") ~= UnitName("player") then MarkUnread(ch) end
+        if ns.Normalize(author) ~= ns.Me() and Ambiguate(author, "guild") ~= UnitName("player") then MarkUnread(ch) end
         if pane:IsVisible() and channel.kind == ch then
             msgs:AddMessage(Line(e.t, e.who, e.full, ClassHex(nil, e.class), e.text, ch))
         end

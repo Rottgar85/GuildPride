@@ -369,7 +369,7 @@ function overview:Refresh()
     for _, e in ipairs(ns.GuildLog()) do if e.t >= cutoff then week = week + 1 end end
     tiles[3].value:SetText(week)
 
-    local text = GetGuildRosterMOTD and GetGuildRosterMOTD() or ""
+    local text = ns.GuildMOTD()
     motd:SetText(text ~= "" and text or L["|cff888888Keine Nachricht gesetzt.|r"])
     weekText:SetText(WeekSummary())
     local lines = {}
@@ -486,8 +486,7 @@ local source   -- nil = Gilde, sonst { id, name, bnet } einer Community
 local HAS_CLUB = C_Club and C_Club.GetSubscribedClubs and C_Club.GetClubMembers and C_Club.GetMemberInfo
 
 local function FullName(name)
-    if name and not name:find("-") then name = name .. "-" .. (GetNormalizedRealmName() or "") end
-    return name
+    return ns.Normalize(name)
 end
 
 -- Communities (ohne Gilde), nach Name sortiert
