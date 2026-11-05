@@ -507,12 +507,63 @@ local function CanInviteToClub(clubId)
     return priv and priv.canSendInvitation
 end
 
+-- Forever verweigert Addons die Gildeneinladung auf jedem Weg: den Aufruf
+-- (ADDON_ACTION_FORBIDDEN), ein /ginvite aus einem sicheren Makro und auch eine
+-- vorausgefüllte Chat-Eingabe (die bleibt dann bis zum /reload „verseucht“, also
+-- nicht ChatFrame_OpenChat benutzen!). Nur selbst eingegeben geht /ginvite noch,
+-- deshalb eine Zeile zum Kopieren.
+local inviteCopy
+local function ShowInviteCopy(name)
+    if not inviteCopy then
+        local f = CreateFrame("Frame", "GuildPrideInviteCopy", UIParent, "BackdropTemplate")
+        f:SetSize(360, 130)
+        f:SetPoint("CENTER", 0, 120)
+        f:SetFrameStrata("DIALOG")
+        f:EnableMouse(true)
+        f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 2 })
+        f:SetBackdropColor(0.07, 0.05, 0.04, 0.97)
+        ns.Paint(f, "accent")
+        tinsert(UISpecialFrames, "GuildPrideInviteCopy")   -- Esc schließt
+
+        local text = f:CreateFontString(nil, "OVERLAY", "GPFont_TextSmall")
+        text:SetPoint("TOPLEFT", 14, -14); text:SetPoint("TOPRIGHT", -14, -14)
+        text:SetJustifyH("LEFT")
+        text:SetText(L["WoW: Forever lässt Addons nicht in die Gilde einladen. Zeile mit Strg+C kopieren, im Chat mit Strg+V einfügen und Enter drücken."])
+
+        local box = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+        box:SetSize(326, 22); box:SetPoint("BOTTOM", 0, 44)
+        box:SetAutoFocus(false)
+        -- Nur zum Kopieren: Änderungen werden zurückgesetzt
+        box:SetScript("OnTextChanged", function(self)
+            if self:GetText() ~= f.line then self:SetText(f.line); self:HighlightText() end
+        end)
+        box:SetScript("OnEscapePressed", function() f:Hide() end)
+        box:SetScript("OnEnterPressed", function() f:Hide() end)
+        -- Strg+C schließt das Fenster, kurz verzögert, damit der Text noch kopiert wird
+        box:HookScript("OnKeyDown", function(_, key)
+            if key == "C" and IsControlKeyDown() then C_Timer.After(0.1, function() f:Hide() end) end
+        end)
+        f.box = box
+
+        local close = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        close:SetSize(110, 24); close:SetPoint("BOTTOMRIGHT", -14, 12); close:SetText(L["Abbrechen"])
+        close:SetScript("OnClick", function() f:Hide() end)
+        inviteCopy = f
+    end
+    inviteCopy.line = "/ginvite " .. name
+    inviteCopy.box:SetText(inviteCopy.line)
+    inviteCopy:Show()
+    inviteCopy.box:SetFocus()
+    inviteCopy.box:HighlightText()
+end
+
 -- Einladen: in die Gilde bzw. in eine Charakter-Community
 function ns.InviteToGuild(name)
     if not IsInGuild() then ns.Print(L["Du bist in keiner Gilde."]); return end
     if CanGuildInvite and not CanGuildInvite() then
         ns.Print(L["|cffff4040Du darfst keine Spieler in die Gilde einladen.|r"]); return
     end
+    if ns.IS_FOREVER then ShowInviteCopy(name); return end
     if C_GuildInfo and C_GuildInfo.Invite then C_GuildInfo.Invite(name) else GuildInvite(name) end
     ns.Print((L["Gildeneinladung an |cffffd100%s|r gesendet."]):format(name))
 end
@@ -613,7 +664,8 @@ local inviteBox = CreateFrame("EditBox", nil, members, "InputBoxTemplate")
 inviteBox:SetSize(170, 22); inviteBox:SetPoint("BOTTOMLEFT", 8, 6)
 inviteBox:SetAutoFocus(false); inviteBox:SetMaxLetters(60)
 local inviteHint = inviteBox:CreateFontString(nil, "OVERLAY", "GPFont_Muted")
-inviteHint:SetPoint("LEFT", 2, 0); inviteHint:SetText(L["Name-Realm"])
+local INVITE_HINT = ns.IS_FOREVER and L["Vor- und Nachname"] or L["Name-Realm"]
+inviteHint:SetPoint("LEFT", 2, 0); inviteHint:SetText(INVITE_HINT)
 inviteBox:SetScript("OnTextChanged", function(self) inviteHint:SetShown(self:GetText() == "") end)
 local inviteBtn = CreateFrame("Button", nil, members, "UIPanelButtonTemplate")
 inviteBtn:SetSize(210, 24); inviteBtn:SetPoint("LEFT", inviteBox, "RIGHT", 8, 0)
@@ -699,15 +751,38 @@ local function SkippedRanks()
     return GuildPrideDB.kickSkip[guild]
 end
 
-local function DoInvite()
-    local name = strtrim(inviteBox:GetText() or "")
+local function DoInvite(box)
+    local name = strtrim(box:GetText() or "")
     if name == "" then ns.Print(L["Bitte einen Charakternamen eingeben."]); return end
     if source then ns.InviteToClub(source, name) else ns.InviteToGuild(name) end
-    inviteBox:SetText(""); inviteBox:ClearFocus()
+    box:SetText(""); box:ClearFocus()
 end
-inviteBtn:SetScript("OnClick", DoInvite)
+inviteBtn:SetScript("OnClick", function() DoInvite(inviteBox) end)
 inviteBox:SetScript("OnEnterPressed", DoInvite)
 inviteBox:SetScript("OnEscapePressed", inviteBox.ClearFocus)
+
+-- Dasselbe unter der kompakten Mitgliederliste neben dem Chat, nur mit Einladerecht
+local rosterInviteBox = CreateFrame("EditBox", nil, roster, "InputBoxTemplate")
+rosterInviteBox:SetSize(118, 22); rosterInviteBox:SetPoint("BOTTOMLEFT", 10, 5)
+rosterInviteBox:SetAutoFocus(false); rosterInviteBox:SetMaxLetters(60)
+local rosterInviteHint = rosterInviteBox:CreateFontString(nil, "OVERLAY", "GPFont_MutedSmall")
+rosterInviteHint:SetPoint("LEFT", 2, 0); rosterInviteHint:SetText(INVITE_HINT)
+rosterInviteBox:SetScript("OnTextChanged", function(self) rosterInviteHint:SetShown(self:GetText() == "") end)
+rosterInviteBox:SetScript("OnEnterPressed", DoInvite)
+rosterInviteBox:SetScript("OnEscapePressed", rosterInviteBox.ClearFocus)
+local rosterInviteBtn = CreateFrame("Button", nil, roster, "UIPanelButtonTemplate")
+rosterInviteBtn:SetSize(72, 24); rosterInviteBtn:SetPoint("LEFT", rosterInviteBox, "RIGHT", 4, 0)
+rosterInviteBtn:SetText(L["Einladen"])
+rosterInviteBtn:SetScript("OnClick", function() DoInvite(rosterInviteBox) end)
+
+local function UpdateRosterInvite()
+    local can
+    if source then can = not source.bnet and CanInviteToClub(source.id)
+    else can = IsInGuild() and (not CanGuildInvite or CanGuildInvite()) end
+    rosterInviteBox:SetShown(can and true or false)
+    rosterInviteBtn:SetShown(can and true or false)
+    rosterHolder:SetPoint("BOTTOMRIGHT", -2, can and 32 or 4)
+end
 
 -- Beide Listen neu zeichnen (nur die sichtbare)
 local function RefreshMembers()
@@ -1124,6 +1199,7 @@ end
 
 function roster:Refresh()
     rosterOffline:SetChecked(showOffline)
+    UpdateRosterInvite()
     local data, total, online = MemberData({ offline = showOffline })
     rosterCount:SetText((L["%d online · %d offline"]):format(online, total - online))
     for i, m in ipairs(data) do

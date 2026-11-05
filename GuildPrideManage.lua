@@ -434,7 +434,9 @@ local function MenuInviteName(ctx)
         if UnitIsInMyGuild and UnitIsInMyGuild(unit) then return nil end
         local theirs = UnitFactionGroup(unit)
         if Plain(theirs) and theirs ~= UnitFactionGroup("player") then return nil end
-        name = FullName(UnitName(unit))
+        -- Forever: UnitFullName liefert den Nachnamen, UnitName nicht verlässlich
+        if ns.IS_FOREVER and UnitFullName then name = FullName(UnitFullName(unit))
+        else name = FullName(UnitName(unit)) end
     elseif ctx.bnetIDAccount and C_BattleNet and C_BattleNet.GetAccountInfoByID then
         -- Battle.net-Freund: nur, wenn er gerade in derselben Spielversion spielt
         local info = C_BattleNet.GetAccountInfoByID(ctx.bnetIDAccount)
@@ -446,7 +448,8 @@ local function MenuInviteName(ctx)
         name = FullName(ctx.chatTarget) or FullName(ctx.name, ctx.server)
     end
     if not name or ns.IsGuildMember(name) then return nil end
-    return name
+    -- Forever: „Reon-Strobek“ oder „Reon Strobek-Realm“ -> „Reon Strobek“
+    return ns.IS_FOREVER and ns.Normalize(name) or name
 end
 
 local MENU_WHICH = { "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "TARGET", "FOCUS", "FRIEND", "BN_FRIEND",

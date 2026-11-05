@@ -1,5 +1,17 @@
 # GuildPride Changelog
 
+## 1.14.6
+
+**English**
+- WoW Forever: the game no longer lets addons invite players to the guild. "Invite to guild" now opens a small box with a ready-made `/ginvite Name` line: copy it with Ctrl+C, paste it into chat with Ctrl+V and press Enter
+- Invite to guild is now also available in the "Guild & Chat" view, below the compact member list, if you have the right to invite
+- WoW Forever: the right-click "Invite to guild" entry now uses the correct first and last name, and the name field says so instead of "Name-Realm"
+
+**Deutsch**
+- WoW Forever: Das Spiel lässt Addons nicht mehr in die Gilde einladen. „In Gilde einladen“ öffnet jetzt ein kleines Fenster mit der fertigen Zeile `/ginvite Name`: mit Strg+C kopieren, im Chat mit Strg+V einfügen und Enter drücken
+- In die Gilde einladen geht jetzt auch in der Ansicht „Gilde & Chat“ unter der kompakten Mitgliederliste, wenn du das Einladerecht hast
+- WoW Forever: Der Rechtsklick-Eintrag „In Gilde einladen“ nutzt jetzt den richtigen Vor- und Nachnamen, und das Namensfeld zeigt das statt „Name-Realm“
+
 ## 1.14.5
 
 **English**
