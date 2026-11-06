@@ -1,5 +1,17 @@
 # GuildPride Changelog
 
+## 1.14.7
+
+**English**
+- WoW Forever: the invite button next to the name field now invites to the guild with one click, no copying needed. GuildPride uses a macro called "GuildPride Einladen" for this, which takes up one macro slot
+- WoW Forever: the right-click entry and the Enter key show one short confirmation with an invite button, because the game only allows this from a direct button click
+- Guild chat: the guild master now has a filled crown in front of their name, and members of the next rank (officers) have an empty crown
+
+**Deutsch**
+- WoW Forever: Der Einladen-Knopf neben dem Namensfeld lädt jetzt mit einem Klick in die Gilde ein, Kopieren ist nicht mehr nötig. GuildPride nutzt dafür ein Makro namens „GuildPride Einladen“, das einen Makroplatz belegt
+- WoW Forever: Der Rechtsklick-Eintrag und die Enter-Taste zeigen eine kurze Abfrage mit Einladen-Knopf, weil das Spiel die Einladung nur über einen direkten Knopfdruck zulässt
+- Gildenchat: Der Gildenmeister hat jetzt eine gefüllte Krone vor dem Namen, Mitglieder des nächsten Rangs (Offiziere) eine leere Krone
+
 ## 1.14.6
 
 **English**
