@@ -113,8 +113,12 @@ local function MentionsMe(text, who)
     return text:lower():find(me:lower(), 1, true) ~= nil
 end
 
-local function Line(t, who, full, hex, text, kind)
+local Crown   -- unten, braucht IsUnknown
+
+local function Line(t, who, full, hex, text, kind, guid)
     local name = full and ("|Hplayer:%s|h|cff%s%s|r|h"):format(full, hex, who) or ("|cff%s%s|r"):format(hex, who)
+    -- Rang-Krone nur im Gilden- und Offizierschat: in Communities sagt der Gildenrang nichts aus
+    if full and (kind == "GUILD" or kind == "OFFICER") then name = Crown(full, guid) .. name end
     -- Erwähnung: » davor und goldene Schrift
     if MentionsMe(text, who) then
         return ("|cff777777%s|r  |cffffd100»|r %s: |cffffd100%s|r"):format(date("%H:%M", t), name, text)
@@ -133,6 +137,81 @@ end
 local function IsUnknown(name)
     if Secret(name) or type(name) ~= "string" then return true end
     return name == "" or name == "?" or name == UNKNOWNOBJECT or name == UNKNOWN
+end
+
+---------------------------------------------------------------------
+-- Rang-Kronen: gefüllt für den Gildenmeister, leer (nur Umriss) für Offiziere
+---------------------------------------------------------------------
+-- Gildenmeister ist immer Rangindex 0. Einen festen Rang "Offizier" kennt WoW
+-- nicht, darum gilt Rangindex 1, der höchste Rang unter dem Gildenmeister. Das
+-- Recht "Offizierschat lesen" taugt nicht als Regel: Die Rechte ANDERER Ränge
+-- kann nur die Gildenleitung lesen (siehe ns.CanSpeakGuild), normale Mitglieder
+-- sähen also keine oder andere Kronen als die Offiziere. Der Rangindex steht für
+-- alle gleich in der Gildenliste, und der Rangname wäre in jeder Gilde anders.
+local CROWN_FILE = { [0] = "crown_gm", [1] = "crown_officer" }
+-- Style "Schmiede" zeigt Grafiken in Originalfarben: dort Gold, sonst die
+-- Überschriftenfarbe des Styles (die Grafiken selbst sind farblos)
+local CROWN_GOLD = { 1.00, 0.82, 0.30 }
+
+local crownByGuid, crownByName, crownByBare = {}, {}, {}
+local crownsDirty = true
+
+-- Liest die Gildenliste; true, wenn sich an den Kronen etwas geändert hat
+local function LoadCrowns()
+    crownsDirty = false
+    local guids, names, bare = {}, {}, {}
+    local inGuild = IsInGuild()
+    -- Manche Clients liefern Offline-Mitglieder nur, wenn das eingeschaltet ist:
+    -- bekannte Kronen dann behalten, sonst verlöre der Verlauf sie beim Ausloggen
+    if inGuild and GetGuildRosterShowOffline and not GetGuildRosterShowOffline() then
+        for k, v in pairs(crownByGuid) do guids[k] = v end
+        for k, v in pairs(crownByName) do names[k] = v end
+    end
+    for i = 1, inGuild and GetNumGuildMembers() or 0 do
+        local n, _, rank, _, _, _, _, _, _, _, _, _, _, _, _, _, g = GetGuildRosterInfo(i)
+        if not IsUnknown(n) then
+            -- Geschützte Werte (Midnight) nie als Schlüssel benutzen oder vergleichen
+            local file = not Secret(rank) and CROWN_FILE[rank] or nil
+            local key = ns.Normalize(n)
+            names[key] = file
+            if not Secret(g) and type(g) == "string" then guids[g] = file end
+            -- Name ohne Realm bzw. Nachname; bei zwei Treffern false = nicht eindeutig
+            local base = key:match("^[^%- ]+")
+            if base then
+                if bare[base] == nil then bare[base] = file or false else bare[base] = false end
+            end
+        end
+    end
+    local changed = false
+    for k, v in pairs(names) do
+        if crownByName[k] ~= v then changed = true end
+    end
+    for k in pairs(crownByName) do
+        if names[k] == nil then changed = true end
+    end
+    crownByGuid, crownByName, crownByBare = guids, names, bare
+    return changed
+end
+
+local function CrownMarkup(file)
+    local theme = ns.Theme()
+    local c = theme.tint and theme.heading or CROWN_GOLD
+    -- Höhe 0 = so hoch wie die Schrift, wächst also mit der Chat-Schriftgröße mit
+    return ("|T%s%s:0:0:0:0:64:64:0:64:0:64:%d:%d:%d|t "):format(ns.MEDIA, file,
+        math.floor(c[1] * 255), math.floor(c[2] * 255), math.floor(c[3] * 255))
+end
+
+-- Krone zum Absender, "" für alle anderen und für Absender außerhalb der Liste.
+-- Reihenfolge: GUID (eindeutig), Name mit Realm bzw. Forever-Nachname (ns.Normalize),
+-- zuletzt ein nackter Name, falls er in der Gilde nur einmal vorkommt.
+function Crown(full, guid)
+    if crownsDirty then LoadCrowns() end
+    local file = not Secret(guid) and type(guid) == "string" and crownByGuid[guid] or nil
+    if not file and not IsUnknown(full) then
+        file = crownByName[ns.Normalize(full)]
+        if not file and not full:find("[%- ]") then file = crownByBare[full] end
+    end
+    return file and CrownMarkup(file) or ""
 end
 
 -- GUID -> Name aus der Gildenliste (für Gilden- und Offizierschat).
@@ -228,7 +307,7 @@ end
 local function EntryLine(e, kind)
     -- Ohne Namen: Blizzard liefert keine Namen für Leute, die nicht mehr im Club sind
     if not e.who then return Line(e.t, L["Ehemaliges Mitglied"], nil, "888888", e.text, kind) end
-    return Line(e.t, e.who, e.full, e.hex, e.text, kind)
+    return Line(e.t, e.who, e.full, e.hex, e.text, kind, e.guid)
 end
 
 -- Verlauf je Kanal lokal merken: der Server liefert nach dem Login oft nur
@@ -727,6 +806,24 @@ else
         end
     end)
 end
+
+-- Kronen aktuell halten: Die Gildenliste kommt nach dem Öffnen oft erst später an,
+-- und Ränge ändern sich. Neu zeichnen nur bei echter Änderung, denn das springt
+-- im Verlauf nach unten und die Liste meldet sich sehr oft.
+local crownWatch = CreateFrame("Frame")
+crownWatch:RegisterEvent("GUILD_ROSTER_UPDATE")
+crownWatch:RegisterEvent("GUILD_RANKS_UPDATE")
+crownWatch:SetScript("OnEvent", function()
+    if not pane:IsVisible() or channel.kind == "CLUB" then
+        crownsDirty = true
+    elseif LoadCrowns() then
+        SafeRedraw()
+    end
+end)
+-- Style gewechselt: Kronen in der neuen Farbe zeigen
+ns.OnThemeChanged(function()
+    if pane:IsVisible() then SafeRedraw() end
+end)
 
 -- Gespeicherte Chat-Schriftgröße nach dem Login anwenden
 local lf = CreateFrame("Frame")
