@@ -2,7 +2,7 @@
 
 [English](#english) · [Deutsch](#deutsch) · [Screenshots](#screenshots)
 
-World of Warcraft addon for Retail (Midnight 12.x), WoW Forever and all Classic versions · Author: Rottgar85 · CurseForge project 1771937
+World of Warcraft addon for Retail (Midnight 12.x) and all Classic versions · Author: Rottgar85 · CurseForge project 1771937. For WoW Forever, use [GuildPride Forever](https://github.com/Rottgar85/GuildPride-Forever)
 
 ---
 
@@ -31,7 +31,7 @@ World of Warcraft addon for Retail (Midnight 12.x), WoW Forever and all Classic 
 - **Version check**: a reminder when a newer version is in use in the guild
 - **Search and sort members**: search by name, rank, note or zone; click a column header (name, level, rank, last online) to sort, click again to reverse
 - **Unread counts and mentions**: guild, officer and community buttons, the community menu and the Guild & Chat tab show how many messages are unread. Lines with your name get a » and gold text
-- **Guild keystones** (Retail only): everyone with GuildPride shares keystone and M+ rating. "Guild keystones" in the group finder, the key in the member list and tooltip. Hidden in WoW Forever
+- **Guild keystones** (Retail only): everyone with GuildPride shares keystone and M+ rating. "Guild keystones" in the group finder, the key in the member list and tooltip
 - **This week** on the overview: level-ups, raid kills, M+ bests (Retail), achievements, mounts, joins, departures and the busiest member
 - **For officers**: "Inactive" filter (14 to 180 days or your own number, ranks can be excluded) with **remove inactive** in a few clicks, **promotion by time** (rule: rank A → rank B after N days in the rank), automatic welcome message, weekly recurring events and attendance tracking
 - **Minimap button**, a custom style with your own color, and adjustable window size, opacity and chat font
@@ -51,7 +51,7 @@ World of Warcraft addon for Retail (Midnight 12.x), WoW Forever and all Classic 
 - Guild data also travels over a hidden, password-protected background channel of your guild, so syncing does not depend on guild chat rank rights.
 
 ### Installation
-Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns` (Classic: `_classic_`, `_classic_era_`, `_anniversary_`; WoW Forever: `_forever_`), or install it with the CurseForge app. Works in Retail, WoW Forever and all Classic versions.
+Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns` (Classic: `_classic_`, `_classic_era_`, `_anniversary_`), or install it with the CurseForge app. Works in Retail and all Classic versions.
 
 ---
 
@@ -80,7 +80,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns` (C
 - **Versionscheck**: Erinnerung, wenn in der Gilde eine neuere Version genutzt wird
 - **Mitglieder suchen und sortieren**: Suche nach Name, Rang, Notiz oder Zone; Klick auf einen Spaltenkopf (Name, Level, Rang, zuletzt online) sortiert, erneuter Klick dreht die Richtung
 - **Ungelesen und Erwähnungen**: Gilde, Offiziere, Communities, das Community-Menü und der Reiter Gilde & Chat zeigen, wie viele Nachrichten ungelesen sind. Zeilen mit deinem Namen bekommen ein » und goldene Schrift
-- **Schlüssel der Gilde** (nur Retail): alle mit GuildPride teilen Schlüsselstein und M+-Wertung. „Schlüssel der Gilde“ in der Gruppensuche, der Schlüssel in Mitgliederliste und Tooltip. In WoW Forever ausgeblendet
+- **Schlüssel der Gilde** (nur Retail): alle mit GuildPride teilen Schlüsselstein und M+-Wertung. „Schlüssel der Gilde“ in der Gruppensuche, der Schlüssel in Mitgliederliste und Tooltip
 - **Diese Woche** auf der Übersicht: Level-Aufstiege, Raid-Siege, M+-Bestwerte (Retail), Erfolge, Reittiere, Beitritte, Abgänge und das fleißigste Mitglied
 - **Für Offiziere**: Filter „Inaktive“ (14 bis 180 Tage oder eigene Zahl, Ränge ausnehmbar) mit **Inaktive entfernen** in wenigen Klicks, **Beförderung nach Zeit** (Regel: Rang A → Rang B nach N Tagen im Rang), automatische Begrüßung, wöchentlich wiederholte Events und Anwesenheit
 - **Minimap-Knopf**, eigener Style mit selbst gewählter Farbe, dazu einstellbare Fenstergröße, Deckkraft und Chat-Schrift
@@ -100,7 +100,7 @@ Copy the `GuildPride` folder to `World of Warcraft/_retail_/Interface/AddOns` (C
 - Gildendaten laufen zusätzlich über einen versteckten, passwortgeschützten Hintergrund-Kanal eurer Gilde, damit der Abgleich nicht von Rangrechten im Gildenchat abhängt.
 
 ### Installation
-Den Ordner `GuildPride` nach `World of Warcraft/_retail_/Interface/AddOns` kopieren (Classic: `_classic_`, `_classic_era_`, `_anniversary_`; WoW Forever: `_forever_`) oder über die CurseForge-App installieren. Läuft in Retail, WoW Forever und allen Classic-Versionen.
+Den Ordner `GuildPride` nach `World of Warcraft/_retail_/Interface/AddOns` kopieren (Classic: `_classic_`, `_classic_era_`, `_anniversary_`) oder über die CurseForge-App installieren. Läuft in Retail und allen Classic-Versionen.
 
 ---
 

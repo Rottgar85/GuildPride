@@ -1,5 +1,13 @@
 # GuildPride Changelog
 
+## 1.14.8
+
+**English**
+- WoW Forever now has its own addon: **GuildPride Forever** (CurseForge project 1788777). This addon no longer supports WoW Forever, so please switch there
+
+**Deutsch**
+- WoW Forever hat jetzt ein eigenes Addon: **GuildPride Forever** (CurseForge-Projekt 1788777). Dieses Addon unterstützt WoW Forever nicht mehr, bitte dort wechseln
+
 ## 1.14.7
 
 **English**
